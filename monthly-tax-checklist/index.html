@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monthly Tax & Filing Checklist</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --border: #e1e5ea;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-light: #dbeafe;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --amber: #d97706;
+    --amber-light: #fef3c7;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Sarabun", "Noto Sans Thai", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: linear-gradient(135deg, #1d4ed8, #2563eb);
+    color: white;
+    padding: 20px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  header h1 {
+    margin: 0 0 4px 0;
+    font-size: 20px;
+  }
+  header .sub {
+    font-size: 13px;
+    opacity: 0.9;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-top: 14px;
+  }
+  .controls select, .controls input {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+  }
+  .controls button {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .controls button:hover { background: rgba(255,255,255,0.32); }
+
+  .progress-wrap {
+    max-width: 1100px;
+    margin: 18px auto 0;
+    padding: 0 20px;
+  }
+  .progress-bar-bg {
+    background: var(--border);
+    border-radius: 999px;
+    height: 10px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    background: var(--green);
+    height: 100%;
+    transition: width .3s;
+  }
+  .progress-label {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  main {
+    max-width: 1100px;
+    margin: 18px auto 60px;
+    padding: 0 20px;
+  }
+
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .toolbar input[type=text] {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 240px;
+    font-size: 14px;
+  }
+  .toolbar select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    background: white;
+    color: var(--text);
+  }
+  .filter-chip {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .filter-chip.active {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .company-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .company-card.complete {
+    border-color: var(--green);
+  }
+  .company-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    gap: 10px;
+  }
+  .company-name {
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .company-name .short {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 13px;
+    margin-left: 6px;
+  }
+  .company-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .badge {
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge.done { background: var(--green-light); color: var(--green); }
+  .badge.pending { background: var(--amber-light); color: var(--amber); }
+  .badge.none { background: #f1f5f9; color: var(--muted); }
+
+  .chevron {
+    transition: transform .2s;
+    color: var(--muted);
+  }
+  .company-card.open .chevron { transform: rotate(180deg); }
+
+  .items {
+    display: none;
+    padding: 0 16px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .company-card.open .items { display: block; }
+
+  .item-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--border);
+    flex-wrap: wrap;
+  }
+  .item-row:last-child { border-bottom: none; }
+
+  .item-row input[type=checkbox] {
+    width: 19px;
+    height: 19px;
+    margin-top: 2px;
+    accent-color: var(--green);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .item-label {
+    font-weight: 600;
+    font-size: 14px;
+    min-width: 90px;
+  }
+  .item-status {
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    min-width: 112px;
+  }
+  .item-status.status-done { background: var(--green-light); color: var(--green); border-color: var(--green); }
+  .item-status.status-pending { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
+  .item-status.status-review { background: var(--amber-light); color: var(--amber); border-color: var(--amber); }
+
+  .status-pill {
+    font-size: 11px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .status-pill.status-done { background: var(--green-light); color: var(--green); }
+  .status-pill.status-pending { background: #fee2e2; color: #dc2626; }
+  .status-pill.status-review { background: var(--amber-light); color: var(--amber); }
+
+  .report-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .report-tab {
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #f8fafc;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .report-tab.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+  .report-summary {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .report-summary-card {
+    flex: 1;
+    min-width: 100px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .report-summary-card .num { font-size: 22px; font-weight: 700; }
+  .report-summary-card .lbl { font-size: 12px; color: var(--muted); }
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .report-table th, .report-table td {
+    text-align: left;
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .report-table th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .report-empty { padding: 20px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  .report-view-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .report-view-tab {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .report-view-tab.active { border-color: var(--accent); background: var(--accent); color: white; }
+
+  .chart-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .chart-row .chart-label {
+    min-width: 120px;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .chart-bar-bg {
+    flex: 1;
+    background: #f1f5f9;
+    border-radius: 6px;
+    height: 22px;
+    overflow: hidden;
+    display: flex;
+  }
+  .chart-bar-fill {
+    height: 100%;
+    transition: width .3s;
+    display: flex;
+    align-items: center;
+  }
+  .chart-row .chart-count {
+    min-width: 36px;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .stack-segment {
+    height: 100%;
+  }
+  .chart-legend {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .chart-legend span.dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+
+  .add-task-row {
+    display: flex;
+    gap: 8px;
+    padding: 10px 0 4px;
+  }
+  .add-task-row input {
+    flex: 1;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .add-task-row button {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .item-row.custom-task { background: #f5f3ff; border-radius: 6px; padding: 10px 8px; }
+
+  .filing-checkbox-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 10px 0;
+  }
+  .filing-checkbox-grid label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 9px;
+    cursor: pointer;
+  }
+  .modal-box label.field-label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin: 10px 0 4px;
+    font-weight: 600;
+  }
+  .modal-box input[type=text] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .item-note {
+    flex: 1;
+    min-width: 160px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .item-assignee {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    min-width: 130px;
+    background: white;
+    color: var(--text);
+  }
+  .item-assignee.unassigned {
+    color: var(--muted);
+    border-color: var(--amber);
+    background: var(--amber-light);
+  }
+  .item-date {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    min-width: 140px;
+  }
+  .item-row.checked .item-label { color: var(--green); }
+  .item-row.checked input[type=checkbox] { }
+  .item-row.extra-task { background: #fafaf5; border-radius: 6px; padding: 10px 8px; }
+
+  .assignee-pill {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: white;
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 90%;
+    max-width: 420px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  .modal-box.wide { max-width: 760px; }
+  .modal-box h2 {
+    margin: 0 0 12px 0;
+    font-size: 17px;
+  }
+  .employee-edit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .employee-edit-row span {
+    color: var(--muted);
+    font-size: 13px;
+    width: 22px;
+    flex-shrink: 0;
+  }
+  .employee-edit-row input {
+    flex: 1;
+    padding: 7px 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .modal-actions button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .modal-actions .btn-primary { background: var(--accent); color: white; }
+  .modal-actions .btn-secondary { background: #f1f5f9; color: var(--text); }
+
+  .no-items {
+    padding: 14px 0;
+    color: var(--muted);
+    font-size: 13px;
+    font-style: italic;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 20px;
+  }
+
+  @media (max-width: 600px) {
+    .item-label { min-width: 70px; font-size: 13px; }
+    .company-name { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>✅ Monthly Tax & Filing Checklist</h1>
+  <div class="sub">Workflow checklist รายเดือนสำหรับงานยื่นภาษี / ประกันสังคม ของแต่ละบริษัท (อ้างอิงจาก sheet "รายเดือน 2569")</div>
+  <div class="controls">
+    <select id="monthSelect"></select>
+    <button id="resetMonthBtn">รีเซ็ตเดือนนี้</button>
+    <button id="checkAllVisibleBtn">เลือกทั้งหมดที่แสดง</button>
+    <button id="exportBtn">Export JSON</button>
+    <button id="manageStaffBtn">👤 จัดการพนักงาน</button>
+    <button id="addCustomerBtn">➕ เพิ่มลูกค้า</button>
+    <button id="statusReportBtn">📊 รายงานสถานะงาน</button>
+  </div>
+  <div class="progress-wrap" style="padding:0; margin-top:14px;">
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label">
+      <span id="progressText">0 / 0 รายการ</span>
+      <span id="progressPct">0%</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="ค้นหาชื่อบริษัท...">
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <div class="filter-chip active" data-filter="all">ทั้งหมด</div>
+      <div class="filter-chip" data-filter="pending">ยังไม่เสร็จ</div>
+      <div class="filter-chip" data-filter="review">รอตรวจสอบ</div>
+      <div class="filter-chip" data-filter="done">เสร็จแล้ว</div>
+    </div>
+    <select id="assigneeFilter">
+      <option value="">ทุกคน (กรองตามผู้รับผิดชอบ)</option>
+    </select>
+  </div>
+
+  <div id="companyList"></div>
+</main>
+
+<footer>
+  ข้อมูลรายการที่ต้องยื่นต่อบริษัทคำนวณจากประวัติการยื่นจริงใน workbook ต้นฉบับ (ภงด.1/2/3/53, ภพ.36/30, ประกันสังคม, กยศ.) — สถานะถูกบันทึกไว้ในเบราว์เซอร์นี้ (localStorage) ต่อเดือน
+</footer>
+
+<div class="modal-overlay" id="staffModalOverlay">
+  <div class="modal-box">
+    <h2>จัดการรายชื่อพนักงาน (7 คน)</h2>
+    <div id="employeeEditList"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="staffCancelBtn">ปิด</button>
+      <button class="btn-primary" id="staffSaveBtn">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="reportModalOverlay">
+  <div class="modal-box wide">
+    <h2 id="reportTitle">รายงานสถานะงาน</h2>
+    <div class="report-view-tabs" id="reportViewTabs">
+      <div class="report-view-tab active" data-view="table">📋 ตาราง</div>
+      <div class="report-view-tab" data-view="chartStatus">📈 กราฟแยกตามสถานะ</div>
+      <div class="report-view-tab" data-view="chartAssignee">📈 กราฟแยกตามพนักงาน</div>
+    </div>
+    <div class="report-summary" id="reportSummary"></div>
+    <div class="report-tabs" id="reportTabs"></div>
+    <div id="reportBody"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="reportCloseBtn">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="customerModalOverlay">
+  <div class="modal-box">
+    <h2>เพิ่มลูกค้าใหม่</h2>
+    <label class="field-label">ชื่อบริษัท *</label>
+    <input type="text" id="newCompanyName" placeholder="เช่น บจ. ตัวอย่าง จำกัด">
+    <label class="field-label">ชื่อย่อ (ถ้ามี)</label>
+    <input type="text" id="newCompanyShort" placeholder="เช่น ABC">
+    <label class="field-label">รายการภาษี/ประกันสังคมที่ต้องยื่น</label>
+    <div class="filing-checkbox-grid" id="newCompanyFilings"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="customerCancelBtn">ปิด</button>
+      <button class="btn-primary" id="customerSaveBtn">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE_COMPANIES = [
+  {"company": "บจ.โปรฟาวด์ คอนซัลติ้ง แอนด์ เซอร์วิส", "short": null, "filings": ["ภงด.1", "ภงด.53", "ภพ.30", "ประกันสังคม"]},
+  {"company": "หจก.เนเจอร์อาร์ต", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.30", "ประกันสังคม"]},
+  {"company": "บจ. ไวท์เฮฟเว่นเบิร์ด", "short": null, "filings": ["ภพ.30"]},
+  {"company": "Challenge Sailcloth Inc.", "short": null, "filings": ["ภงด.1", "ภงด.53", "ภพ.30", "ประกันสังคม"]},
+  {"company": "บจ. อี-โคร อโกรโปรเทค", "short": null, "filings": ["ภงด.53", "ภพ.30"]},
+  {"company": "บจ. เรืองอาภัสร์การเกษตร", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ประกันสังคม", "กยศ."]},
+  {"company": "บจ. คาลไซท์ วัลลีย์ซ", "short": null, "filings": ["ภพ.30"]},
+  {"company": "บจ. เพอร์เฟคท์คอมบิเนชั่น", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.30", "ประกันสังคม"]},
+  {"company": "บจ. เพอร์เฟคท์คอมบิเนชั่น สาขาเอเชียทีค", "short": null, "filings": []},
+  {"company": "บจ. แอด ภาคิน เทค", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.30", "ประกันสังคม"]},
+  {"company": "บจ. ทริปเปิลพี อาร์ ซี", "short": null, "filings": []},
+  {"company": "บจ. แทนไท กรีนคลีน", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ประกันสังคม", "กยศ."]},
+  {"company": "บจ. ออการ์นิค", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ประกันสังคม", "กยศ."]},
+  {"company": "บจ. เอส เอช รา ริง", "short": null, "filings": []},
+  {"company": "บจ.  สยามเอ็นไวรอนเม้นท์ สแค็พส์", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.30", "ประกันสังคม"]},
+  {"company": "บจ.สยามรุ่งไกล", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.30"]},
+  {"company": "บจ. ชำนาญการช่าง ภูเก็ต", "short": null, "filings": ["ภพ.30", "ประกันสังคม"]},
+  {"company": "บจ. สินทรัพย์สินอินทร์อำนวย", "short": null, "filings": ["ภงด.3", "ภงด.53"]},
+  {"company": "บจ. บางพลีรุ่งเรืองดี", "short": null, "filings": ["ประกันสังคม"]},
+  {"company": "บจ. กรีนฟู๊ดแฟมิลี่", "short": null, "filings": ["ภงด.3", "ภพ.30", "ประกันสังคม"]},
+  {"company": "บจ. พีเอเจ อาร์ท", "short": "PAJ Art", "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.30", "ประกันสังคม"]},
+  {"company": "บจ. ดีไซน์ โฮม", "short": null, "filings": ["ภพ.30"]},
+  {"company": "อีซีลี่ พลัส", "short": null, "filings": ["ภงด.3", "ภพ.36", "ภพ.30"]},
+  {"company": "GUE สนงญ", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.36", "ภพ.30", "ประกันสังคม"]},
+  {"company": "GUE สาขา Pattaya", "short": null, "filings": ["ภพ.30"]},
+  {"company": "CN", "short": null, "filings": ["ภพ.30"]},
+  {"company": "บจ. อินโฟเฟด", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.36", "ภพ.30", "ประกันสังคม", "กยศ."]},
+  {"company": "บริษัท เซเครทไลท์ จำกัด", "short": "SL", "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.36", "ภพ.30", "ประกันสังคม", "กยศ."]},
+  {"company": "บริษัท ไทยอินเตอร์แก๊ส แอนด์ เคมิคัล ซัพพลาย จำกัด", "short": "TOGCS", "filings": ["ภงด.1", "ภงด.3", "ภงด.53", "ภพ.36", "ภพ.30", "ประกันสังคม", "กยศ."]},
+  {"company": "อินแกรน", "short": null, "filings": ["ภงด.1", "ภงด.3", "ภงด.53"]},
+  {"company": "บริษัท อะราวด์เดอะเวิลด์ จำกัด", "short": null, "filings": ["ภงด.1", "ภงด.2", "ภงด.3", "ภงด.53", "ภพ.30", "ประกันสังคม"]},
+  {"company": "บจ.เดยัง", "short": null, "filings": []},
+  {"company": "บจ.สลิลชัย", "short": null, "filings": []},
+  {"company": "บจ.ฟี สตูดิโอ", "short": null, "filings": ["ภงด.1"]},
+  {"company": "บริษัท อนันตา ๙ จำกัด", "short": null, "filings": ["ภงด.3", "ภงด.53"]},
+  {"company": "บริษัท แอคเซียม แล็บ", "short": null, "filings": []}
+];
+
+const THAI_MONTHS = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+const BUDDHIST_YEAR_OFFSET = 543;
+
+function buildMonthOptions() {
+  const sel = document.getElementById('monthSelect');
+  const now = new Date();
+  // Range: 12 months back to 6 months forward from current month
+  const options = [];
+  for (let offset = -12; offset <= 6; offset++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = `${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + BUDDHIST_YEAR_OFFSET}`;
+    options.push({ key, label, isCurrent: offset === 0 });
+  }
+  sel.innerHTML = options.map(o => `<option value="${o.key}">${o.label}</option>`).join('');
+  const current = options.find(o => o.isCurrent);
+  sel.value = current.key;
+  return sel.value;
+}
+
+function storageKey(monthKey) {
+  return `tax-checklist:${monthKey}`;
+}
+
+const STAFF_KEY = 'tax-checklist:staff';
+const DEFAULT_STAFF = ['พนักงาน 1','พนักงาน 2','พนักงาน 3','พนักงาน 4','พนักงาน 5','พนักงาน 6','พนักงาน 7'];
+
+function loadStaff() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STAFF_KEY));
+    if (Array.isArray(saved) && saved.length === 7) return saved;
+  } catch (e) {}
+  return DEFAULT_STAFF.slice();
+}
+
+function saveStaff(list) {
+  localStorage.setItem(STAFF_KEY, JSON.stringify(list));
+}
+
+let STAFF = loadStaff();
+
+function loadState(monthKey) {
+  try {
+    return JSON.parse(localStorage.getItem(storageKey(monthKey))) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveState(monthKey, state) {
+  localStorage.setItem(storageKey(monthKey), JSON.stringify(state));
+}
+
+let currentMonthKey = null;
+let state = {};
+let currentFilter = 'all';
+let searchTerm = '';
+let openCompanies = new Set();
+let assigneeFilterValue = '';
+
+const EXTRA_TASKS = ['งานรับเอกสาร', 'ทำเงินเดือน'];
+const STANDARD_FILINGS = ['ภงด.1', 'ภงด.2', 'ภงด.3', 'ภงด.53', 'ภพ.36', 'ภพ.30', 'ประกันสังคม', 'กยศ.'];
+
+const STATUS_OPTIONS = ['ยังไม่เสร็จ', 'รอตรวจสอบ', 'เสร็จแล้ว'];
+const STATUS_CLASS = { 'ยังไม่เสร็จ': 'status-pending', 'รอตรวจสอบ': 'status-review', 'เสร็จแล้ว': 'status-done' };
+
+const CUSTOM_COMPANIES_KEY = 'tax-checklist:customCompanies';
+const CUSTOM_TASKS_KEY = 'tax-checklist:customTasks';
+
+function loadCustomCompanies() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CUSTOM_COMPANIES_KEY));
+    if (Array.isArray(saved)) return saved;
+  } catch (e) {}
+  return [];
+}
+
+function saveCustomCompanies(list) {
+  localStorage.setItem(CUSTOM_COMPANIES_KEY, JSON.stringify(list));
+}
+
+function loadCustomTasks() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CUSTOM_TASKS_KEY));
+    if (saved && typeof saved === 'object') return saved;
+  } catch (e) {}
+  return {};
+}
+
+function saveCustomTasks(obj) {
+  localStorage.setItem(CUSTOM_TASKS_KEY, JSON.stringify(obj));
+}
+
+let CUSTOM_COMPANIES = loadCustomCompanies();
+let CUSTOM_TASKS = loadCustomTasks();
+
+function allCompanies() {
+  return BASE_COMPANIES.concat(CUSTOM_COMPANIES);
+}
+
+function companyKey(name) {
+  return name;
+}
+
+function customTasksFor(c) {
+  return CUSTOM_TASKS[companyKey(c.company)] || [];
+}
+
+function itemsFor(c) {
+  return c.filings.concat(EXTRA_TASKS).concat(customTasksFor(c));
+}
+
+function getStatus(compState, item) {
+  return (compState[item] && compState[item].status) || 'ยังไม่เสร็จ';
+}
+
+function render() {
+  const list = document.getElementById('companyList');
+  list.innerHTML = '';
+
+  let totalItems = 0;
+  let doneItems = 0;
+
+  const filtered = allCompanies().filter(c => {
+    if (searchTerm && !c.company.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !(c.short && c.short.toLowerCase().includes(searchTerm.toLowerCase()))) {
+      return false;
+    }
+    return true;
+  });
+
+  filtered.forEach(c => {
+    const key = companyKey(c.company);
+    const compState = state[key] || {};
+    const allItems = itemsFor(c);
+    const total = allItems.length;
+    const statuses = allItems.map(f => getStatus(compState, f));
+    const done = statuses.filter(s => s === 'เสร็จแล้ว').length;
+    const review = statuses.filter(s => s === 'รอตรวจสอบ').length;
+    totalItems += total;
+    doneItems += done;
+
+    if (currentFilter === 'pending' && !statuses.includes('ยังไม่เสร็จ')) return;
+    if (currentFilter === 'review' && !statuses.includes('รอตรวจสอบ')) return;
+    if (currentFilter === 'done' && !(total > 0 && done === total)) return;
+
+    const card = document.createElement('div');
+    card.className = 'company-card' + (total > 0 && done === total ? ' complete' : '') + (openCompanies.has(key) ? ' open' : '');
+    card.dataset.company = key;
+
+    let badgeHtml;
+    if (total === 0) {
+      badgeHtml = `<span class="badge none">ไม่มีรายการต้องยื่น</span>`;
+    } else if (done === total) {
+      badgeHtml = `<span class="badge done">เสร็จแล้ว ${done}/${total}</span>`;
+    } else if (review > 0) {
+      badgeHtml = `<span class="badge pending">${done}/${total} รายการ</span> <span class="status-pill status-review">รอตรวจสอบ ${review}</span>`;
+    } else {
+      badgeHtml = `<span class="badge pending">${done}/${total} รายการ</span>`;
+    }
+
+    const header = document.createElement('div');
+    header.className = 'company-header';
+    header.innerHTML = `
+      <div class="company-name">${c.company}${c.short ? `<span class="short">(${c.short})</span>` : ''}</div>
+      <div class="company-meta">${badgeHtml}<span class="chevron">▾</span></div>
+    `;
+    header.addEventListener('click', () => {
+      card.classList.toggle('open');
+      if (card.classList.contains('open')) openCompanies.add(key);
+      else openCompanies.delete(key);
+    });
+
+    const itemsDiv = document.createElement('div');
+    itemsDiv.className = 'items';
+
+    if (c.filings.length === 0) {
+      itemsDiv.innerHTML = `<div class="no-items">บริษัทนี้ไม่มีรายการยื่นภาษี/ประกันสังคมที่ต้องดำเนินการ (ตามประวัติเดิม) — แต่ยังมีงานประจำด้านล่าง</div>`;
+    }
+    const custom = customTasksFor(c);
+    allItems.forEach(f => {
+      if (assigneeFilterValue && (compState[f] || {}).assignee !== assigneeFilterValue) return;
+      const itemState = compState[f] || { status: 'ยังไม่เสร็จ', note: '', assignee: '', date: '' };
+      const status = itemState.status || 'ยังไม่เสร็จ';
+      const isExtra = EXTRA_TASKS.includes(f);
+      const isCustom = custom.includes(f);
+      const row = document.createElement('div');
+      row.className = 'item-row' + (status === 'เสร็จแล้ว' ? ' checked' : '') + (isExtra ? ' extra-task' : '') + (isCustom ? ' custom-task' : '');
+      const assigneeOptions = ['<option value="">— ยังไม่กำหนด —</option>']
+        .concat(STAFF.map(s => `<option value="${s}" ${itemState.assignee === s ? 'selected' : ''}>${s}</option>`))
+        .join('');
+      const statusOptions = STATUS_OPTIONS.map(s => `<option value="${s}" ${status === s ? 'selected' : ''}>${s}</option>`).join('');
+      row.innerHTML = `
+        <select class="item-status ${STATUS_CLASS[status]}" data-company="${key}" data-item="${f}">${statusOptions}</select>
+        <div class="item-label">${isExtra ? '🗂️ ' : ''}${isCustom ? '⭐ ' : ''}${f}</div>
+        <select class="item-assignee${itemState.assignee ? '' : ' unassigned'}" data-company="${key}" data-item="${f}">${assigneeOptions}</select>
+        <input type="date" class="item-date" value="${itemState.date || ''}" data-company="${key}" data-item="${f}" title="วันที่ดำเนินการ">
+        <input type="text" class="item-note" placeholder="หมายเหตุเพิ่มเติม" value="${(itemState.note || '').replace(/"/g, '&quot;')}" data-company="${key}" data-item="${f}">
+      `;
+      itemsDiv.appendChild(row);
+    });
+
+    const addTaskRow = document.createElement('div');
+    addTaskRow.className = 'add-task-row';
+    addTaskRow.innerHTML = `
+      <input type="text" class="new-task-input" placeholder="เพิ่มงานใหม่สำหรับบริษัทนี้..." data-company="${key}">
+      <button class="add-task-btn" data-company="${key}">+ เพิ่มงาน</button>
+    `;
+    itemsDiv.appendChild(addTaskRow);
+
+    card.appendChild(header);
+    card.appendChild(itemsDiv);
+    list.appendChild(card);
+  });
+
+  // progress
+  const pct = totalItems === 0 ? 0 : Math.round((doneItems / totalItems) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${doneItems} / ${totalItems} รายการ`;
+  document.getElementById('progressPct').textContent = pct + '%';
+
+  // attach listeners
+  list.querySelectorAll('select.item-status').forEach(sel => {
+    sel.addEventListener('change', e => {
+      const { company, item } = e.target.dataset;
+      state[company] = state[company] || {};
+      state[company][item] = state[company][item] || { note: '', assignee: '', date: '' };
+      state[company][item].status = e.target.value;
+      saveState(currentMonthKey, state);
+      render();
+    });
+  });
+  list.querySelectorAll('input.item-note').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const { company, item } = e.target.dataset;
+      state[company] = state[company] || {};
+      state[company][item] = state[company][item] || { status: 'ยังไม่เสร็จ', assignee: '', date: '' };
+      state[company][item].note = e.target.value;
+      saveState(currentMonthKey, state);
+    });
+  });
+  list.querySelectorAll('input.item-date').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const { company, item } = e.target.dataset;
+      state[company] = state[company] || {};
+      state[company][item] = state[company][item] || { status: 'ยังไม่เสร็จ', note: '', assignee: '' };
+      state[company][item].date = e.target.value;
+      saveState(currentMonthKey, state);
+    });
+  });
+  list.querySelectorAll('select.item-assignee').forEach(sel => {
+    sel.addEventListener('change', e => {
+      const { company, item } = e.target.dataset;
+      state[company] = state[company] || {};
+      state[company][item] = state[company][item] || { status: 'ยังไม่เสร็จ', note: '' };
+      state[company][item].assignee = e.target.value;
+      saveState(currentMonthKey, state);
+      render();
+    });
+  });
+  list.querySelectorAll('.add-task-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const company = btn.dataset.company;
+      const input = list.querySelector(`.new-task-input[data-company="${CSS.escape(company)}"]`);
+      const taskName = input.value.trim();
+      if (!taskName) return;
+      CUSTOM_TASKS[company] = CUSTOM_TASKS[company] || [];
+      if (!CUSTOM_TASKS[company].includes(taskName)) {
+        CUSTOM_TASKS[company].push(taskName);
+        saveCustomTasks(CUSTOM_TASKS);
+      }
+      openCompanies.add(company);
+      render();
+    });
+  });
+  list.querySelectorAll('.new-task-input').forEach(inp => {
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        list.querySelector(`.add-task-btn[data-company="${CSS.escape(inp.dataset.company)}"]`).click();
+      }
+    });
+  });
+}
+
+function renderAssigneeFilterOptions() {
+  const sel = document.getElementById('assigneeFilter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">ทุกคน (กรองตามผู้รับผิดชอบ)</option>' +
+    STAFF.map(s => `<option value="${s}">${s}</option>`).join('');
+  sel.value = STAFF.includes(current) ? current : '';
+  assigneeFilterValue = sel.value;
+}
+
+function openStaffModal() {
+  const listDiv = document.getElementById('employeeEditList');
+  listDiv.innerHTML = STAFF.map((name, i) => `
+    <div class="employee-edit-row">
+      <span>${i + 1}.</span>
+      <input type="text" data-index="${i}" value="${name.replace(/"/g, '&quot;')}">
+    </div>
+  `).join('');
+  document.getElementById('staffModalOverlay').classList.add('open');
+}
+
+function closeStaffModal() {
+  document.getElementById('staffModalOverlay').classList.remove('open');
+}
+
+document.getElementById('manageStaffBtn').addEventListener('click', openStaffModal);
+document.getElementById('staffCancelBtn').addEventListener('click', closeStaffModal);
+document.getElementById('staffSaveBtn').addEventListener('click', () => {
+  const inputs = document.querySelectorAll('#employeeEditList input');
+  const newStaff = Array.from(inputs).map(i => i.value.trim() || `พนักงาน ${parseInt(i.dataset.index) + 1}`);
+  STAFF = newStaff;
+  saveStaff(STAFF);
+  renderAssigneeFilterOptions();
+  closeStaffModal();
+  render();
+});
+
+document.getElementById('assigneeFilter').addEventListener('change', e => {
+  assigneeFilterValue = e.target.value;
+  render();
+});
+
+function openCustomerModal() {
+  document.getElementById('newCompanyName').value = '';
+  document.getElementById('newCompanyShort').value = '';
+  document.getElementById('newCompanyFilings').innerHTML = STANDARD_FILINGS.map(f => `
+    <label><input type="checkbox" value="${f}"> ${f}</label>
+  `).join('');
+  document.getElementById('customerModalOverlay').classList.add('open');
+}
+
+function closeCustomerModal() {
+  document.getElementById('customerModalOverlay').classList.remove('open');
+}
+
+document.getElementById('addCustomerBtn').addEventListener('click', openCustomerModal);
+document.getElementById('customerCancelBtn').addEventListener('click', closeCustomerModal);
+document.getElementById('customerSaveBtn').addEventListener('click', () => {
+  const name = document.getElementById('newCompanyName').value.trim();
+  if (!name) {
+    alert('กรุณากรอกชื่อบริษัท');
+    return;
+  }
+  if (allCompanies().some(c => c.company === name)) {
+    alert('มีชื่อบริษัทนี้อยู่แล้ว');
+    return;
+  }
+  const short = document.getElementById('newCompanyShort').value.trim() || null;
+  const filings = Array.from(document.querySelectorAll('#newCompanyFilings input:checked')).map(i => i.value);
+  CUSTOM_COMPANIES.push({ company: name, short, filings });
+  saveCustomCompanies(CUSTOM_COMPANIES);
+  closeCustomerModal();
+  render();
+});
+
+let reportTab = 'all';
+let reportView = 'table';
+
+function gatherReportRows() {
+  const rows = [];
+  allCompanies().forEach(c => {
+    const key = companyKey(c.company);
+    const compState = state[key] || {};
+    itemsFor(c).forEach(f => {
+      const itemState = compState[f] || {};
+      rows.push({
+        company: c.company,
+        task: f,
+        status: itemState.status || 'ยังไม่เสร็จ',
+        assignee: itemState.assignee || '',
+        date: itemState.date || '',
+        note: itemState.note || ''
+      });
+    });
+  });
+  return rows;
+}
+
+function renderReport() {
+  const rows = gatherReportRows();
+  const counts = { done: 0, pending: 0, review: 0 };
+  rows.forEach(r => {
+    if (r.status === 'เสร็จแล้ว') counts.done++;
+    else if (r.status === 'รอตรวจสอบ') counts.review++;
+    else counts.pending++;
+  });
+
+  document.getElementById('reportTitle').textContent = `รายงานสถานะงาน — ${document.getElementById('monthSelect').selectedOptions[0].textContent}`;
+
+  document.getElementById('reportSummary').innerHTML = `
+    <div class="report-summary-card"><div class="num">${rows.length}</div><div class="lbl">งานทั้งหมด</div></div>
+    <div class="report-summary-card"><div class="num" style="color:#dc2626">${counts.pending}</div><div class="lbl">ยังไม่เสร็จ</div></div>
+    <div class="report-summary-card"><div class="num" style="color:var(--amber)">${counts.review}</div><div class="lbl">รอตรวจสอบ</div></div>
+    <div class="report-summary-card"><div class="num" style="color:var(--green)">${counts.done}</div><div class="lbl">เสร็จแล้ว</div></div>
+  `;
+
+  document.querySelectorAll('.report-view-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.view === reportView);
+  });
+
+  const body = document.getElementById('reportBody');
+  const tabsDiv = document.getElementById('reportTabs');
+
+  if (reportView === 'chartStatus') {
+    tabsDiv.innerHTML = '';
+    renderChartByStatus(body, counts, rows.length);
+    return;
+  }
+  if (reportView === 'chartAssignee') {
+    tabsDiv.innerHTML = '';
+    renderChartByAssignee(body, rows);
+    return;
+  }
+
+  const tabs = [
+    { key: 'all', label: `ทั้งหมด (${rows.length})` },
+    { key: 'pending', label: `ยังไม่เสร็จ (${counts.pending})` },
+    { key: 'review', label: `รอตรวจสอบ (${counts.review})` },
+    { key: 'done', label: `เสร็จแล้ว (${counts.done})` }
+  ];
+  tabsDiv.innerHTML = tabs.map(t =>
+    `<div class="report-tab${reportTab === t.key ? ' active' : ''}" data-tab="${t.key}">${t.label}</div>`
+  ).join('');
+  document.querySelectorAll('.report-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      reportTab = tab.dataset.tab;
+      renderReport();
+    });
+  });
+
+  const statusMap = { pending: 'ยังไม่เสร็จ', review: 'รอตรวจสอบ', done: 'เสร็จแล้ว' };
+  const filteredRows = reportTab === 'all' ? rows : rows.filter(r => r.status === statusMap[reportTab]);
+
+  if (filteredRows.length === 0) {
+    body.innerHTML = `<div class="report-empty">ไม่มีรายการในสถานะนี้</div>`;
+    return;
+  }
+  body.innerHTML = `
+    <table class="report-table">
+      <thead><tr><th>บริษัท</th><th>งาน</th><th>สถานะ</th><th>ผู้รับผิดชอบ</th><th>วันที่</th><th>หมายเหตุ</th></tr></thead>
+      <tbody>
+        ${filteredRows.map(r => `
+          <tr>
+            <td>${r.company}</td>
+            <td>${r.task}</td>
+            <td><span class="status-pill ${STATUS_CLASS[r.status]}">${r.status}</span></td>
+            <td>${r.assignee || '—'}</td>
+            <td>${r.date || '—'}</td>
+            <td>${r.note || '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+const STATUS_BAR_COLOR = { 'ยังไม่เสร็จ': '#dc2626', 'รอตรวจสอบ': '#d97706', 'เสร็จแล้ว': '#16a34a' };
+
+function renderChartByStatus(body, counts, total) {
+  const data = [
+    { label: 'ยังไม่เสร็จ', count: counts.pending, color: STATUS_BAR_COLOR['ยังไม่เสร็จ'] },
+    { label: 'รอตรวจสอบ', count: counts.review, color: STATUS_BAR_COLOR['รอตรวจสอบ'] },
+    { label: 'เสร็จแล้ว', count: counts.done, color: STATUS_BAR_COLOR['เสร็จแล้ว'] }
+  ];
+  const max = Math.max(1, ...data.map(d => d.count));
+  body.innerHTML = data.map(d => `
+    <div class="chart-row">
+      <div class="chart-label">${d.label}</div>
+      <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${(d.count / max) * 100}%; background:${d.color}"></div></div>
+      <div class="chart-count">${d.count}</div>
+    </div>
+  `).join('') + (total === 0 ? '<div class="report-empty">ไม่มีข้อมูล</div>' : '');
+}
+
+function renderChartByAssignee(body, rows) {
+  const groups = {};
+  const names = STAFF.concat(['— ยังไม่กำหนด —']);
+  names.forEach(n => { groups[n] = { 'ยังไม่เสร็จ': 0, 'รอตรวจสอบ': 0, 'เสร็จแล้ว': 0 }; });
+  rows.forEach(r => {
+    const who = r.assignee || '— ยังไม่กำหนด —';
+    groups[who] = groups[who] || { 'ยังไม่เสร็จ': 0, 'รอตรวจสอบ': 0, 'เสร็จแล้ว': 0 };
+    groups[who][r.status] = (groups[who][r.status] || 0) + 1;
+  });
+  const totals = names.map(n => Object.values(groups[n]).reduce((a, b) => a + b, 0));
+  const max = Math.max(1, ...totals);
+
+  const legend = `
+    <div class="chart-legend">
+      <span><span class="dot" style="background:${STATUS_BAR_COLOR['ยังไม่เสร็จ']}"></span>ยังไม่เสร็จ</span>
+      <span><span class="dot" style="background:${STATUS_BAR_COLOR['รอตรวจสอบ']}"></span>รอตรวจสอบ</span>
+      <span><span class="dot" style="background:${STATUS_BAR_COLOR['เสร็จแล้ว']}"></span>เสร็จแล้ว</span>
+    </div>
+  `;
+
+  const rowsHtml = names.map(n => {
+    const g = groups[n];
+    const total = g['ยังไม่เสร็จ'] + g['รอตรวจสอบ'] + g['เสร็จแล้ว'];
+    const widthPct = (total / max) * 100;
+    const segs = ['ยังไม่เสร็จ', 'รอตรวจสอบ', 'เสร็จแล้ว'].map(s => {
+      const segPct = total === 0 ? 0 : (g[s] / total) * 100;
+      return `<div class="stack-segment" style="width:${segPct}%; background:${STATUS_BAR_COLOR[s]}"></div>`;
+    }).join('');
+    return `
+      <div class="chart-row">
+        <div class="chart-label">${n}</div>
+        <div class="chart-bar-bg"><div style="width:${widthPct}%; display:flex; height:100%;">${segs}</div></div>
+        <div class="chart-count">${total}</div>
+      </div>
+    `;
+  }).join('');
+
+  body.innerHTML = legend + `<div style="display:flex; flex-direction:column;">${rowsHtml}</div>`;
+}
+
+document.getElementById('statusReportBtn').addEventListener('click', () => {
+  reportTab = 'all';
+  reportView = 'table';
+  renderReport();
+  document.getElementById('reportModalOverlay').classList.add('open');
+});
+document.getElementById('reportCloseBtn').addEventListener('click', () => {
+  document.getElementById('reportModalOverlay').classList.remove('open');
+});
+document.querySelectorAll('.report-view-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    reportView = tab.dataset.view;
+    renderReport();
+  });
+});
+
+function switchMonth(monthKey) {
+  currentMonthKey = monthKey;
+  state = loadState(monthKey);
+  openCompanies.clear();
+  render();
+}
+
+document.getElementById('monthSelect').addEventListener('change', e => switchMonth(e.target.value));
+
+document.getElementById('resetMonthBtn').addEventListener('click', () => {
+  if (confirm('รีเซ็ตสถานะ checklist ของเดือนนี้ทั้งหมด?')) {
+    state = {};
+    saveState(currentMonthKey, state);
+    render();
+  }
+});
+
+document.getElementById('checkAllVisibleBtn').addEventListener('click', () => {
+  allCompanies().forEach(c => {
+    const key = companyKey(c.company);
+    state[key] = state[key] || {};
+    itemsFor(c).forEach(f => {
+      state[key][f] = state[key][f] || { note: '', assignee: '', date: '' };
+      state[key][f].status = 'เสร็จแล้ว';
+    });
+  });
+  saveState(currentMonthKey, state);
+  render();
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ month: currentMonthKey, state }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `tax-checklist-${currentMonthKey}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchTerm = e.target.value;
+  render();
+});
+
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.filter;
+    render();
+  });
+});
+
+renderAssigneeFilterOptions();
+const initialMonth = buildMonthOptions();
+switchMonth(initialMonth);
+</script>
+
+</body>
+</html>
