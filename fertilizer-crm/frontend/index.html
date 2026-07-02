@@ -1055,7 +1055,7 @@
 // ถ้า deploy บน Cloudflare Pages ให้ใส่ Railway backend URL ตรงนี้
 const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:8000"
-  : "https://REPLACE_WITH_YOUR_RAILWAY_BACKEND_URL";
+  : "https://pfworkflow-production.up.railway.app";
 let dashData = [], custData = [], formulaData = [];
 let approveMode = "approve", approveOrderId = "";
 let prodOrderId = "";
