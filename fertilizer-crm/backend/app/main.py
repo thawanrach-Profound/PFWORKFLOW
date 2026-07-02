@@ -70,7 +70,7 @@ def healthcheck():
     return {"status": "ok"}
 
 
-@app.post("/init-db")
+@app.get("/init-db")
 def run_init_db():
     try:
         init_db()
