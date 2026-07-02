@@ -1,7 +1,7 @@
 import enum
 from sqlalchemy import (
     Column, Integer, String, Numeric, Boolean, DateTime,
-    Text, ForeignKey, Date, Enum, func, Computed, SmallInteger
+    Text, ForeignKey, Date, Enum, func, Computed, SmallInteger, FetchedValue
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -162,7 +162,7 @@ class Production(Base):
     raw_material_cost       = Column(Numeric(14, 2), default=0)
     labor_cost              = Column(Numeric(14, 2), default=0)
     packaging_cost          = Column(Numeric(14, 2), default=0)
-    production_cost_total   = Column(Numeric(14, 2))   # generated — read-only
+    production_cost_total   = Column(Numeric(14, 2), server_default=FetchedValue())   # GENERATED ALWAYS AS in DB
     produced_by             = Column(String(100))
     start_date              = Column(DateTime(timezone=True))
     end_date                = Column(DateTime(timezone=True))
