@@ -1137,7 +1137,60 @@ function showPage(p) {
   }
 }
 function hidePage(p) {
-  if (p === "new-order") document.getElementById("modal-new-order").classList.add("hidden");
+  if (p === "new-order") {
+    document.getElementById("modal-new-order").classList.add("hidden");
+    _editingOrderId = null;
+    document.getElementById("submit-order-label").textContent = "บันทึกใบสั่งซื้อ";
+    document.querySelector("#modal-new-order .text-xs[style]").textContent = "📝 เปิดใบสั่งซื้อใหม่";
+  }
+}
+
+let _editingOrderId = null;
+
+async function openEditOrder(orderId) {
+  await populateSelects();
+  const order = await fetch(`${API}/api/orders/${orderId}`).then(r => r.json());
+  _editingOrderId = orderId;
+
+  document.getElementById("form-new-order").reset();
+  document.getElementById("credit-box").classList.add("hidden");
+  document.getElementById("form-error").classList.add("hidden");
+  document.getElementById("order-items-body").innerHTML = "";
+  _orderItemSeq = 0;
+  document.getElementById("order-grand-total").textContent = "0.00";
+  document.getElementById("order-promo-rows").innerHTML = "";
+  _orderPromoSeq = 0;
+
+  // ใส่ข้อมูล header
+  document.getElementById("input-order-id").value = order.order_id;
+  const form = document.getElementById("form-new-order");
+  const setVal = (name, val) => { const el = form.querySelector(`[name="${name}"]`); if (el && val != null) el.value = val; };
+  setVal("customer_id", order.customer_id);
+  setVal("dept", order.dept || "");
+  setVal("delivery_due_date", order.delivery_due_date || "");
+  setVal("line_note", order.line_note || "");
+  setVal("initial_status", order.order_status === "EDIT" ? "PENDING_APPROVAL" : order.order_status);
+
+  // พนักงาน
+  const selSale = document.getElementById("sel-salesperson");
+  const selSS = document.getElementById("sel-sale-support");
+  if (selSale) selSale.value = order.salesperson || "";
+  if (selSS) selSS.value = order.sale_support_name || "";
+
+  // ใส่ items
+  (order.items || []).forEach(it => addOrderItemRow({
+    product_code: it.product_code || "",
+    product_name: it.product_name || "",
+    quantity_ton: it.quantity_ton || 0,
+    unit_price: it.unit_price || 0,
+    discount: it.discount || 0,
+  }));
+
+  // อัปเดต UI header
+  updateOrderHeader();
+  document.getElementById("submit-order-label").textContent = "บันทึกการแก้ไข";
+  document.querySelector("#modal-new-order .text-xs[style]").textContent = `✏️ แก้ไข Order ${orderId}`;
+  document.getElementById("modal-new-order").classList.remove("hidden");
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────
@@ -1212,8 +1265,10 @@ function renderDashTable() {
     const isHold = o.credit_exceeded;
     const rowBg = isHold ? "bg-red-50" : o.credit_alert ? "bg-orange-50/40" : "";
     const actions = [];
-    if (["DRAFT","EDIT"].includes(o.order_status))
+    if (["DRAFT","EDIT"].includes(o.order_status)) {
+      actions.push(`<button onclick="openEditOrder('${o.order_id}')" class="text-xs text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-full font-medium">✏️ แก้ไข</button>`);
       actions.push(`<button onclick="confirmOrder('${o.order_id}')" class="text-xs text-green-700 bg-green-100 hover:bg-green-200 px-2 py-0.5 rounded-full font-medium">✓ Confirm</button>`);
+    }
     if (o.order_status === "PENDING_APPROVAL") {
       actions.push(`<button onclick="openApprove('${o.order_id}','approve')" class="text-xs text-blue-700 bg-blue-100 hover:bg-blue-200 px-2 py-0.5 rounded-full font-medium">✓ Approve</button>`);
       actions.push(`<button onclick="openApprove('${o.order_id}','reject')" class="text-xs text-red-600 bg-red-100 hover:bg-red-200 px-2 py-0.5 rounded-full font-medium">✗ Reject</button>`);
@@ -1306,6 +1361,7 @@ async function loadOrders() {
       ${o.line_note ? `<div class="bg-gray-50 text-xs text-gray-500 rounded px-2 py-1 mb-2">💬 ${o.line_note}</div>` : ""}
       <div class="flex gap-2 flex-wrap mt-2">
         ${["DRAFT","EDIT"].includes(o.order_status) ? `
+          <button onclick="openEditOrder('${o.order_id}')" class="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-medium">✏️ แก้ไข</button>
           <button onclick="confirmOrder('${o.order_id}')" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">✓ Confirm ส่งอนุมัติ</button>` : ""}
         ${o.order_status==="PENDING_APPROVAL" ? `
           <button onclick="openApprove('${o.order_id}','approve')" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium">✓ Approve</button>
@@ -1765,17 +1821,27 @@ async function submitOrder(e) {
   const btn = document.getElementById("submit-order-btn");
   btn.disabled = true; btn.textContent = "กำลังบันทึก...";
   try {
-    const res = await fetch(`${API}/api/orders`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
-    const resData = await res.json();
-    if (!res.ok) throw new Error(resData.detail||"เกิดข้อผิดพลาด");
-    const newOrderId = resData.order_id;
-    // บันทึกโปรโมชันที่เลือก (ตัด stock ของแจก)
-    const promos = getOrderPromosPayload();
-    for (const op of promos) {
-      await fetch(`${API}/api/promotions/order/${newOrderId}`, {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify(op)
-      }).catch(()=>{});
+    let res, resData, savedOrderId;
+    if (_editingOrderId) {
+      // แก้ไข Order เดิม
+      res = await fetch(`${API}/api/orders/${_editingOrderId}/full-edit`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+      resData = await res.json();
+      if (!res.ok) throw new Error(resData.detail||"เกิดข้อผิดพลาด");
+      savedOrderId = _editingOrderId;
+    } else {
+      // สร้าง Order ใหม่
+      res = await fetch(`${API}/api/orders`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+      resData = await res.json();
+      if (!res.ok) throw new Error(resData.detail||"เกิดข้อผิดพลาด");
+      savedOrderId = resData.order_id;
+      // บันทึกโปรโมชันสำหรับ Order ใหม่เท่านั้น
+      const promos = getOrderPromosPayload();
+      for (const op of promos) {
+        await fetch(`${API}/api/promotions/order/${savedOrderId}`, {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify(op)
+        }).catch(()=>{});
+      }
     }
     hidePage("new-order");
     loadDashboard();
@@ -1783,7 +1849,8 @@ async function submitOrder(e) {
     errEl.textContent = err.message;
     errEl.classList.remove("hidden");
   } finally {
-    btn.disabled = false; btn.textContent = "💾 บันทึกใบสั่งซื้อ";
+    btn.disabled = false;
+    document.getElementById("submit-order-label").textContent = _editingOrderId ? "บันทึกการแก้ไข" : "บันทึกใบสั่งซื้อ";
   }
 }
 

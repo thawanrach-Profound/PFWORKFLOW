@@ -165,6 +165,58 @@ def edit_order(order_id: str, payload: OrderEditPayload, db: Session = Depends(g
     return order
 
 
+@router.put("/{order_id}/full-edit", response_model=OrderOut)
+def full_edit_order(order_id: str, payload: OrderCreate, db: Session = Depends(get_db)):
+    """แก้ไข Order ทั้งหมด (header + items) — เฉพาะ DRAFT/EDIT"""
+    from decimal import Decimal
+    order = _get_order_or_404(order_id, db)
+    if order.order_status not in EDITABLE_STATUSES:
+        raise HTTPException(400, f"ไม่สามารถแก้ไข Order สถานะ {order.order_status}")
+
+    customer = db.get(Customer, payload.customer_id)
+    if not customer:
+        raise HTTPException(404, "ไม่พบลูกค้า")
+
+    order.customer_id = payload.customer_id
+    order.salesperson = payload.salesperson
+    order.sale_support_name = payload.sale_support_name
+    order.dept = payload.dept
+    order.delivery_due_date = payload.delivery_due_date
+    order.line_note = payload.line_note
+    order.notes = payload.notes
+
+    # ลบ items เดิมทั้งหมดแล้วสร้างใหม่
+    for item in list(order.items):
+        db.delete(item)
+    db.flush()
+
+    for i, item in enumerate(payload.items, 1):
+        db.add(OrderItem(
+            order_id=order.order_id,
+            seq=item.seq or i,
+            product_code=item.product_code,
+            product_name=item.product_name,
+            quantity_ton=item.quantity_ton,
+            unit=item.unit,
+            unit_price=item.unit_price,
+            discount=item.discount,
+            so_ref=item.so_ref,
+            notes=item.notes,
+        ))
+    db.flush()
+    db.refresh(order)
+    _recalc_total(order)
+    order.credit_limit_snapshot = customer.credit_limit
+    order.outstanding_snapshot = customer.outstanding_balance
+    order.credit_alert = check_credit_alert(customer, Decimal(str(order.total_amount or 0)))
+
+    acc = db.query(Accounting).filter_by(order_id=order.order_id).first()
+    if acc:
+        acc.total_sales_amount = order.total_amount or 0
+    db.commit(); db.refresh(order)
+    return order
+
+
 @router.post("/{order_id}/approve", response_model=OrderOut)
 def approve_order(order_id: str, payload: OrderApprove, db: Session = Depends(get_db)):
     order = _get_order_or_404(order_id, db)
