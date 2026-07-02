@@ -6,11 +6,11 @@ from app.models.crm import Sales, Production, Accounting, Customer
 CREDIT_WARN_PCT = Decimal("0.80")   # แจ้งเตือนเมื่อยอดค้างเกิน 80% ของวงเงิน
 
 
-def check_credit_alert(customer: Customer, new_order_amount: Decimal) -> bool:
+def check_credit_alert(customer: Customer, new_order_amount) -> bool:
     """คืน True ถ้ายอดค้างชำระ + Order ใหม่ >= 80% ของวงเงิน"""
     if customer.credit_limit <= 0:
         return False
-    projected = (customer.outstanding_balance or Decimal("0")) + new_order_amount
+    projected = (customer.outstanding_balance or Decimal("0")) + Decimal(str(new_order_amount))
     return projected >= customer.credit_limit * CREDIT_WARN_PCT
 
 
