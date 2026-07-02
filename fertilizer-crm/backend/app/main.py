@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     try:
         init_db()
     except Exception as e:
-        logger.warning(f"DB init skipped: {e}")
+        logger.error(f"DB init failed: {e}")
     yield
 
 
@@ -68,3 +68,12 @@ def health():
 @app.get("/health")
 def healthcheck():
     return {"status": "ok"}
+
+
+@app.post("/init-db")
+def run_init_db():
+    try:
+        init_db()
+        return {"status": "ok", "message": "DB schema initialized"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
