@@ -1602,16 +1602,37 @@ function addOrderItemRow(data = {}) {
   const tr = document.createElement("tr");
   tr.id = `oi-row-${id}`;
   tr.className = "border-b";
+
+  // สร้าง datalist จาก formulaData
+  const dlId = `dl-product-${id}`;
+  const dlHtml = `<datalist id="${dlId}">${
+    formulaData.map(f => `<option value="${f.formula_name}" data-code="${f.product_code||f.formula_code}" data-price="${f.base_price_per_kg||0}">${f.product_code||f.formula_code}</option>`).join("")
+  }</datalist>`;
+
   tr.innerHTML = `
+    ${dlHtml}
     <td class="px-1 py-1 text-gray-400 text-xs">${id}</td>
-    <td class="px-1 py-1"><input class="w-full border rounded px-1 py-0.5 text-xs" placeholder="รหัส" value="${data.product_code||""}" oninput="updateOITotal(${id})"/></td>
-    <td class="px-1 py-1"><input class="w-full border rounded px-1 py-0.5 text-xs" placeholder="ชื่อสินค้า *" required value="${data.product_name||""}" oninput="updateOITotal(${id})"/></td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-1 py-0.5 text-xs" id="oi-code-${id}" placeholder="รหัส" value="${data.product_code||""}" oninput="updateOITotal(${id})"/></td>
+    <td class="px-1 py-1"><input list="${dlId}" class="w-full border rounded px-1 py-0.5 text-xs" id="oi-name-${id}" placeholder="ชื่อสินค้า *" required value="${data.product_name||""}" oninput="autoFillProduct(${id})"/></td>
     <td class="px-1 py-1"><input type="number" step="0.001" class="w-full border rounded px-1 py-0.5 text-xs text-right" placeholder="0" value="${qty}" oninput="updateOITotal(${id})"/></td>
-    <td class="px-1 py-1"><input type="number" step="0.01" class="w-full border rounded px-1 py-0.5 text-xs text-right" placeholder="0" value="${price}" oninput="updateOITotal(${id})"/></td>
+    <td class="px-1 py-1"><input type="number" step="0.01" class="w-full border rounded px-1 py-0.5 text-xs text-right" id="oi-price-${id}" placeholder="0" value="${price}" oninput="updateOITotal(${id})"/></td>
     <td class="px-1 py-1 text-right font-semibold text-green-700 text-xs whitespace-nowrap" id="oi-amt-${id}">${amt}</td>
     <td class="px-1 py-1 text-center"><button type="button" class="text-red-400 hover:text-red-600 text-xs" onclick="removeOIRow(${id})">✕</button></td>`;
   tbody.appendChild(tr);
   updateOIGrand();
+}
+
+function autoFillProduct(id) {
+  const nameEl = document.getElementById(`oi-name-${id}`);
+  const codeEl = document.getElementById(`oi-code-${id}`);
+  const priceEl = document.getElementById(`oi-price-${id}`);
+  const val = nameEl?.value;
+  const match = formulaData.find(f => f.formula_name === val);
+  if (match) {
+    if (codeEl && !codeEl.value) codeEl.value = match.product_code || match.formula_code || "";
+    if (priceEl && !priceEl.value) priceEl.value = match.base_price_per_kg || 0;
+  }
+  updateOITotal(id);
 }
 
 function updateOITotal(id) {
