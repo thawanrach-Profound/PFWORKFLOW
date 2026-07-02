@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.core.database import get_db
 from app.core.calculations import check_credit_alert
@@ -26,6 +27,31 @@ class OrderEditPayload(BaseModel):
     notes: Optional[str] = None
 
 
+def _generate_order_id(db: Session) -> str:
+    """สร้างเลข Order อัตโนมัติ เช่น S26-001, S26-002 ..."""
+    year_short = datetime.now().year % 100  # 2026 → 26
+    prefix = f"S{year_short:02d}-"
+    last = (
+        db.query(Sales.order_id)
+        .filter(Sales.order_id.like(f"{prefix}%"))
+        .order_by(Sales.order_id.desc())
+        .first()
+    )
+    if last:
+        try:
+            seq = int(last[0].split("-")[-1]) + 1
+        except Exception:
+            seq = 1
+    else:
+        seq = 1
+    return f"{prefix}{seq:03d}"
+
+
+@router.get("/next-id")
+def get_next_order_id(db: Session = Depends(get_db)):
+    return {"order_id": _generate_order_id(db)}
+
+
 def _get_order_or_404(order_id: str, db: Session) -> Sales:
     o = db.get(Sales, order_id)
     if not o:
@@ -39,8 +65,9 @@ def _recalc_total(order: Sales) -> None:
 
 @router.post("", response_model=OrderOut, status_code=201)
 def create_order(payload: OrderCreate, db: Session = Depends(get_db)):
-    if db.get(Sales, payload.order_id):
-        raise HTTPException(400, f"Order ID {payload.order_id} ซ้ำ")
+    order_id = payload.order_id or _generate_order_id(db)
+    if db.get(Sales, order_id):
+        raise HTTPException(400, f"Order ID {order_id} ซ้ำ")
 
     customer = db.get(Customer, payload.customer_id)
     if not customer:
@@ -51,7 +78,7 @@ def create_order(payload: OrderCreate, db: Session = Depends(get_db)):
         initial = "DRAFT"
 
     order = Sales(
-        order_id=payload.order_id,
+        order_id=order_id,
         customer_id=payload.customer_id,
         salesperson=payload.salesperson,
         sale_support_name=payload.sale_support_name,

@@ -780,8 +780,8 @@
         <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">ข้อมูลใบสั่งซื้อ</p>
         <div class="grid grid-cols-3 gap-3">
           <div class="col-span-2">
-            <label class="block text-xs text-gray-500 mb-1">🔢 เลขที่ Order *</label>
-            <input name="order_id" required placeholder="SO26-001 หรือ I16904082" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"/>
+            <label class="block text-xs text-gray-500 mb-1">🔢 เลขที่ Order</label>
+            <input name="order_id" id="input-order-id" readonly placeholder="กำลังสร้างเลข Order..." class="w-full border border-gray-100 bg-gray-50 rounded-lg px-3 py-2 text-xs font-mono text-gray-600 cursor-default"/>
           </div>
           <div>
             <label class="block text-xs text-gray-500 mb-1">แผนก</label>
@@ -1128,6 +1128,12 @@ function showPage(p) {
     document.getElementById("order-promo-rows").innerHTML = "";
     _orderPromoSeq = 0;
     document.getElementById("modal-new-order").classList.remove("hidden");
+    // โหลดเลข Order อัตโนมัติ
+    const orderIdEl = document.getElementById("input-order-id");
+    orderIdEl.value = "กำลังสร้าง...";
+    fetch(`${API}/api/orders/next-id`).then(r => r.json()).then(d => {
+      orderIdEl.value = d.order_id || "";
+    }).catch(() => { orderIdEl.value = ""; });
   }
 }
 function hidePage(p) {

@@ -129,7 +129,7 @@ class OrderItemOut(BaseModel):
     notes: Optional[str]
 
 class OrderCreate(BaseModel):
-    order_id: str
+    order_id: Optional[str] = None
     customer_id: int
     salesperson: str
     sale_support_name: Optional[str] = None
