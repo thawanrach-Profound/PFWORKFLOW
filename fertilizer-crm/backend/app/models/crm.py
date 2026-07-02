@@ -46,7 +46,7 @@ class Customer(Base):
     contact_name        = Column(String(100))
     phone               = Column(String(20))
     address             = Column(Text)
-    credit_term         = Column(Enum(CreditTerm, name="credit_term"), default=CreditTerm.D30)
+    credit_term         = Column(Enum(CreditTerm, name="credit_term", values_callable=lambda x: [e.value for e in x]), default=CreditTerm.D30)
     credit_limit        = Column(Numeric(14, 2), default=0)
     outstanding_balance = Column(Numeric(14, 2), default=0)
     is_active           = Column(Boolean, default=True)
