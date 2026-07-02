@@ -1900,9 +1900,19 @@ async function confirmProdStatus() {
   if (by) payload.produced_by = by;
   if (status === "IN_PROGRESS") payload.start_date = new Date().toISOString();
   if (status === "DISPATCHED") payload.end_date = new Date().toISOString();
-  await fetch(`${API}/api/production/${prodOrderId}`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
-  document.getElementById("modal-prod-status").classList.add("hidden");
-  loadProductionTab();
+  try {
+    const res = await fetch(`${API}/api/production/${prodOrderId}`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert("เกิดข้อผิดพลาด: " + (err.detail || res.status));
+      return;
+    }
+    document.getElementById("modal-prod-status").classList.add("hidden");
+    loadProductionTab();
+    loadDashboard();
+  } catch(e) {
+    alert("เชื่อมต่อ Backend ไม่ได้: " + e.message);
+  }
 }
 
 // ─── SUB-TAB SWITCHING ────────────────────────────────────

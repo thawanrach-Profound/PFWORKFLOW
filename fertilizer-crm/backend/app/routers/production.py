@@ -45,15 +45,12 @@ def update_production(order_id: str, payload: ProductionUpdate, db: Session = De
 
     # เมื่อจัดส่ง → หักสต็อก + คำนวณบัญชี + อัปเดตสถานะ Order
     if payload.production_status == "DISPATCHED":
-        stock_alerts = deduct_stock_for_order(db, order_id)
+        deduct_stock_for_order(db, order_id)
         recalc_accounting(db, order_id)
         order = db.get(Sales, order_id)
         if order:
             order.order_status = "READY_TO_SHIP"
             db.commit()
-        if stock_alerts:
-            db.refresh(p)
-            return {"data": p, "stock_alerts": stock_alerts}
 
     if payload.raw_material_cost is not None or payload.labor_cost is not None or payload.packaging_cost is not None:
         recalc_accounting(db, order_id)
