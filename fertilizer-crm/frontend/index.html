@@ -1,0 +1,3134 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CRM ขายปุ๋ย — Sale Support Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:9999px; font-size:11px; font-weight:600; }
+  .tab-btn { padding:8px 16px; border-bottom:2px solid transparent; font-size:13px; font-weight:500; color:#6b7280; cursor:pointer; }
+  .tab-btn.active { border-color:#16a34a; color:#16a34a; }
+  .sub-tab { padding:6px 14px; border-radius:8px; font-size:12px; font-weight:500; color:#6b7280; cursor:pointer; background:transparent; }
+  .sub-tab.active { background:#f0fdf4; color:#16a34a; font-weight:700; }
+  [x-cloak] { display:none; }
+  .form-label { display:block; font-size:11px; color:#6b7280; margin-bottom:4px; font-weight:500; }
+  .form-input { width:100%; border:1px solid #d1d5db; border-radius:8px; padding:8px 10px; font-size:12px; }
+  .form-input:focus { outline:none; border-color:#16a34a; box-shadow:0 0 0 2px #bbf7d0; }
+  .btn-primary { background:#16a34a; color:#fff; font-weight:600; padding:9px 20px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .btn-primary:hover { background:#15803d; }
+  .btn-secondary { background:#f3f4f6; color:#374151; font-weight:500; padding:9px 20px; border-radius:8px; font-size:13px; cursor:pointer; }
+  .btn-secondary:hover { background:#e5e7eb; }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen text-sm">
+
+<!-- HEADER -->
+<header class="bg-green-700 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow-md">
+  <div class="flex items-center gap-2">
+    <span class="text-xl">🌱</span>
+    <h1 class="font-bold text-base md:text-lg">ระบบ CRM ขายปุ๋ย</h1>
+  </div>
+  <div class="flex items-center gap-2">
+    <button onclick="showPage('new-order')" class="bg-white text-green-700 font-semibold px-3 py-1.5 rounded-lg text-xs hover:bg-green-50">
+      + สร้าง Order ใหม่
+    </button>
+    <span class="text-green-200 text-xs hidden md:block" id="last-refresh"></span>
+  </div>
+</header>
+
+<!-- NAV TABS -->
+<nav class="bg-white border-b flex gap-0 px-4 overflow-x-auto">
+  <button class="tab-btn active" onclick="switchTab('dashboard', this)">📊 Dashboard</button>
+  <button class="tab-btn" onclick="switchTab('orders', this)">📋 Orders</button>
+  <button class="tab-btn" onclick="switchTab('production', this)">🏭 การผลิต</button>
+  <button class="tab-btn" onclick="switchTab('inventory', this)">📦 คลังวัตถุดิบ</button>
+  <button class="tab-btn" onclick="switchTab('customers', this)">👥 ลูกค้า</button>
+  <button class="tab-btn" onclick="switchTab('import-products', this)">📥 นำเข้าสินค้า</button>
+  <button class="tab-btn" onclick="switchTab('import-employees', this)">📥 นำเข้าพนักงาน</button>
+  <button class="tab-btn" onclick="switchTab('import-customers', this)">📥 นำเข้าลูกค้า</button>
+  <button class="tab-btn" onclick="switchTab('bag-stock', this)">🎒 Stock กระสอบ</button>
+  <button class="tab-btn" onclick="switchTab('rm-stock', this)">🏭 Stock วัตถุดิบ</button>
+  <button class="tab-btn" onclick="switchTab('promotions', this)">🎁 ส่งเสริมการขาย</button>
+</nav>
+
+<main class="p-3 max-w-7xl mx-auto">
+
+<!-- ══════════════ TAB: DASHBOARD ══════════════ -->
+<div id="tab-dashboard">
+
+  <!-- KPI Cards -->
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-2 my-3">
+    <div class="bg-white rounded-xl shadow p-3 border-l-4 border-gray-300">
+      <p class="text-gray-400 text-[10px] mb-0.5 uppercase tracking-wide">Orders ทั้งหมด</p>
+      <p id="kpi-total" class="text-2xl font-bold text-gray-800">-</p>
+    </div>
+    <div class="bg-white rounded-xl shadow p-3 border-l-4 border-yellow-400">
+      <p class="text-gray-400 text-[10px] mb-0.5 uppercase tracking-wide">รอ Approve</p>
+      <p id="kpi-pending" class="text-2xl font-bold text-yellow-600">-</p>
+    </div>
+    <div class="bg-white rounded-xl shadow p-3 border-l-4 border-red-400">
+      <p class="text-gray-400 text-[10px] mb-0.5 uppercase tracking-wide">เกินวงเงิน</p>
+      <p id="kpi-credit-alerts" class="text-2xl font-bold text-red-600">-</p>
+    </div>
+    <div class="bg-white rounded-xl shadow p-3 border-l-4 border-blue-400">
+      <p class="text-gray-400 text-[10px] mb-0.5 uppercase tracking-wide">กำลังผลิต</p>
+      <p id="kpi-inprod" class="text-2xl font-bold text-blue-600">-</p>
+    </div>
+    <div class="bg-white rounded-xl shadow p-3 border-l-4 border-green-500 col-span-2 md:col-span-1">
+      <p class="text-gray-400 text-[10px] mb-0.5 uppercase tracking-wide">ยอดขายรวม</p>
+      <p id="kpi-revenue" class="text-lg font-bold text-green-700">-</p>
+      <p class="text-[10px] text-gray-400">กำไร: <span id="kpi-profit" class="font-semibold text-blue-600">-</span></p>
+    </div>
+  </div>
+
+  <!-- Filter & Action bar -->
+  <div class="bg-white rounded-xl shadow px-3 py-2.5 mb-3 flex flex-wrap gap-2 items-center">
+    <input id="dash-search" type="text" placeholder="🔍 ค้นหา SO / ลูกค้า / พนักงาน..."
+      class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs flex-1 min-w-[180px] focus:outline-none focus:border-green-400"
+      oninput="renderDashTable()"/>
+    <select id="dash-dept" class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-green-400" onchange="renderDashTable()">
+      <option value="">แผนก: ทั้งหมด</option>
+      <option>S1</option><option>S2</option><option>S3</option><option>S9</option><option>S11</option><option>T001</option>
+    </select>
+    <select id="dash-credit" class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-green-400" onchange="renderDashTable()">
+      <option value="">สถานะเครดิต: ทั้งหมด</option>
+      <option value="ok">🟢 ปกติ</option>
+      <option value="alert">🔴 เกินวงเงิน</option>
+    </select>
+    <select id="dash-status" class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-green-400" onchange="renderDashTable()">
+      <option value="">สถานะ Order: ทั้งหมด</option>
+      <option>DRAFT</option><option>PENDING_APPROVAL</option><option>APPROVED</option>
+      <option>IN_PRODUCTION</option><option>READY_TO_SHIP</option><option>DELIVERED</option><option>CANCELLED</option>
+    </select>
+    <div class="flex gap-1.5 ml-auto">
+      <button onclick="loadDashboard()" class="bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium">🔄</button>
+      <button onclick="exportData('csv')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium">📥 Export Excel</button>
+    </div>
+  </div>
+
+  <!-- Main Table -->
+  <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-xs">
+        <thead>
+          <tr style="background:#1a4731">
+            <th class="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-green-200">เลขที่ SO / วันที่</th>
+            <th class="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-green-200">ชื่อลูกค้า / พนักงาน</th>
+            <th class="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-green-200">ยอดรวม / แผนก</th>
+            <th class="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-green-200">ระบบตรวจเครดิต</th>
+            <th class="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-green-200">บัญชี (Express)</th>
+            <th class="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-green-200">สถานะโรงงาน</th>
+            <th class="px-3 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wider text-green-200">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="dash-tbody" class="divide-y divide-gray-100"></tbody>
+      </table>
+    </div>
+    <p id="dash-empty" class="text-center text-gray-300 py-10 hidden">ไม่พบข้อมูล</p>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: ORDERS ══════════════ -->
+<div id="tab-orders" class="hidden">
+  <div class="flex gap-2 my-3">
+    <button onclick="showPage('new-order')" class="bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-semibold">+ สร้าง Order ใหม่</button>
+  </div>
+  <div id="orders-list" class="space-y-2"></div>
+</div>
+
+<!-- ══════════════ TAB: PRODUCTION ══════════════ -->
+<div id="tab-production" class="hidden">
+
+  <!-- ── Raw Material Stock Cards ── -->
+  <div class="mt-3 mb-1">
+    <div class="flex items-center justify-between mb-2">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">📦 สต็อกแม่ปุ๋ยคงเหลือ</p>
+      <button onclick="loadProductionTab()" class="text-xs text-gray-400 hover:text-gray-600">🔄 รีเฟรช</button>
+    </div>
+    <div id="prod-stock-cards" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+      <div class="bg-white rounded-xl border border-gray-100 p-3 shadow-sm animate-pulse h-16"></div>
+      <div class="bg-white rounded-xl border border-gray-100 p-3 shadow-sm animate-pulse h-16"></div>
+      <div class="bg-white rounded-xl border border-gray-100 p-3 shadow-sm animate-pulse h-16"></div>
+      <div class="bg-white rounded-xl border border-gray-100 p-3 shadow-sm animate-pulse h-16"></div>
+    </div>
+  </div>
+
+  <!-- ── Filter bar ── -->
+  <div class="bg-white rounded-xl shadow px-3 py-2 mb-3 flex flex-wrap gap-2 items-center">
+    <span class="text-xs font-medium text-gray-500">กรองตามสถานะ:</span>
+    <button onclick="setProdFilter('ALL',this)"   class="prod-filter-btn active-pf px-3 py-1 rounded-full text-xs font-medium bg-gray-800 text-white">ทั้งหมด</button>
+    <button onclick="setProdFilter('WAITING',this)"    class="prod-filter-btn px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">⏳ รอผลิต</button>
+    <button onclick="setProdFilter('IN_PROGRESS',this)" class="prod-filter-btn px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">🟡 ระหว่างผลิต</button>
+    <button onclick="setProdFilter('DISPATCHED',this)"  class="prod-filter-btn px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">🚚 จัดส่งแล้ว</button>
+  </div>
+
+  <!-- ── Production Queue ── -->
+  <div id="production-list" class="space-y-3"></div>
+</div>
+
+<!-- ══════════════ TAB: INVENTORY ══════════════ -->
+<div id="tab-inventory" class="hidden">
+  <div class="flex gap-2 my-3">
+    <label class="flex items-center gap-1 text-xs cursor-pointer">
+      <input type="checkbox" id="low-stock-only" onchange="loadInventory()"/>
+      แสดงเฉพาะต่ำกว่า minimum
+    </label>
+  </div>
+  <div id="inventory-list" class="space-y-2"></div>
+</div>
+
+<!-- ══════════════ TAB: CUSTOMERS ══════════════ -->
+<div id="tab-customers" class="hidden">
+  <div id="customers-list" class="space-y-2 mt-3"></div>
+</div>
+
+<!-- ══════════════ TAB: IMPORT PRODUCTS ══════════════ -->
+<div id="tab-import-products" class="hidden">
+  <div class="mt-4 max-w-2xl mx-auto">
+
+    <!-- Sub-tab bar -->
+    <div class="flex gap-1 bg-white rounded-xl shadow px-3 py-2 mb-4">
+      <button class="sub-tab active" onclick="switchSubTab('products','manual',this)">✏️ คีย์ข้อมูลเอง</button>
+      <button class="sub-tab" onclick="switchSubTab('products','excel',this)">📥 นำเข้า Excel</button>
+    </div>
+
+    <!-- Manual entry -->
+    <div id="products-sub-manual" class="bg-white rounded-xl shadow p-5">
+      <h2 class="font-bold text-base mb-1">✏️ เพิ่มสูตรปุ๋ยใหม่</h2>
+      <p class="text-xs text-gray-400 mb-4">กรอกข้อมูลสูตรปุ๋ยและวัตถุดิบ (BOM) ได้เลย</p>
+      <form id="form-product" onsubmit="submitProduct(event)" class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label">รหัสสูตร * <span class="text-gray-300">(เช่น 16-20-0)</span></label>
+            <input name="formula_code" required placeholder="16-20-0" class="form-input"/>
+          </div>
+          <div>
+            <label class="form-label">ชื่อสูตรปุ๋ย *</label>
+            <input name="formula_name" required placeholder="สูตรข้าวนาปี" class="form-input"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label">ราคาขาย / กก. (บาท)</label>
+            <input name="base_price_per_kg" type="number" step="0.01" placeholder="0.00" class="form-input"/>
+          </div>
+          <div>
+            <label class="form-label">คำอธิบาย</label>
+            <input name="description" placeholder="สูตรมาตรฐาน" class="form-input"/>
+          </div>
+        </div>
+
+        <!-- BOM section -->
+        <div class="border-t pt-3">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-semibold text-gray-600">วัตถุดิบ (BOM)</p>
+            <button type="button" onclick="addBomRow()" class="text-xs text-green-600 font-semibold hover:underline">+ เพิ่มวัตถุดิบ</button>
+          </div>
+          <div id="bom-rows" class="space-y-2">
+            <!-- rows added dynamically -->
+          </div>
+        </div>
+
+        <div id="product-form-error" class="text-red-500 text-xs hidden"></div>
+        <div class="flex gap-2 pt-1">
+          <button type="submit" class="btn-primary">💾 บันทึกสูตรปุ๋ย</button>
+          <button type="button" onclick="resetProductForm()" class="btn-secondary">ล้างข้อมูล</button>
+        </div>
+      </form>
+      <div id="product-form-result" class="mt-3 hidden"></div>
+
+      <!-- Formula list -->
+      <div class="mt-5 border-t pt-4">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs font-semibold text-gray-600">สูตรปุ๋ยในระบบ</p>
+          <button onclick="loadFormulaList()" class="text-xs text-green-500 hover:underline">รีเฟรช</button>
+        </div>
+        <div id="formula-list" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <!-- Excel import -->
+    <div id="products-sub-excel" class="bg-white rounded-xl shadow p-5 hidden">
+      <h2 class="font-bold text-base mb-1">📥 นำเข้าข้อมูลสินค้า / สูตรปุ๋ย จาก Excel</h2>
+      <p class="text-xs text-gray-400 mb-4">ถ้าสูตรมีหลาย BOM ให้ใส่หลายแถวโดยใช้ formula_code เดิม</p>
+      <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold text-green-700">📄 ดาวน์โหลด Template Excel</p>
+          <p class="text-xs text-green-600">มีตัวอย่างข้อมูลและคำอธิบายคอลัมน์</p>
+        </div>
+        <a href="http://localhost:8000/api/import/template/products" class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-700">⬇ Template</a>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-500 grid grid-cols-2 gap-1">
+        <span>✅ <strong>formula_code</strong></span><span>✅ <strong>formula_name</strong></span>
+        <span>✅ <strong>material_name</strong></span><span>✅ <strong>qty_per_100kg</strong></span>
+        <span>⬜ base_price_per_kg</span><span>⬜ unit / cost_per_unit</span>
+      </div>
+      <div id="drop-products" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors"
+           ondragover="event.preventDefault()" ondrop="handleDrop(event,'products')" onclick="document.getElementById('file-products').click()">
+        <p class="text-3xl mb-2">📂</p>
+        <p class="text-sm font-medium text-gray-600">คลิกเพื่อเลือกไฟล์ หรือลากวางที่นี่</p>
+        <p class="text-xs text-gray-400 mt-1">รองรับ .xlsx, .xls</p>
+      </div>
+      <input type="file" id="file-products" accept=".xlsx,.xls" class="hidden" onchange="handleFileSelect(event,'products')"/>
+      <div id="result-products" class="mt-3 hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: IMPORT EMPLOYEES ══════════════ -->
+<div id="tab-import-employees" class="hidden">
+  <div class="mt-4 max-w-2xl mx-auto">
+
+    <div class="flex gap-1 bg-white rounded-xl shadow px-3 py-2 mb-4">
+      <button class="sub-tab active" onclick="switchSubTab('employees','manual',this)">✏️ คีย์ข้อมูลเอง</button>
+      <button class="sub-tab" onclick="switchSubTab('employees','excel',this)">📥 นำเข้า Excel</button>
+    </div>
+
+    <!-- Manual entry -->
+    <div id="employees-sub-manual" class="bg-white rounded-xl shadow p-5">
+      <h2 class="font-bold text-base mb-1">✏️ เพิ่มพนักงานใหม่</h2>
+      <p class="text-xs text-gray-400 mb-4">กรอกข้อมูลพนักงานและเลือกแผนก</p>
+      <form id="form-employee" onsubmit="submitEmployee(event)" class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label">รหัสพนักงาน * <span class="text-gray-300">(เช่น EMP-001)</span></label>
+            <input name="employee_code" required placeholder="EMP-001" class="form-input"/>
+          </div>
+          <div>
+            <label class="form-label">ชื่อ-นามสกุล *</label>
+            <input name="full_name" required placeholder="สมชาย ใจดี" class="form-input"/>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">แผนก / Role *</label>
+          <div class="grid grid-cols-2 gap-2 mt-1">
+            <label class="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-2.5 cursor-pointer hover:bg-green-100">
+              <input type="radio" name="role" value="SALE" required class="accent-green-600"/>
+              <span class="text-xs font-medium text-green-700">🧑‍💼 Sale — ทีมขาย</span>
+            </label>
+            <label class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg p-2.5 cursor-pointer hover:bg-blue-100">
+              <input type="radio" name="role" value="SALE_SUPPORT" class="accent-blue-600"/>
+              <span class="text-xs font-medium text-blue-700">🗂 Sale Support</span>
+            </label>
+            <label class="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 cursor-pointer hover:bg-yellow-100">
+              <input type="radio" name="role" value="WAREHOUSE" class="accent-yellow-500"/>
+              <span class="text-xs font-medium text-yellow-700">📦 เจ้าหน้าที่คลัง</span>
+            </label>
+            <label class="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg p-2.5 cursor-pointer hover:bg-orange-100">
+              <input type="radio" name="role" value="PRODUCTION" class="accent-orange-500"/>
+              <span class="text-xs font-medium text-orange-700">🏭 เจ้าหน้าที่ผลิต</span>
+            </label>
+            <label class="flex items-center gap-2 bg-purple-50 border border-purple-200 rounded-lg p-2.5 cursor-pointer hover:bg-purple-100">
+              <input type="radio" name="role" value="ADMIN" class="accent-purple-600"/>
+              <span class="text-xs font-medium text-purple-700">⚙️ Admin</span>
+            </label>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label">เบอร์โทร</label>
+            <input name="phone" placeholder="081-xxx-xxxx" class="form-input"/>
+          </div>
+          <div>
+            <label class="form-label">อีเมล</label>
+            <input name="email" type="email" placeholder="name@example.com" class="form-input"/>
+          </div>
+        </div>
+        <div id="employee-form-error" class="text-red-500 text-xs hidden"></div>
+        <div class="flex gap-2 pt-1">
+          <button type="submit" class="btn-primary">💾 บันทึกพนักงาน</button>
+          <button type="button" onclick="document.getElementById('form-employee').reset()" class="btn-secondary">ล้างข้อมูล</button>
+        </div>
+      </form>
+      <div id="employee-form-result" class="mt-3 hidden"></div>
+
+      <!-- Employee list -->
+      <div class="mt-5 border-t pt-4">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs font-semibold text-gray-600">รายชื่อพนักงานในระบบ</p>
+          <button onclick="loadEmployees()" class="text-xs text-blue-500 hover:underline">รีเฟรช</button>
+        </div>
+        <div id="employee-list" class="space-y-1"></div>
+      </div>
+    </div>
+
+    <!-- Excel import -->
+    <div id="employees-sub-excel" class="bg-white rounded-xl shadow p-5 hidden">
+      <h2 class="font-bold text-base mb-1">📥 นำเข้าข้อมูลพนักงานจาก Excel</h2>
+      <p class="text-xs text-gray-400 mb-4">อัปโหลดพนักงานทีละหลายคนได้เลย</p>
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold text-blue-700">📄 ดาวน์โหลด Template Excel</p>
+          <p class="text-xs text-blue-600">มีตัวอย่างและรายชื่อ role ที่ใช้ได้</p>
+        </div>
+        <a href="http://localhost:8000/api/import/template/employees" class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-700">⬇ Template</a>
+      </div>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <span class="badge bg-green-100 text-green-700">SALE</span>
+        <span class="badge bg-blue-100 text-blue-700">SALE_SUPPORT</span>
+        <span class="badge bg-yellow-100 text-yellow-700">WAREHOUSE</span>
+        <span class="badge bg-orange-100 text-orange-700">PRODUCTION</span>
+        <span class="badge bg-purple-100 text-purple-700">ADMIN</span>
+      </div>
+      <div id="drop-employees" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+           ondragover="event.preventDefault()" ondrop="handleDrop(event,'employees')" onclick="document.getElementById('file-employees').click()">
+        <p class="text-3xl mb-2">👥</p>
+        <p class="text-sm font-medium text-gray-600">คลิกเพื่อเลือกไฟล์ หรือลากวางที่นี่</p>
+        <p class="text-xs text-gray-400 mt-1">รองรับ .xlsx, .xls</p>
+      </div>
+      <input type="file" id="file-employees" accept=".xlsx,.xls" class="hidden" onchange="handleFileSelect(event,'employees')"/>
+      <div id="result-employees" class="mt-3 hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: IMPORT CUSTOMERS ══════════════ -->
+<div id="tab-import-customers" class="hidden">
+  <div class="mt-4 max-w-2xl mx-auto">
+
+    <div class="flex gap-1 bg-white rounded-xl shadow px-3 py-2 mb-4">
+      <button class="sub-tab active" onclick="switchSubTab('import-customers','manual',this)">✏️ คีย์ข้อมูลเอง</button>
+      <button class="sub-tab" onclick="switchSubTab('import-customers','excel',this)">📥 นำเข้า Excel</button>
+    </div>
+
+    <!-- Manual entry -->
+    <div id="import-customers-sub-manual" class="bg-white rounded-xl shadow p-5">
+      <h2 class="font-bold text-base mb-1">✏️ เพิ่มลูกค้าใหม่</h2>
+      <p class="text-xs text-gray-400 mb-4">กรอกข้อมูลลูกค้าและวงเงินเครดิต</p>
+      <form id="form-customer-manual" onsubmit="submitCustomerManual(event)" class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label">รหัสลูกค้า * <span class="text-gray-300">(เช่น CUST-001)</span></label>
+            <input name="customer_code" required placeholder="CUST-001" class="form-input"/>
+          </div>
+          <div>
+            <label class="form-label">ชื่อบริษัท / ร้านค้า *</label>
+            <input name="company_name" required placeholder="บริษัท เกษตรดี จำกัด" class="form-input"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label">ชื่อผู้ติดต่อ</label>
+            <input name="contact_name" placeholder="สมชาย ใจดี" class="form-input"/>
+          </div>
+          <div>
+            <label class="form-label">เบอร์โทร</label>
+            <input name="phone" placeholder="081-xxx-xxxx" class="form-input"/>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">ที่อยู่</label>
+          <textarea name="address" rows="2" placeholder="ที่อยู่สำหรับจัดส่ง..." class="form-input"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label">ระยะเครดิต (วัน) *</label>
+            <select name="credit_term" class="form-input">
+              <option value="30">30 วัน</option>
+              <option value="45">45 วัน</option>
+              <option value="60">60 วัน</option>
+              <option value="90">90 วัน</option>
+              <option value="120">120 วัน</option>
+              <option value="OTHER">อื่นๆ</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">วงเงินเครดิต (บาท)</label>
+            <input name="credit_limit" type="number" step="1000" placeholder="500000" class="form-input"/>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">หมายเหตุ</label>
+          <input name="notes" placeholder="หมายเหตุเพิ่มเติม" class="form-input"/>
+        </div>
+        <div id="customer-manual-error" class="text-red-500 text-xs hidden"></div>
+        <div class="flex gap-2 pt-1">
+          <button type="submit" class="btn-primary">💾 บันทึกลูกค้า</button>
+          <button type="button" onclick="document.getElementById('form-customer-manual').reset()" class="btn-secondary">ล้างข้อมูล</button>
+        </div>
+      </form>
+      <div id="customer-manual-result" class="mt-3 hidden"></div>
+
+      <!-- Customer list -->
+      <div class="mt-5 border-t pt-4">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs font-semibold text-gray-600">ลูกค้าในระบบ</p>
+          <button onclick="loadCustomersImportPreview()" class="text-xs text-purple-500 hover:underline">รีเฟรช</button>
+        </div>
+        <div id="customers-import-preview" class="space-y-1"></div>
+      </div>
+    </div>
+
+    <!-- Excel import -->
+    <div id="import-customers-sub-excel" class="bg-white rounded-xl shadow p-5 hidden">
+      <h2 class="font-bold text-base mb-1">📥 นำเข้าข้อมูลลูกค้าจาก Excel</h2>
+      <p class="text-xs text-gray-400 mb-4">ถ้ารหัสลูกค้าซ้ำ ระบบจะอัปเดตข้อมูลที่มีอยู่อัตโนมัติ</p>
+      <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-semibold text-purple-700">📄 ดาวน์โหลด Template Excel</p>
+          <p class="text-xs text-purple-600">มีตัวอย่างข้อมูลและคำอธิบายวงเงินเครดิต</p>
+        </div>
+        <a href="http://localhost:8000/api/import/template/customers" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-purple-700">⬇ Template</a>
+      </div>
+      <div class="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-500 grid grid-cols-2 gap-1">
+        <span>✅ <strong>customer_code</strong></span><span>✅ <strong>company_name</strong></span>
+        <span>⬜ contact_name / phone</span><span>⬜ credit_term / credit_limit</span>
+      </div>
+      <div id="drop-customers" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors"
+           ondragover="event.preventDefault()" ondrop="handleDrop(event,'customers-import')" onclick="document.getElementById('file-customers').click()">
+        <p class="text-3xl mb-2">🏢</p>
+        <p class="text-sm font-medium text-gray-600">คลิกเพื่อเลือกไฟล์ หรือลากวางที่นี่</p>
+        <p class="text-xs text-gray-400 mt-1">รองรับ .xlsx, .xls</p>
+      </div>
+      <input type="file" id="file-customers" accept=".xlsx,.xls" class="hidden" onchange="handleFileSelect(event,'customers-import')"/>
+      <div id="result-customers-import" class="mt-3 hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: STOCK กระสอบ ══════════════ -->
+<div id="tab-bag-stock" class="hidden">
+  <div class="mt-4 max-w-6xl mx-auto space-y-4">
+
+    <div class="flex flex-wrap gap-2 items-center justify-between bg-white rounded-xl shadow px-4 py-3">
+      <h2 class="font-bold text-base">🎒 Stock กระสอบบรรจุปุ๋ย</h2>
+      <div class="flex gap-2">
+        <label class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer">
+          📥 Import Excel
+          <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importBagStockExcel(event)"/>
+        </label>
+        <button onclick="showBagSessionForm()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg">+ บันทึกรอบใหม่</button>
+      </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-end">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">จากวันที่</label>
+        <input type="date" id="bag-filter-from" class="border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">ถึงวันที่</label>
+        <input type="date" id="bag-filter-to" class="border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <button onclick="loadBagSessions()" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg">🔄 โหลด</button>
+    </div>
+
+    <!-- Sessions list -->
+    <div id="bag-sessions-list" class="space-y-3"></div>
+    <p id="bag-sessions-empty" class="hidden text-center text-gray-300 py-10">ยังไม่มีข้อมูล Stock กระสอบ</p>
+
+  </div>
+</div>
+
+<!-- ── Modal: บันทึกรอบตรวจนับกระสอบ ── -->
+<div id="modal-bag-session" class="hidden fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 my-4">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-base">🎒 บันทึกรอบตรวจนับกระสอบ</h3>
+      <button onclick="document.getElementById('modal-bag-session').classList.add('hidden')" class="text-gray-400 text-lg">✕</button>
+    </div>
+    <div class="grid grid-cols-3 gap-3 mb-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">วันที่ตรวจนับ *</label>
+        <input id="bag-sess-date" type="date" required class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">หมายเหตุรอบ</label>
+        <input id="bag-sess-note" placeholder="เช่น เช้าก่อนผลิต" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">บันทึกโดย</label>
+        <input id="bag-sess-by" placeholder="ชื่อ" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-center mb-2">
+      <p class="text-xs font-semibold text-gray-600">รายการกระสอบ</p>
+      <button onclick="addBagEntryRow()" class="text-xs text-green-600 hover:underline">+ เพิ่มรายการ</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs mb-3">
+        <thead class="bg-gray-50 text-gray-500">
+          <tr>
+            <th class="px-2 py-2 text-left w-32">รหัสสินค้า</th>
+            <th class="px-2 py-2 text-left">ชื่อสินค้า</th>
+            <th class="px-2 py-2 text-right w-24">จำนวน (ใบ)</th>
+            <th class="px-2 py-2 text-right w-24">ราคา/ใบ</th>
+            <th class="px-2 py-2 text-right w-24">รวม</th>
+            <th class="px-2 py-2 text-left w-28">หมายเหตุ</th>
+            <th class="w-8"></th>
+          </tr>
+        </thead>
+        <tbody id="bag-entry-tbody"></tbody>
+      </table>
+    </div>
+    <div class="flex justify-between items-center mb-3">
+      <span class="text-xs text-gray-500">รวมทั้งหมด: <span id="bag-entry-total" class="font-bold text-green-700">0</span> บาท</span>
+    </div>
+    <div id="bag-sess-error" class="text-red-500 text-xs hidden mb-2"></div>
+    <div class="flex gap-2">
+      <button onclick="submitBagSession()" class="flex-1 bg-green-600 text-white font-semibold py-2.5 rounded-lg text-sm">💾 บันทึกรอบนี้</button>
+      <button onclick="document.getElementById('modal-bag-session').classList.add('hidden')" class="px-4 border rounded-lg text-xs">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: STOCK วัตถุดิบ + FG ══════════════ -->
+<div id="tab-rm-stock" class="hidden">
+  <div class="mt-4 max-w-7xl mx-auto space-y-4">
+
+    <!-- Header -->
+    <div class="flex flex-wrap gap-2 items-center justify-between bg-white rounded-xl shadow px-4 py-3">
+      <h2 class="font-bold text-base">🏭 Stock วัตถุดิบ + สินค้าสำเร็จ (FG)</h2>
+      <div class="flex gap-2 flex-wrap">
+        <label class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer">
+          📥 Import Excel
+          <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importRmStockExcel(event)"/>
+        </label>
+        <button onclick="showRmSessionForm()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg">+ บันทึก Snapshot</button>
+      </div>
+    </div>
+
+    <!-- Sub-tabs -->
+    <div class="flex gap-1 bg-white rounded-xl shadow px-4 py-2">
+      <button id="rmtab-btn-stock" onclick="switchRmTab('stock')" class="rmtab-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white">📊 สต็อก</button>
+      <button id="rmtab-btn-po" onclick="switchRmTab('po')" class="rmtab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">🧾 PO ซื้อวัตถุดิบ</button>
+      <button id="rmtab-btn-rmsales" onclick="switchRmTab('rmsales')" class="rmtab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">💸 ขายวัตถุดิบออก</button>
+    </div>
+
+    <!-- ── SUB-TAB: สต็อก ── -->
+    <div id="rmtab-stock">
+      <!-- Filter -->
+      <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-end">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">จากวันที่</label>
+          <input type="date" id="rm-filter-from" class="border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">ถึงวันที่</label>
+          <input type="date" id="rm-filter-to" class="border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <button onclick="loadRmSessions()" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg">🔄 โหลด</button>
+      </div>
+      <div id="rm-sessions-list" class="space-y-4"></div>
+      <p id="rm-sessions-empty" class="hidden text-center text-gray-300 py-10">ยังไม่มีข้อมูล Stock</p>
+    </div>
+
+    <!-- ── SUB-TAB: PO ซื้อ ── -->
+    <div id="rmtab-po" class="hidden">
+      <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-end">
+        <input id="po-filter-supplier" placeholder="ค้นหาซัพพลายเออร์..." class="border rounded-lg px-3 py-2 text-xs w-48"/>
+        <select id="po-filter-status" class="border rounded-lg px-3 py-2 text-xs">
+          <option value="">ทุกสถานะ</option>
+          <option value="PAID">จ่ายแล้ว</option>
+          <option value="PENDING">รอจ่าย</option>
+          <option value="PARTIAL">จ่ายบางส่วน</option>
+        </select>
+        <button onclick="loadPoList()" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg">🔄 โหลด</button>
+        <button onclick="showPoForm()" class="bg-blue-600 text-white text-xs px-4 py-2 rounded-lg font-semibold">+ เพิ่ม PO</button>
+      </div>
+      <!-- PO Summary Cards -->
+      <div id="po-summary" class="grid grid-cols-2 gap-3 sm:grid-cols-4"></div>
+      <!-- PO Table -->
+      <div class="bg-white rounded-xl shadow overflow-x-auto mt-2">
+        <table class="w-full text-xs">
+          <thead class="bg-gray-50 text-gray-500">
+            <tr>
+              <th class="px-3 py-2 text-left">PO#</th>
+              <th class="px-3 py-2 text-left">ซัพพลายเออร์</th>
+              <th class="px-3 py-2 text-left">สินค้า</th>
+              <th class="px-3 py-2 text-right">ตัน</th>
+              <th class="px-3 py-2 text-right">มูลค่า</th>
+              <th class="px-3 py-2 text-right">ค่าขน</th>
+              <th class="px-3 py-2 text-left">วันจ่าย</th>
+              <th class="px-3 py-2 text-center">สถานะ</th>
+              <th class="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody id="po-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── SUB-TAB: ขายวัตถุดิบออก ── -->
+    <div id="rmtab-rmsales" class="hidden">
+      <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-end">
+        <input id="rmsale-filter-buyer" placeholder="ค้นหาบริษัทผู้ซื้อ..." class="border rounded-lg px-3 py-2 text-xs w-48"/>
+        <button onclick="loadRmSalesList()" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg">🔄 โหลด</button>
+        <button onclick="showRmSaleForm()" class="bg-purple-600 text-white text-xs px-4 py-2 rounded-lg font-semibold">+ เพิ่มรายการขาย</button>
+      </div>
+      <!-- RM Sales Summary -->
+      <div id="rmsale-summary" class="grid grid-cols-2 gap-3 sm:grid-cols-3 mt-2"></div>
+      <!-- RM Sales Table -->
+      <div class="bg-white rounded-xl shadow overflow-x-auto mt-2">
+        <table class="w-full text-xs">
+          <thead class="bg-gray-50 text-gray-500">
+            <tr>
+              <th class="px-3 py-2 text-left">วันที่</th>
+              <th class="px-3 py-2 text-left">บริษัทผู้ซื้อ</th>
+              <th class="px-3 py-2 text-left">สินค้า</th>
+              <th class="px-3 py-2 text-right">ตัน</th>
+              <th class="px-3 py-2 text-right">ราคา/ตัน</th>
+              <th class="px-3 py-2 text-right">มูลค่า</th>
+              <th class="px-3 py-2 text-left">วันรับเงิน</th>
+              <th class="px-3 py-2 text-left">เงื่อนไข</th>
+              <th class="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody id="rmsale-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════ TAB: PROMOTIONS ══════════════ -->
+<div id="tab-promotions" class="hidden">
+  <div class="mt-4 max-w-7xl mx-auto space-y-4">
+
+    <!-- Header -->
+    <div class="flex flex-wrap gap-2 items-center justify-between bg-white rounded-xl shadow px-4 py-3">
+      <h2 class="font-bold text-base">🎁 รายการส่งเสริมการขาย</h2>
+      <button onclick="showPromoForm()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg">+ เพิ่มรายการส่งเสริมการขาย</button>
+    </div>
+
+    <!-- Sub-tabs -->
+    <div class="flex gap-1 bg-white rounded-xl shadow px-4 py-2">
+      <button id="ptab-btn-promos" onclick="switchPromoTab('promos')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white">🎁 รายการโปรโมชัน</button>
+      <button id="ptab-btn-dispatch" onclick="switchPromoTab('dispatch')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📦 การแจกของแจก</button>
+    </div>
+
+    <!-- SUB-TAB: รายการโปรโมชัน -->
+    <div id="ptab-promos">
+      <!-- Summary Cards -->
+      <div id="promo-summary" class="grid grid-cols-2 gap-3 sm:grid-cols-3"></div>
+      <!-- Promotions List -->
+      <div id="promo-list" class="space-y-3 mt-2"></div>
+      <p id="promo-empty" class="hidden text-center text-gray-300 py-10">ยังไม่มีรายการส่งเสริมการขาย</p>
+    </div>
+
+    <!-- SUB-TAB: การแจกของแจก -->
+    <div id="ptab-dispatch" class="hidden">
+
+      <!-- Filter + ปุ่มเพิ่ม -->
+      <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-end">
+        <input id="dispatch-filter-order" placeholder="ค้นหา Order ID..." class="border rounded-lg px-3 py-2 text-xs w-44"/>
+        <input id="dispatch-filter-gift" placeholder="ค้นหาของแจก..." class="border rounded-lg px-3 py-2 text-xs w-44"/>
+        <button onclick="loadDispatchSummary()" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg">🔄 โหลด</button>
+        <button onclick="showDispatchForm()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs px-4 py-2 rounded-lg font-semibold">+ บันทึกการแจก</button>
+      </div>
+
+      <!-- Summary Cards -->
+      <div id="dispatch-summary-cards" class="grid grid-cols-2 gap-3 sm:grid-cols-4 mt-2"></div>
+
+      <!-- Table -->
+      <div class="bg-white rounded-xl shadow overflow-x-auto mt-2">
+        <table class="w-full text-xs">
+          <thead class="bg-gray-50 text-gray-500">
+            <tr>
+              <th class="px-3 py-2 text-left">Order ID</th>
+              <th class="px-3 py-2 text-left">ของแจก</th>
+              <th class="px-3 py-2 text-right">แผน</th>
+              <th class="px-3 py-2 text-right">แจกแล้ว</th>
+              <th class="px-3 py-2 text-right">คงค้าง</th>
+              <th class="px-3 py-2 text-center">สถานะ</th>
+              <th class="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody id="dispatch-table-body"></tbody>
+        </table>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+</main>
+
+<!-- ══════════════ MODAL: NEW ORDER ══════════════ -->
+<div id="modal-new-order" class="fixed inset-0 bg-black/60 z-50 hidden flex items-start justify-center pt-4 px-2 overflow-y-auto">
+  <div class="w-full max-w-2xl mb-8 rounded-2xl shadow-2xl overflow-hidden">
+
+    <!-- ── Header bar ── -->
+    <div class="flex items-center justify-between px-4 py-3" style="background:#1a4731">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold" style="background:#2d7a52;color:#a8e6c4" id="order-avatar">–</div>
+        <div>
+          <p class="text-sm font-semibold" style="color:#e2f5ec" id="order-header-name">เลือกพนักงานขาย</p>
+          <p class="text-xs" style="color:#7ec8a4">📝 เปิดใบสั่งซื้อใหม่</p>
+        </div>
+      </div>
+      <button onclick="hidePage('new-order')" class="text-green-200 hover:text-white text-2xl leading-none">✕</button>
+    </div>
+
+    <!-- ── Form body ── -->
+    <div class="bg-white">
+      <form id="form-new-order" onsubmit="submitOrder(event)" class="p-5 space-y-4">
+
+        <!-- Section: ข้อมูลพื้นฐาน -->
+        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">ข้อมูลใบสั่งซื้อ</p>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="col-span-2">
+            <label class="block text-xs text-gray-500 mb-1">🔢 เลขที่ Order *</label>
+            <input name="order_id" required placeholder="SO26-001 หรือ I16904082" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"/>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">แผนก</label>
+            <select name="dept" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100">
+              <option value="">-- เลือก --</option>
+              <option>S1</option><option>S2</option><option>S3</option>
+              <option>S9</option><option>S11</option><option>T001</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">👤 พนักงานขาย *</label>
+            <select name="salesperson" id="sel-salesperson" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" onchange="updateOrderHeader()">
+              <option value="">-- เลือกพนักงานขาย --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">🗂 Sale Support</label>
+            <select name="sale_support_name" id="sel-sale-support" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100">
+              <option value="">-- เลือก --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section: ลูกค้า -->
+        <hr class="border-gray-100"/>
+        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">ข้อมูลลูกค้า</p>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">🏪 ลูกค้า *</label>
+            <select name="customer_id" id="sel-customer" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" onchange="checkCredit()">
+              <option value="">-- เลือกลูกค้า --</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">📅 กำหนดส่ง</label>
+            <input name="delivery_due_date" type="date" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"/>
+          </div>
+        </div>
+
+        <!-- Credit box -->
+        <div id="credit-box" class="hidden rounded-xl p-3 text-xs border flex items-start gap-2"></div>
+
+        <!-- Section: รายการสินค้า -->
+        <hr class="border-gray-100"/>
+        <div class="flex justify-between items-center">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">รายการสินค้า</p>
+          <button type="button" onclick="addOrderItemRow()" class="text-xs text-green-600 hover:text-green-800 font-semibold flex items-center gap-1">＋ เพิ่มรายการ</button>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-gray-100">
+          <table class="w-full text-xs border-collapse">
+            <thead>
+              <tr class="bg-gray-50 text-gray-400 text-[10px] uppercase tracking-wide">
+                <th class="px-2 py-2 text-left w-6">#</th>
+                <th class="px-2 py-2 text-left w-24">รหัส</th>
+                <th class="px-2 py-2 text-left">ชื่อสินค้า / สูตรปุ๋ย *</th>
+                <th class="px-2 py-2 text-right w-20">ตัน</th>
+                <th class="px-2 py-2 text-right w-24">บาท/ตัน</th>
+                <th class="px-2 py-2 text-right w-24">รวม</th>
+                <th class="px-2 py-2 w-6"></th>
+              </tr>
+            </thead>
+            <tbody id="order-items-body" class="divide-y divide-gray-50"></tbody>
+          </table>
+        </div>
+
+        <!-- Grand total -->
+        <div class="flex items-baseline justify-between bg-green-50 rounded-xl px-4 py-3 border border-green-100">
+          <span class="text-xs text-green-700 font-medium">ยอดรวมทั้งสิ้น</span>
+          <span class="text-xl font-bold text-green-700"><span id="order-grand-total">0.00</span> บาท</span>
+        </div>
+
+        <!-- Credit danger alert -->
+        <div id="order-credit-alert" class="hidden rounded-xl p-3 border border-red-200 bg-red-50 flex items-start gap-2">
+          <span class="text-red-500 text-base">🚨</span>
+          <div>
+            <p class="text-xs font-semibold text-red-700">ยอดซื้อเกินวงเงินเครดิต!</p>
+            <p class="text-[11px] text-red-600 mt-0.5" id="order-credit-alert-detail"></p>
+          </div>
+        </div>
+
+        <!-- Section: โปรโมชัน -->
+        <hr class="border-gray-100"/>
+        <div class="flex justify-between items-center">
+          <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">🎁 ส่งเสริมการขาย (ถ้ามี)</p>
+          <button type="button" onclick="addOrderPromoRow()" class="text-xs text-purple-600 hover:text-purple-800 font-semibold">＋ เพิ่มโปรโมชัน</button>
+        </div>
+        <div id="order-promo-rows" class="space-y-2"></div>
+
+        <!-- Section: บันทึก -->
+        <hr class="border-gray-100"/>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">💬 บันทึกจาก LINE / หมายเหตุ</label>
+          <textarea name="line_note" rows="2" placeholder="วางข้อความ Order จาก LINE กลุ่มได้เลย..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 resize-none"></textarea>
+        </div>
+
+        <!-- สถานะ -->
+        <div>
+          <label class="block text-xs text-gray-500 mb-2">สถานะใบสั่งซื้อ</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 border-2 border-gray-200 rounded-xl p-3 cursor-pointer has-[:checked]:border-blue-400 has-[:checked]:bg-blue-50 transition-colors">
+              <input type="radio" name="initial_status" value="DRAFT" checked class="accent-blue-500"/>
+              <div><p class="text-xs font-semibold text-gray-700">📝 Draft</p><p class="text-[10px] text-gray-400">บันทึกร่างไว้ก่อน</p></div>
+            </label>
+            <label class="flex items-center gap-2 border-2 border-gray-200 rounded-xl p-3 cursor-pointer has-[:checked]:border-green-500 has-[:checked]:bg-green-50 transition-colors">
+              <input type="radio" name="initial_status" value="PENDING_APPROVAL" class="accent-green-500"/>
+              <div><p class="text-xs font-semibold text-gray-700">✅ ส่งตรวจเครดิต</p><p class="text-[10px] text-gray-400">ส่งรอ Approve ทันที</p></div>
+            </label>
+          </div>
+        </div>
+
+        <div id="form-error" class="text-red-500 text-xs hidden rounded-lg bg-red-50 border border-red-200 p-3"></div>
+
+        <!-- Submit buttons -->
+        <div class="flex gap-2 pt-1">
+          <button type="submit" id="submit-order-btn"
+            class="flex-1 font-semibold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+            style="background:#1a4731;color:#e2f5ec">
+            <span>💾</span><span id="submit-order-label">บันทึกใบสั่งซื้อ</span>
+          </button>
+          <button type="button" onclick="hidePage('new-order')" class="px-5 py-3 border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50">ยกเลิก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: APPROVE / REJECT ══════════════ -->
+<div id="modal-approve" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-3">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5">
+    <h2 class="font-bold mb-3" id="approve-title">Approve Order</h2>
+    <p class="text-xs text-gray-500 mb-3" id="approve-order-id"></p>
+    <input id="approve-name" placeholder="ชื่อผู้ Approve" class="w-full border rounded-lg px-3 py-2 text-sm mb-3"/>
+    <div id="reject-reason-row" class="hidden mb-3">
+      <textarea id="reject-reason" placeholder="เหตุผลที่ Reject" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm"></textarea>
+    </div>
+    <div class="flex gap-2">
+      <button id="approve-confirm-btn" class="flex-1 bg-green-600 text-white font-semibold py-2 rounded-lg text-sm" onclick="confirmApproval()">ยืนยัน</button>
+      <button onclick="document.getElementById('modal-approve').classList.add('hidden')" class="px-4 border rounded-lg text-sm">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: UPDATE PRODUCTION STATUS ══════════════ -->
+<div id="modal-prod-status" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-3">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5">
+    <h2 class="font-bold mb-3">อัปเดตสถานะการผลิต</h2>
+    <p class="text-xs text-gray-500 mb-3" id="prod-order-id"></p>
+    <select id="prod-new-status" class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
+      <option value="WAITING">⏳ รอผลิต</option>
+      <option value="IN_PROGRESS">⚙️ ระหว่างผลิต</option>
+      <option value="DISPATCHED">🚚 จัดส่ง</option>
+    </select>
+    <input id="prod-by" placeholder="ชื่อผู้ผลิต" class="w-full border rounded-lg px-3 py-2 text-sm mb-3"/>
+    <div class="flex gap-2">
+      <button onclick="confirmProdStatus()" class="flex-1 bg-blue-600 text-white font-semibold py-2 rounded-lg text-sm">บันทึก</button>
+      <button onclick="document.getElementById('modal-prod-status').classList.add('hidden')" class="px-4 border rounded-lg text-sm">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: DISPATCH FORM ══════════════ -->
+<div id="modal-dispatch-form" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-3">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="font-bold text-base">📦 บันทึกการแจกของแจก</h2>
+      <button onclick="document.getElementById('modal-dispatch-form').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <div class="space-y-3">
+      <input type="hidden" id="dispatch-op-id"/>
+      <div class="bg-purple-50 rounded-lg p-3 text-xs">
+        <p class="font-semibold text-purple-700" id="dispatch-op-info">-</p>
+        <p class="text-gray-500 mt-1" id="dispatch-op-progress">-</p>
+      </div>
+      <!-- รายการแจกที่ผ่านมา -->
+      <div>
+        <p class="text-xs font-semibold text-gray-600 mb-1">ประวัติการแจก</p>
+        <div id="dispatch-history" class="space-y-1 max-h-36 overflow-y-auto text-xs text-gray-500"></div>
+      </div>
+      <hr/>
+      <!-- ฟอร์มเพิ่ม -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">วันที่แจก *</label>
+          <input type="date" id="dispatch-date" class="form-input"/>
+        </div>
+        <div>
+          <label class="form-label">จำนวนที่แจก *</label>
+          <input type="number" id="dispatch-qty" step="1" min="1" class="form-input text-right" placeholder="0"/>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">ผู้แจก</label>
+        <input id="dispatch-by" class="form-input" placeholder="ชื่อผู้แจก"/>
+      </div>
+      <div>
+        <label class="form-label">หมายเหตุ</label>
+        <input id="dispatch-notes" class="form-input" placeholder="เพิ่มเติม..."/>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="submitDispatch()" class="flex-1 btn-primary">💾 บันทึกการแจก</button>
+        <button onclick="document.getElementById('modal-dispatch-form').classList.add('hidden')" class="btn-secondary">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: PROMOTION FORM ══════════════ -->
+<div id="modal-promo-form" class="fixed inset-0 bg-black/50 z-50 hidden flex items-start justify-center pt-10 px-3 overflow-y-auto">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 mb-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="font-bold text-base" id="promo-form-title">🎁 เพิ่มรายการส่งเสริมการขาย</h2>
+      <button onclick="document.getElementById('modal-promo-form').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <div class="space-y-3">
+      <input type="hidden" id="promo-edit-id"/>
+      <div>
+        <label class="form-label">ชื่อรายการส่งเสริมการขาย *</label>
+        <input id="promo-name-input" class="form-input" placeholder="เช่น โปรโมชันเสื้อ Q3/2026"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">วันเริ่ม</label>
+          <input type="date" id="promo-start" class="form-input"/>
+        </div>
+        <div>
+          <label class="form-label">วันสิ้นสุด</label>
+          <input type="date" id="promo-end" class="form-input"/>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">คำอธิบาย</label>
+        <textarea id="promo-desc" rows="2" class="form-input" placeholder="รายละเอียดโปรโมชัน..."></textarea>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" id="promo-active" checked class="accent-green-600"/>
+        <label class="text-xs text-gray-600">เปิดใช้งาน</label>
+      </div>
+
+      <!-- ของแจก -->
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <label class="text-xs font-semibold text-gray-700">ของแจกในโปรโมชัน</label>
+          <button type="button" onclick="addGiftRow()" class="text-xs text-purple-600 font-semibold">+ เพิ่มของแจก</button>
+        </div>
+        <div id="gift-rows" class="space-y-2"></div>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button onclick="submitPromoForm()" class="flex-1 btn-primary">💾 บันทึก</button>
+        <button onclick="document.getElementById('modal-promo-form').classList.add('hidden')" class="btn-secondary">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: GIFT STOCK UPDATE ══════════════ -->
+<div id="modal-gift-stock" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-3">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-5">
+    <h2 class="font-bold mb-3">📦 อัปเดต Stock ของแจก</h2>
+    <input type="hidden" id="gs-promo-id"/>
+    <input type="hidden" id="gs-gift-id"/>
+    <p class="text-xs text-gray-500 mb-2" id="gs-gift-name"></p>
+    <label class="form-label">จำนวนคงเหลือ</label>
+    <input type="number" id="gs-stock-qty" step="1" min="0" class="form-input mb-3"/>
+    <div class="flex gap-2">
+      <button onclick="submitGiftStock()" class="flex-1 btn-primary">บันทึก</button>
+      <button onclick="document.getElementById('modal-gift-stock').classList.add('hidden')" class="btn-secondary">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ถ้า deploy บน Cloudflare Pages ให้ใส่ Railway backend URL ตรงนี้
+const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "http://localhost:8000"
+  : "https://REPLACE_WITH_YOUR_RAILWAY_BACKEND_URL";
+let dashData = [], custData = [], formulaData = [];
+let approveMode = "approve", approveOrderId = "";
+let prodOrderId = "";
+
+// ─── UTILS ────────────────────────────────────────────────
+const fmt = v => v == null ? "-" : Number(v).toLocaleString("th-TH", {minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtDate = v => v ? new Date(v).toLocaleDateString("th-TH") : "-";
+
+function badge(status) {
+  const map = {
+    DRAFT:"bg-gray-100 text-gray-500", EDIT:"bg-amber-100 text-amber-700",
+    PENDING_APPROVAL:"bg-yellow-100 text-yellow-700",
+    APPROVED:"bg-blue-100 text-blue-700", REJECTED:"bg-red-100 text-red-700",
+    IN_PRODUCTION:"bg-orange-100 text-orange-700", READY_TO_SHIP:"bg-purple-100 text-purple-700",
+    DELIVERED:"bg-green-100 text-green-700", CANCELLED:"bg-gray-200 text-gray-400",
+    WAITING:"bg-gray-100 text-gray-600", IN_PROGRESS:"bg-yellow-100 text-yellow-700",
+    DISPATCHED:"bg-green-100 text-green-700",
+    UNPAID:"bg-red-50 text-red-600", PARTIAL:"bg-yellow-50 text-yellow-600",
+    PAID:"bg-green-50 text-green-700", OVERDUE:"bg-red-200 text-red-800",
+  };
+  const label = {
+    DRAFT:"📝 Draft", EDIT:"✏️ Edit", PENDING_APPROVAL:"⏳ Confirm",
+    APPROVED:"✅ Approved", REJECTED:"❌ Rejected",
+    IN_PRODUCTION:"⚙️ กำลังผลิต", READY_TO_SHIP:"📦 พร้อมส่ง",
+    DELIVERED:"🚚 ส่งแล้ว", CANCELLED:"🚫 ยกเลิก",
+    WAITING:"⏸ รอผลิต", IN_PROGRESS:"🔄 ระหว่างผลิต", DISPATCHED:"✅ จัดส่งแล้ว",
+    UNPAID:"💸 ค้างชำระ", PARTIAL:"💳 ชำระบางส่วน", PAID:"✅ ชำระแล้ว", OVERDUE:"🔴 เกินกำหนด",
+  };
+  const cls = map[status] || "bg-gray-100 text-gray-500";
+  return `<span class="badge ${cls}">${label[status] || status || "-"}</span>`;
+}
+
+// ─── TAB SWITCHING ─────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll("[id^='tab-']").forEach(el => el.classList.add("hidden"));
+  document.getElementById("tab-" + name).classList.remove("hidden");
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  if (name === "dashboard") loadDashboard();
+  if (name === "orders") loadOrders();
+  if (name === "production") loadProductionTab();
+  if (name === "inventory") loadInventory();
+  if (name === "customers") loadCustomers();
+  if (name === "import-employees") loadEmployees();
+  if (name === "import-customers") loadCustomersImportPreview();
+  if (name === "bag-stock") loadBagSessions();
+  if (name === "rm-stock") loadRmSessions();
+  if (name === "promotions") loadPromotions();
+}
+
+// ─── MODAL ────────────────────────────────────────────────
+function showPage(p) {
+  if (p === "new-order") {
+    populateSelects();
+    document.getElementById("form-new-order").reset();
+    document.getElementById("credit-box").classList.add("hidden");
+    document.getElementById("form-error").classList.add("hidden");
+    // reset line items
+    document.getElementById("order-items-body").innerHTML = "";
+    _orderItemSeq = 0;
+    document.getElementById("order-grand-total").textContent = "0.00";
+    addOrderItemRow(); // เริ่มด้วย 1 row
+    // reset promotions
+    document.getElementById("order-promo-rows").innerHTML = "";
+    _orderPromoSeq = 0;
+    document.getElementById("modal-new-order").classList.remove("hidden");
+  }
+}
+function hidePage(p) {
+  if (p === "new-order") document.getElementById("modal-new-order").classList.add("hidden");
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────
+async function loadDashboard() {
+  const [sum, rows] = await Promise.all([
+    fetch(`${API}/api/reports/summary`).then(r=>r.json()),
+    fetch(`${API}/api/reports/dashboard`).then(r=>r.json()),
+  ]);
+  dashData = rows;
+  document.getElementById("kpi-total").textContent = sum.total_orders;
+  document.getElementById("kpi-pending").textContent = sum.pending_approval;
+  document.getElementById("kpi-credit-alerts").textContent = sum.credit_alerts;
+  document.getElementById("kpi-inprod").textContent = sum.in_production;
+  document.getElementById("kpi-revenue").textContent = fmt(sum.total_revenue);
+  document.getElementById("kpi-profit").textContent = fmt(sum.total_profit);
+  document.getElementById("last-refresh").textContent = "อัปเดต " + new Date().toLocaleTimeString("th-TH");
+  renderDashTable();
+}
+
+function creditBadge(o) {
+  if (o.credit_exceeded) return '<span class="badge bg-red-100 text-red-700 text-[10px]">🔴 เกินวงเงิน (Hold)</span>';
+  if (o.credit_alert)    return '<span class="badge bg-orange-100 text-orange-700 text-[10px]">🟠 ใกล้เต็มวงเงิน</span>';
+  const st = o.order_status;
+  if (st === "APPROVED" || st === "IN_PRODUCTION" || st === "READY_TO_SHIP" || st === "DELIVERED")
+    return '<span class="badge bg-green-100 text-green-700 text-[10px]">🟢 ผ่าน (Approve)</span>';
+  if (st === "PENDING_APPROVAL")
+    return '<span class="badge bg-yellow-100 text-yellow-700 text-[10px]">🟡 รอตรวจสอบ</span>';
+  if (st === "DRAFT" || st === "EDIT")
+    return '<span class="badge bg-gray-100 text-gray-500 text-[10px]">⬜ Draft</span>';
+  if (st === "CANCELLED")
+    return '<span class="badge bg-gray-100 text-gray-400 text-[10px]">✕ ยกเลิก</span>';
+  return '<span class="text-gray-300 text-[10px]">—</span>';
+}
+
+function expressBadge(o) {
+  const ps = o.payment_status;
+  if (!ps || ps === "UNPAID") {
+    if (o.credit_exceeded) return '<span class="badge bg-red-100 text-red-700 text-[10px]">🚫 บล็อก (รอเคลียร์เงิน)</span>';
+    return `<button onclick="alert('คีย์ลง Express: ${o.order_id}')" class="badge bg-blue-50 text-blue-700 text-[10px] hover:bg-blue-100 cursor-pointer border border-blue-200">⏳ รอคีย์ข้อมูล</button>`;
+  }
+  if (ps === "PAID") return '<span class="badge bg-green-100 text-green-700 text-[10px]">✅ คีย์ลง Express แล้ว</span>';
+  if (ps === "OVERDUE") return '<span class="badge bg-red-100 text-red-700 text-[10px]">🚨 เกินกำหนดชำระ</span>';
+  if (ps === "PARTIAL") return '<span class="badge bg-yellow-100 text-yellow-700 text-[10px]">💰 ชำระบางส่วน</span>';
+  return `<span class="text-gray-300 text-[10px]">${ps}</span>`;
+}
+
+function factoryBadge(o) {
+  const ps = o.production_status;
+  if (!ps || ps === "WAITING") {
+    if (o.credit_exceeded) return '<span class="badge bg-red-100 text-red-700 text-[10px]">🔴 รอผลิต (ระงับชั่วคราว)</span>';
+    return '<span class="badge bg-gray-100 text-gray-500 text-[10px]">⏳ รอผลิต</span>';
+  }
+  if (ps === "IN_PROGRESS") return '<span class="badge bg-yellow-100 text-yellow-700 text-[10px]">🟡 ระหว่างผลิต</span>';
+  if (ps === "DISPATCHED")  return '<span class="badge bg-green-100 text-green-700 text-[10px]">🚚 จัดส่งสำเร็จ</span>';
+  return `<span class="text-gray-300 text-[10px]">${ps||"—"}</span>`;
+}
+
+function renderDashTable() {
+  const q  = document.getElementById("dash-search").value.trim().toLowerCase();
+  const st = document.getElementById("dash-status").value;
+  const dept = document.getElementById("dash-dept")?.value || "";
+  const cr = document.getElementById("dash-credit")?.value || "";
+  const rows = dashData.filter(o =>
+    (!q || [o.order_id, o.customer_name, o.customer_code, o.salesperson, o.sale_support_name].some(v=>(v||"").toLowerCase().includes(q))) &&
+    (!st   || o.order_status === st) &&
+    (!dept || o.dept === dept) &&
+    (!cr   || (cr === "alert" ? (o.credit_alert || o.credit_exceeded) : !(o.credit_alert || o.credit_exceeded)))
+  );
+  const tbody = document.getElementById("dash-tbody");
+  document.getElementById("dash-empty").classList.toggle("hidden", rows.length > 0);
+  tbody.innerHTML = rows.map(o => {
+    const isHold = o.credit_exceeded;
+    const rowBg = isHold ? "bg-red-50" : o.credit_alert ? "bg-orange-50/40" : "";
+    const actions = [];
+    if (["DRAFT","EDIT"].includes(o.order_status))
+      actions.push(`<button onclick="confirmOrder('${o.order_id}')" class="text-xs text-green-700 bg-green-100 hover:bg-green-200 px-2 py-0.5 rounded-full font-medium">✓ Confirm</button>`);
+    if (o.order_status === "PENDING_APPROVAL") {
+      actions.push(`<button onclick="openApprove('${o.order_id}','approve')" class="text-xs text-blue-700 bg-blue-100 hover:bg-blue-200 px-2 py-0.5 rounded-full font-medium">✓ Approve</button>`);
+      actions.push(`<button onclick="openApprove('${o.order_id}','reject')" class="text-xs text-red-600 bg-red-100 hover:bg-red-200 px-2 py-0.5 rounded-full font-medium">✗ Reject</button>`);
+      actions.push(`<button onclick="sendBackEdit('${o.order_id}')" class="text-xs text-amber-700 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded-full font-medium">↩ แก้ไข</button>`);
+    }
+    const profitColor = Number(o.gross_profit) >= 0 ? "text-green-700" : "text-red-600";
+    return `
+    <tr class="hover:bg-gray-50/80 transition-colors ${rowBg} border-b border-gray-50">
+      <td class="px-3 py-2.5">
+        <p class="font-mono font-bold text-xs text-gray-800">${o.order_id}</p>
+        <p class="text-[10px] text-gray-400 mt-0.5">${fmtDate(o.order_date)}${o.delivery_due_date ? ' · ส่ง '+fmtDate(o.delivery_due_date) : ''}</p>
+      </td>
+      <td class="px-3 py-2.5">
+        <p class="text-xs font-medium text-gray-800">${o.customer_name || "—"}</p>
+        <p class="text-[10px] text-gray-400 mt-0.5">👤 ${o.salesperson||"—"}${o.sale_support_name ? ' · SS: '+o.sale_support_name : ''}</p>
+      </td>
+      <td class="px-3 py-2.5">
+        <p class="text-xs font-semibold ${profitColor}">${fmt(o.total_amount)} <span class="font-normal text-[10px] text-gray-400">บาท</span></p>
+        <p class="text-[10px] text-gray-400 mt-0.5">${o.dept||""} ${o.gross_profit != null ? '· กำไร: <span class="'+profitColor+'">'+fmt(o.gross_profit)+'</span>' : ""}</p>
+      </td>
+      <td class="px-3 py-2.5 text-center">${creditBadge(o)}</td>
+      <td class="px-3 py-2.5 text-center">${expressBadge(o)}</td>
+      <td class="px-3 py-2.5 text-center">${factoryBadge(o)}</td>
+      <td class="px-3 py-2.5 text-center">
+        <div class="flex flex-col gap-1 items-center">${actions.join("")}</div>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+async function confirmOrder(orderId) {
+  if (!confirm(`Confirm Order ${orderId} เพื่อส่งรออนุมัติ?`)) return;
+  const res = await fetch(`${API}/api/orders/${orderId}/confirm`, {method:"POST"});
+  if (res.ok) loadDashboard();
+  else { const e = await res.json(); alert(e.detail||"เกิดข้อผิดพลาด"); }
+}
+
+async function sendBackEdit(orderId) {
+  const reason = prompt(`เหตุผลที่ส่งกลับแก้ไข Order ${orderId}:`, "ขอแก้ไขข้อมูล");
+  if (reason === null) return;
+  const res = await fetch(`${API}/api/orders/${orderId}/send-edit?reason=${encodeURIComponent(reason||"ขอแก้ไข")}`, {method:"POST"});
+  if (res.ok) loadDashboard();
+  else { const e = await res.json(); alert(e.detail||"เกิดข้อผิดพลาด"); }
+}
+
+function exportData(fmt) {
+  window.open(`${API}/api/reports/dashboard/export?format=${fmt}`, "_blank");
+}
+
+// ─── ORDERS TAB ───────────────────────────────────────────
+async function loadOrders() {
+  const rows = await fetch(`${API}/api/orders`).then(r=>r.json());
+  const cust = Object.fromEntries(custData.map(c=>[c.customer_id, c.company_name]));
+  document.getElementById("orders-list").innerHTML = rows.map(o => {
+    const itemRows = (o.items||[]).map(it => `
+      <tr class="border-t text-[10px]">
+        <td class="px-2 py-0.5 text-gray-400">${it.seq}</td>
+        <td class="px-2 py-0.5 font-mono text-gray-500">${it.product_code||""}</td>
+        <td class="px-2 py-0.5">${it.product_name}</td>
+        <td class="px-2 py-0.5 text-right">${it.quantity_ton} ตัน</td>
+        <td class="px-2 py-0.5 text-right">${fmt(it.unit_price)}</td>
+        <td class="px-2 py-0.5 text-right font-semibold">${fmt(it.line_amount)}</td>
+      </tr>`).join("");
+    return `
+    <div class="bg-white rounded-xl shadow p-4">
+      <div class="flex justify-between items-start mb-2">
+        <span class="font-mono font-bold text-sm">${o.order_id}</span>
+        ${badge(o.order_status)}
+      </div>
+      <div class="grid grid-cols-2 gap-1 text-xs text-gray-600 mb-2">
+        <span>👤 ${cust[o.customer_id]||o.customer_id}</span>
+        <span>🏢 ${o.dept||"-"}</span>
+        <span>🧑‍💼 ทีมขาย: ${o.salesperson||"-"}</span>
+        <span>🎯 SS: ${o.sale_support_name||"-"}</span>
+        <span>💰 รวม: <strong>${fmt(o.total_amount)}</strong> บาท</span>
+        <span>📅 ${fmtDate(o.order_date)}</span>
+      </div>
+      ${(o.items||[]).length > 0 ? `
+      <div class="overflow-x-auto mb-2">
+        <table class="w-full">
+          <thead><tr class="text-[10px] text-gray-400 bg-gray-50">
+            <th class="px-2 py-0.5 text-left">#</th><th class="px-2 py-0.5 text-left">รหัส</th>
+            <th class="px-2 py-0.5 text-left">ชื่อสินค้า</th><th class="px-2 py-0.5 text-right">จำนวน</th>
+            <th class="px-2 py-0.5 text-right">ราคา/ตัน</th><th class="px-2 py-0.5 text-right">รวม</th>
+          </tr></thead>
+          <tbody>${itemRows}</tbody>
+        </table>
+      </div>` : ""}
+      ${o.credit_alert ? '<div class="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-2 py-1 mb-2">⚠️ ยอดสั่งเกิน/ใกล้วงเงินเครดิต</div>' : ""}
+      ${o.line_note ? `<div class="bg-gray-50 text-xs text-gray-500 rounded px-2 py-1 mb-2">💬 ${o.line_note}</div>` : ""}
+      <div class="flex gap-2 flex-wrap mt-2">
+        ${["DRAFT","EDIT"].includes(o.order_status) ? `
+          <button onclick="confirmOrder('${o.order_id}')" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium">✓ Confirm ส่งอนุมัติ</button>` : ""}
+        ${o.order_status==="PENDING_APPROVAL" ? `
+          <button onclick="openApprove('${o.order_id}','approve')" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium">✓ Approve</button>
+          <button onclick="openApprove('${o.order_id}','reject')" class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-medium">✗ Reject</button>
+          <button onclick="sendBackEdit('${o.order_id}')" class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-medium">↩ ส่งกลับแก้ไข</button>` : ""}
+      </div>
+    </div>`;
+  }).join("") || '<p class="text-center text-gray-300 py-8">ยังไม่มี Order</p>';
+}
+
+// ─── PRODUCTION TAB ───────────────────────────────────────
+let prodFilter = "ALL";
+let prodOrdersCache = [];
+let prodProdCache = [];
+let prodMatCache = [];
+let prodFormulaCache = [];
+
+async function loadProductionTab() {
+  try {
+    const [orders, prods, mats, formulas] = await Promise.all([
+      fetch(`${API}/api/orders`).then(r=>r.json()).catch(()=>[]),
+      fetch(`${API}/api/production`).then(r=>r.json()).catch(()=>[]),
+      fetch(`${API}/api/inventory`).then(r=>r.json()).catch(()=>[]),
+      fetch(`${API}/api/formulas`).then(r=>r.json()).catch(()=>[]),
+    ]);
+    prodOrdersCache  = orders;
+    prodProdCache    = prods;
+    prodMatCache     = mats;
+    prodFormulaCache = formulas;
+    renderProdStockCards(mats);
+    renderProductionQueue();
+  } catch(e) {
+    document.getElementById("production-list").innerHTML =
+      '<p class="text-center text-gray-300 py-8">ไม่สามารถโหลดข้อมูลได้ (กรุณารัน Backend)</p>';
+  }
+}
+
+function renderProdStockCards(mats) {
+  const el = document.getElementById("prod-stock-cards");
+  if (!mats.length) {
+    el.innerHTML = '<p class="text-xs text-gray-400 col-span-4">ไม่พบข้อมูลวัตถุดิบ</p>';
+    return;
+  }
+  el.innerHTML = mats.map(m => {
+    const pct = m.minimum_qty > 0 ? (m.stock_qty / m.minimum_qty) : 99;
+    const isLow = m.stock_qty < m.minimum_qty;
+    const borderColor = isLow ? "border-red-300" : "border-gray-100";
+    const numColor    = isLow ? "text-red-600" : "text-gray-800";
+    return `
+    <div class="bg-white rounded-xl border ${borderColor} p-3 shadow-sm">
+      <p class="text-[10px] text-gray-400 uppercase tracking-wide truncate">${m.material_name}</p>
+      <p class="text-lg font-bold ${numColor} mt-0.5">${m.stock_qty} <span class="text-xs font-normal text-gray-400">${m.unit}</span></p>
+      ${isLow ? '<span class="text-[10px] text-red-500 font-medium">⚠ ต่ำกว่า minimum</span>' : `<span class="text-[10px] text-gray-300">min: ${m.minimum_qty} ${m.unit}</span>`}
+    </div>`;
+  }).join("");
+}
+
+function setProdFilter(f, btn) {
+  prodFilter = f;
+  document.querySelectorAll(".prod-filter-btn").forEach(b => {
+    b.className = "prod-filter-btn px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200";
+  });
+  btn.className = "prod-filter-btn px-3 py-1 rounded-full text-xs font-medium bg-gray-800 text-white";
+  renderProductionQueue();
+}
+
+function renderProductionQueue() {
+  const prodMap = Object.fromEntries(prodProdCache.map(p => [p.order_id, p]));
+  const matMap  = Object.fromEntries(prodMatCache.map(m => [m.material_name.toLowerCase(), m]));
+  const fmlMap  = Object.fromEntries(prodFormulaCache.map(f => [f.formula_code, f]));
+
+  // Only show orders that are APPROVED or IN_PRODUCTION or DELIVERED (exclude DRAFT/CANCELLED)
+  const activeStatuses = ["APPROVED","IN_PRODUCTION","READY_TO_SHIP","DELIVERED"];
+  let orders = prodOrdersCache.filter(o => activeStatuses.includes(o.order_status));
+
+  // Apply production status filter
+  if (prodFilter !== "ALL") {
+    orders = orders.filter(o => {
+      const ps = prodMap[o.order_id]?.production_status || "WAITING";
+      return ps === prodFilter;
+    });
+  }
+
+  const el = document.getElementById("production-list");
+  if (!orders.length) {
+    el.innerHTML = '<p class="text-center text-gray-300 py-10">ไม่พบรายการในคิวผลิต</p>';
+    return;
+  }
+
+  const custMap = Object.fromEntries((custData||[]).map(c=>[c.customer_id, c.company_name]));
+
+  el.innerHTML = orders.map(o => {
+    const prod = prodMap[o.order_id];
+    const ps   = prod?.production_status || "WAITING";
+    const steps = ["WAITING","IN_PROGRESS","DISPATCHED"];
+    const stepLabels = { WAITING:"รอผลิต", IN_PROGRESS:"ระหว่างผลิต", DISPATCHED:"จัดส่งแล้ว" };
+    const stepColors = { WAITING:"bg-gray-200 text-gray-500", IN_PROGRESS:"bg-yellow-400 text-white", DISPATCHED:"bg-green-500 text-white" };
+    const curIdx = steps.indexOf(ps);
+
+    const stepperHtml = steps.map((s, i) => {
+      const done = i < curIdx;
+      const cur  = i === curIdx;
+      const dotColor = done ? "bg-green-500" : cur ? (s === "IN_PROGRESS" ? "bg-yellow-400" : s === "DISPATCHED" ? "bg-green-500" : "bg-gray-800") : "bg-gray-200";
+      const textColor = done || cur ? "text-gray-700 font-semibold" : "text-gray-400";
+      const lineColor = done ? "bg-green-400" : "bg-gray-200";
+      return `
+      <div class="flex flex-col items-center gap-1 flex-1">
+        <div class="flex items-center w-full">
+          ${i > 0 ? `<div class="flex-1 h-0.5 ${lineColor}"></div>` : ""}
+          <div class="w-6 h-6 rounded-full ${dotColor} flex items-center justify-center text-[10px] ${cur?'ring-2 ring-offset-1 ring-gray-400':''}">
+            ${done ? "✓" : i+1}
+          </div>
+          ${i < steps.length-1 ? `<div class="flex-1 h-0.5 ${lineColor}"></div>` : ""}
+        </div>
+        <span class="text-[10px] ${textColor} text-center">${stepLabels[s]}</span>
+      </div>`;
+    }).join("");
+
+    // BOM calculation per item
+    const bomSections = (o.items||[]).map(it => {
+      const fml = fmlMap[it.product_code] || Object.values(fmlMap).find(f => f.formula_name === it.product_name);
+      const qtyKg = Number(it.quantity_ton) * 1000;
+      let bomHtml = "";
+      if (fml && fml.bom_items?.length) {
+        bomHtml = fml.bom_items.map(b => {
+          const needed = b.qty_per_100kg * qtyKg / 100;
+          const mat = matMap[b.material_name.toLowerCase()];
+          const hasStock = mat ? mat.stock_qty >= needed/1000 : null;
+          const stockBadge = hasStock === null ? '<span class="text-gray-300 text-[10px]">ไม่มีข้อมูล</span>'
+            : hasStock ? '<span class="text-[10px] text-green-600 font-medium">✅ เพียงพอ</span>'
+            : '<span class="text-[10px] text-red-600 font-medium">⚠️ ไม่พอ</span>';
+          return `<div class="flex items-center justify-between py-0.5">
+            <span class="text-[11px] text-gray-600">- ต้องใช้ ${b.material_name}: <strong>${needed.toLocaleString('th-TH',{maximumFractionDigits:0})} kg</strong></span>
+            <span>${stockBadge}</span>
+          </div>`;
+        }).join("");
+        bomHtml = `<div class="mt-2 bg-blue-50/60 rounded-lg px-3 py-2 border border-blue-100">
+          <p class="text-[10px] text-blue-600 font-semibold mb-1">🛠 สูตรผสมที่ต้องเบิก (${fml.formula_code})</p>
+          ${bomHtml}
+        </div>`;
+      }
+      return `
+      <div class="flex items-start gap-2 text-xs text-gray-700 mb-1">
+        <span class="text-gray-400 flex-shrink-0">#${it.seq}</span>
+        <div class="flex-1">
+          <span class="font-medium">${it.product_name}</span>
+          <span class="text-gray-400 ml-2">${it.quantity_ton} ตัน · ${fmt(it.line_amount)} บาท</span>
+          ${bomHtml}
+        </div>
+      </div>`;
+    }).join("");
+
+    const psColor = ps === "DISPATCHED" ? "border-green-200 bg-green-50/30"
+      : ps === "IN_PROGRESS" ? "border-yellow-200 bg-yellow-50/30"
+      : "border-gray-200";
+
+    return `
+    <div class="bg-white rounded-2xl shadow border ${psColor} overflow-hidden">
+      <!-- Order header -->
+      <div class="flex items-start justify-between px-4 pt-3 pb-2">
+        <div>
+          <p class="font-mono font-bold text-sm text-gray-800">🏷️ ${o.order_id}</p>
+          <p class="text-xs text-gray-500 mt-0.5">🏪 ${custMap[o.customer_id] || "—"} · 👤 ${o.salesperson||"—"}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs font-semibold text-green-700">${fmt(o.total_amount)} บาท</p>
+          <p class="text-[10px] text-gray-400">${o.dept||""} · ${fmtDate(o.order_date)}</p>
+        </div>
+      </div>
+
+      <!-- Items + BOM -->
+      <div class="px-4 pb-3">
+        ${bomSections}
+      </div>
+
+      <!-- Status pipeline -->
+      <div class="border-t border-gray-100 px-4 py-3">
+        <p class="text-[10px] text-gray-400 mb-2">สถานะการผลิต — คลิกเพื่ออัปเดต</p>
+        <div class="flex items-start gap-0 mb-3">${stepperHtml}</div>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="openProdStatus('${o.order_id}','${ps}')"
+            class="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-xs font-semibold py-2 rounded-lg flex items-center justify-center gap-1.5">
+            ⚙️ อัปเดตสถานะการผลิต
+          </button>
+          ${prod?.qc_passed ? '<span class="text-xs text-green-600 font-medium flex items-center gap-1">✅ QC ผ่านแล้ว</span>' : ''}
+        </div>
+        ${prod ? `<p class="text-[10px] text-gray-400 mt-1.5">👷 ผลิตโดย: ${prod.produced_by||"—"} · ต้นทุน: ${fmt(prod.production_cost_total)} บาท</p>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// Keep backward compat (called from old buttons)
+async function loadProduction(status) {
+  if (status) { prodFilter = status; } else { prodFilter = "ALL"; }
+  await loadProductionTab();
+}
+
+// ─── INVENTORY TAB ────────────────────────────────────────
+async function loadInventory() {
+  const lowOnly = document.getElementById("low-stock-only").checked;
+  const url = lowOnly ? `${API}/api/inventory?low_stock_only=true` : `${API}/api/inventory`;
+  const rows = await fetch(url).then(r=>r.json());
+  document.getElementById("inventory-list").innerHTML = rows.map(m => `
+    <div class="bg-white rounded-xl shadow p-4 flex items-center justify-between">
+      <div>
+        <p class="font-semibold text-sm">${m.material_name}</p>
+        <p class="text-xs text-gray-400">${m.unit} · ต้นทุน ${fmt(m.cost_per_unit)} ต่อ ${m.unit}</p>
+      </div>
+      <div class="text-right">
+        <p class="font-bold text-base ${m.low_stock?'text-red-600':'text-green-700'}">${fmt(m.stock_qty)} ${m.unit}</p>
+        <p class="text-xs text-gray-400">min: ${fmt(m.minimum_qty)}</p>
+        ${m.low_stock ? '<span class="badge bg-red-100 text-red-700">⚠ ต่ำกว่า min</span>' : ""}
+      </div>
+    </div>`).join("") || '<p class="text-center text-gray-300 py-8">ไม่พบวัตถุดิบ</p>';
+}
+
+// ─── CUSTOMERS TAB ────────────────────────────────────────
+async function loadCustomers() {
+  custData = await fetch(`${API}/api/customers`).then(r=>r.json());
+  document.getElementById("customers-list").innerHTML = custData.map(c => {
+    const pct = c.credit_limit > 0 ? Math.round(c.outstanding_balance / c.credit_limit * 100) : 0;
+    const barColor = pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-yellow-400" : "bg-green-400";
+    return `
+    <div class="bg-white rounded-xl shadow p-4">
+      <div class="flex justify-between items-start mb-1">
+        <div>
+          <span class="font-semibold">${c.company_name}</span>
+          <span class="text-gray-400 text-xs ml-2">${c.customer_code}</span>
+        </div>
+        <span class="text-xs text-gray-400">เครดิต ${c.credit_term} วัน</span>
+      </div>
+      <p class="text-xs text-gray-400 mb-2">📞 ${c.phone||"-"} · ${c.contact_name||"-"}</p>
+      <div class="flex justify-between text-xs mb-1">
+        <span class="text-gray-500">วงเงิน: ${fmt(c.credit_limit)} บาท</span>
+        <span class="${pct>=80?'text-red-600 font-semibold':'text-gray-600'}">ใช้ไป ${pct}%</span>
+      </div>
+      <div class="bg-gray-100 rounded-full h-2">
+        <div class="${barColor} h-2 rounded-full transition-all" style="width:${Math.min(pct,100)}%"></div>
+      </div>
+      <p class="text-xs text-gray-400 mt-1">ค้างชำระ: ${fmt(c.outstanding_balance)} บาท</p>
+    </div>`;
+  }).join("") || '<p class="text-center text-gray-300 py-8">ไม่พบลูกค้า</p>';
+}
+
+// ─── NEW ORDER FORM ───────────────────────────────────────
+let empData = [];
+
+async function populateSelects() {
+  if (!custData.length) custData = await fetch(`${API}/api/customers`).then(r=>r.json()).catch(()=>[]);
+  if (!empData.length) empData = await fetch(`${API}/api/employees?is_active=true`).then(r=>r.json()).catch(()=>[]);
+
+  const sc = document.getElementById("sel-customer");
+  sc.innerHTML = '<option value="">-- เลือกลูกค้า --</option>' +
+    custData.map(c=>`<option value="${c.customer_id}">${c.company_name} (${c.customer_code})</option>`).join("");
+
+  // พนักงานขาย — ดึงทุกคนจาก employee master
+  const ssp = document.getElementById("sel-salesperson");
+  ssp.innerHTML = '<option value="">-- เลือกพนักงานขาย --</option>' +
+    empData.map(e=>`<option value="${e.full_name}">${e.full_name} (${e.employee_code})</option>`).join("") +
+    '<option value="__other__">อื่นๆ (พิมพ์เอง)</option>';
+  ssp.onchange = () => { toggleCustomInput(ssp, "custom-salesperson"); updateOrderHeader(); };
+
+  // Sale Support
+  const ssEmps = empData.filter(e => e.role === "SALE_SUPPORT");
+  const ssEl = document.getElementById("sel-sale-support");
+  ssEl.innerHTML = '<option value="">-- เลือก Sale Support --</option>' +
+    ssEmps.map(e=>`<option value="${e.full_name}">${e.full_name} (${e.employee_code})</option>`).join("") +
+    '<option value="__other__">อื่นๆ (พิมพ์เอง)</option>';
+  ssEl.onchange = () => toggleCustomInput(ssEl, "custom-sale-support");
+}
+
+function toggleCustomInput(sel, inputId) {
+  let inp = document.getElementById(inputId);
+  if (sel.value === "__other__") {
+    if (!inp) {
+      inp = document.createElement("input");
+      inp.id = inputId; inp.placeholder = "พิมพ์ชื่อ...";
+      inp.className = "w-full border rounded-lg px-3 py-2 text-xs mt-1";
+      inp.dataset.for = sel.name;
+      sel.parentNode.appendChild(inp);
+      inp.addEventListener("input", () => { sel.dataset.customVal = inp.value; });
+    }
+    inp.classList.remove("hidden"); inp.focus();
+  } else if (inp) {
+    inp.classList.add("hidden"); delete sel.dataset.customVal;
+  }
+}
+
+// ─── ORDER ITEMS ──────────────────────────────────────────────
+let _orderItemSeq = 0;
+
+function addOrderItemRow(data = {}) {
+  _orderItemSeq++;
+  const id = _orderItemSeq;
+  const tbody = document.getElementById("order-items-body");
+  const qty   = data.quantity_ton ?? "";
+  const price = data.unit_price   ?? "";
+  const amt   = (qty && price) ? fmt(qty * price) : "0";
+  const tr = document.createElement("tr");
+  tr.id = `oi-row-${id}`;
+  tr.className = "border-b";
+  tr.innerHTML = `
+    <td class="px-1 py-1 text-gray-400 text-xs">${id}</td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-1 py-0.5 text-xs" placeholder="รหัส" value="${data.product_code||""}" oninput="updateOITotal(${id})"/></td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-1 py-0.5 text-xs" placeholder="ชื่อสินค้า *" required value="${data.product_name||""}" oninput="updateOITotal(${id})"/></td>
+    <td class="px-1 py-1"><input type="number" step="0.001" class="w-full border rounded px-1 py-0.5 text-xs text-right" placeholder="0" value="${qty}" oninput="updateOITotal(${id})"/></td>
+    <td class="px-1 py-1"><input type="number" step="0.01" class="w-full border rounded px-1 py-0.5 text-xs text-right" placeholder="0" value="${price}" oninput="updateOITotal(${id})"/></td>
+    <td class="px-1 py-1 text-right font-semibold text-green-700 text-xs whitespace-nowrap" id="oi-amt-${id}">${amt}</td>
+    <td class="px-1 py-1 text-center"><button type="button" class="text-red-400 hover:text-red-600 text-xs" onclick="removeOIRow(${id})">✕</button></td>`;
+  tbody.appendChild(tr);
+  updateOIGrand();
+}
+
+function updateOITotal(id) {
+  const row = document.getElementById(`oi-row-${id}`);
+  const numInputs = row.querySelectorAll("input[type='number']");
+  const qty   = parseFloat(numInputs[0]?.value) || 0;
+  const price = parseFloat(numInputs[1]?.value) || 0;
+  document.getElementById(`oi-amt-${id}`).textContent = fmt(qty * price);
+  updateOIGrand();
+  checkCredit();
+}
+
+function removeOIRow(id) {
+  document.getElementById(`oi-row-${id}`)?.remove();
+  updateOIGrand();
+  checkCredit();
+}
+
+function updateOIGrand() {
+  const amts = [...document.querySelectorAll("[id^='oi-amt-']")].map(el => parseFloat(el.textContent.replace(/,/g,"")) || 0);
+  const total = amts.reduce((a, b) => a + b, 0);
+  document.getElementById("order-grand-total").textContent = fmt(total);
+}
+
+function getOrderItemsGrandTotal() {
+  const amts = [...document.querySelectorAll("[id^='oi-amt-']")].map(el => parseFloat(el.textContent.replace(/,/g,"")) || 0);
+  return amts.reduce((a, b) => a + b, 0);
+}
+
+function getOrderItemsPayload() {
+  const rows = document.querySelectorAll("[id^='oi-row-']");
+  return Array.from(rows).map((row, i) => {
+    const allInputs = row.querySelectorAll("input");
+    const numInputs = row.querySelectorAll("input[type='number']");
+    return {
+      seq:          i + 1,
+      product_code: allInputs[0]?.value.trim() || null,
+      product_name: allInputs[1]?.value.trim() || "",
+      quantity_ton: parseFloat(numInputs[0]?.value) || 0,
+      unit:         "ตัน",
+      unit_price:   parseFloat(numInputs[1]?.value) || 0,
+      discount:     0,
+    };
+  }).filter(it => it.product_name);
+}
+
+function updateOrderHeader() {
+  const sel = document.getElementById("sel-salesperson");
+  const name = sel.options[sel.selectedIndex]?.text?.split(" (")[0] || "เลือกพนักงานขาย";
+  const avatar = name !== "เลือกพนักงานขาย" ? name.slice(0,2) : "–";
+  document.getElementById("order-header-name").textContent = name === "เลือกพนักงานขาย" ? "เลือกพนักงานขาย" : name;
+  document.getElementById("order-avatar").textContent = avatar;
+}
+
+async function checkCredit() {
+  const custId = document.getElementById("sel-customer").value;
+  const amt = getOrderItemsGrandTotal();
+  const box = document.getElementById("credit-box");
+  const alertBox = document.getElementById("order-credit-alert");
+  const submitLabel = document.getElementById("submit-order-label");
+  const submitBtn = document.getElementById("submit-order-btn");
+  if (!custId || amt <= 0) {
+    box.classList.add("hidden");
+    alertBox.classList.add("hidden");
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/customers/${custId}/credit-check?order_amount=${amt}`).then(r=>r.json());
+    box.classList.remove("hidden");
+    if (res.credit_exceeded) {
+      box.className = "rounded-xl p-3 text-xs border border-red-200 bg-red-50 flex items-start gap-2";
+      box.innerHTML = `<span class="text-red-500 text-base flex-shrink-0">⚠️</span><div><strong class="text-red-700">วงเงิน ${fmt(res.credit_limit)} บาท</strong><span class="text-red-600"> · ค้างชำระ ${fmt(res.outstanding_balance)} บาท · คงเหลือ ${fmt(res.credit_remaining)} บาท</span></div>`;
+      alertBox.classList.remove("hidden");
+      document.getElementById("order-credit-alert-detail").textContent = `ยอด Order นี้ ${fmt(res.order_amount)} บาท เกินวงเงินที่เหลืออยู่ — ต้องขออนุมัติพิเศษ`;
+      submitBtn.style.background = "#a32d2d";
+      if (submitLabel) submitLabel.textContent = "ส่งขออนุมัติ (เกินวงเงิน)";
+    } else if (res.credit_alert) {
+      box.className = "rounded-xl p-3 text-xs border border-yellow-200 bg-yellow-50 flex items-start gap-2";
+      box.innerHTML = `<span class="text-yellow-500 text-base flex-shrink-0">⚠️</span><div><strong class="text-yellow-700">ใกล้เต็มวงเงิน</strong><span class="text-yellow-700"> · วงเงิน ${fmt(res.credit_limit)} บาท · เหลือ ${fmt(res.credit_remaining)} บาท</span></div>`;
+      alertBox.classList.add("hidden");
+      submitBtn.style.background = "#1a4731";
+      if (submitLabel) submitLabel.textContent = "ส่งคำสั่งซื้อเข้ากลุ่มตรวจเครดิต";
+    } else {
+      box.className = "rounded-xl p-3 text-xs border border-green-200 bg-green-50 flex items-start gap-2";
+      box.innerHTML = `<span class="text-green-500 text-base flex-shrink-0">✅</span><div><strong class="text-green-700">วงเงินปกติ</strong><span class="text-green-700"> · วงเงิน ${fmt(res.credit_limit)} บาท · เหลือ ${fmt(res.credit_remaining)} บาท</span></div>`;
+      alertBox.classList.add("hidden");
+      submitBtn.style.background = "#1a4731";
+      if (submitLabel) submitLabel.textContent = "บันทึกใบสั่งซื้อ";
+    }
+  } catch { box.classList.add("hidden"); alertBox.classList.add("hidden"); }
+}
+
+async function submitOrder(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = Object.fromEntries(new FormData(form));
+  const errEl = document.getElementById("form-error");
+  errEl.classList.add("hidden");
+
+  const salesperson = data.salesperson === "__other__"
+    ? (document.getElementById("sel-salesperson")?.dataset.customVal || "")
+    : data.salesperson;
+  const saleSupportName = data.sale_support_name === "__other__"
+    ? (document.getElementById("sel-sale-support")?.dataset.customVal || "")
+    : data.sale_support_name;
+
+  if (!salesperson) { errEl.textContent = "กรุณาระบุทีมขาย"; errEl.classList.remove("hidden"); return; }
+  if (!saleSupportName) { errEl.textContent = "กรุณาระบุ Sale Support"; errEl.classList.remove("hidden"); return; }
+
+  const items = getOrderItemsPayload();
+  if (items.length === 0) { errEl.textContent = "กรุณาเพิ่มรายการสินค้าอย่างน้อย 1 รายการ"; errEl.classList.remove("hidden"); return; }
+
+  const payload = {
+    order_id: data.order_id,
+    customer_id: parseInt(data.customer_id),
+    salesperson,
+    sale_support_name: saleSupportName,
+    dept: data.dept || null,
+    items,
+    initial_status: data.initial_status || "DRAFT",
+    line_note: data.line_note || null,
+    delivery_due_date: data.delivery_due_date || null,
+  };
+  const btn = document.getElementById("submit-order-btn");
+  btn.disabled = true; btn.textContent = "กำลังบันทึก...";
+  try {
+    const res = await fetch(`${API}/api/orders`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    const resData = await res.json();
+    if (!res.ok) throw new Error(resData.detail||"เกิดข้อผิดพลาด");
+    const newOrderId = resData.order_id;
+    // บันทึกโปรโมชันที่เลือก (ตัด stock ของแจก)
+    const promos = getOrderPromosPayload();
+    for (const op of promos) {
+      await fetch(`${API}/api/promotions/order/${newOrderId}`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(op)
+      }).catch(()=>{});
+    }
+    hidePage("new-order");
+    loadDashboard();
+  } catch(err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove("hidden");
+  } finally {
+    btn.disabled = false; btn.textContent = "💾 บันทึกใบสั่งซื้อ";
+  }
+}
+
+// ─── APPROVE / REJECT ─────────────────────────────────────
+function openApprove(orderId, mode) {
+  approveMode = mode; approveOrderId = orderId;
+  document.getElementById("approve-title").textContent = mode==="approve" ? "✅ Approve Order" : "❌ Reject Order";
+  document.getElementById("approve-order-id").textContent = orderId;
+  document.getElementById("approve-confirm-btn").className = mode==="approve"
+    ? "flex-1 bg-green-600 text-white font-semibold py-2 rounded-lg text-sm"
+    : "flex-1 bg-red-600 text-white font-semibold py-2 rounded-lg text-sm";
+  document.getElementById("reject-reason-row").classList.toggle("hidden", mode==="approve");
+  document.getElementById("approve-name").value = "";
+  document.getElementById("modal-approve").classList.remove("hidden");
+}
+
+async function confirmApproval() {
+  const name = document.getElementById("approve-name").value.trim();
+  if (!name) { alert("กรุณาระบุชื่อ"); return; }
+  let url, payload;
+  if (approveMode === "approve") {
+    url = `${API}/api/orders/${approveOrderId}/approve`;
+    payload = {approved_by: name};
+  } else {
+    const reason = document.getElementById("reject-reason").value.trim();
+    url = `${API}/api/orders/${approveOrderId}/reject`;
+    payload = {rejected_reason: reason || "-"};
+  }
+  await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+  document.getElementById("modal-approve").classList.add("hidden");
+  loadDashboard();
+}
+
+// ─── PRODUCTION STATUS ────────────────────────────────────
+function openProdStatus(orderId, currentStatus) {
+  prodOrderId = orderId;
+  document.getElementById("prod-order-id").textContent = orderId;
+  document.getElementById("prod-new-status").value = currentStatus;
+  document.getElementById("prod-by").value = "";
+  document.getElementById("modal-prod-status").classList.remove("hidden");
+}
+
+async function confirmProdStatus() {
+  const status = document.getElementById("prod-new-status").value;
+  const by = document.getElementById("prod-by").value.trim();
+  const payload = {production_status: status};
+  if (by) payload.produced_by = by;
+  if (status === "IN_PROGRESS") payload.start_date = new Date().toISOString();
+  if (status === "DISPATCHED") payload.end_date = new Date().toISOString();
+  await fetch(`${API}/api/production/${prodOrderId}`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+  document.getElementById("modal-prod-status").classList.add("hidden");
+  loadProductionTab();
+}
+
+// ─── SUB-TAB SWITCHING ────────────────────────────────────
+function switchSubTab(section, mode, btn) {
+  const manualEl = document.getElementById(`${section}-sub-manual`);
+  const excelEl  = document.getElementById(`${section}-sub-excel`);
+  if (manualEl) manualEl.classList.toggle("hidden", mode !== "manual");
+  if (excelEl)  excelEl.classList.toggle("hidden",  mode !== "excel");
+  btn.closest(".flex").querySelectorAll(".sub-tab").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  if (mode === "manual" && section === "employees") loadEmployees();
+  if (mode === "manual" && section === "import-customers") loadCustomersImportPreview();
+  if (mode === "manual" && section === "products") loadFormulaList();
+}
+
+// ─── PRODUCT FORM (BOM rows) ──────────────────────────────
+let bomRowCount = 0;
+function addBomRow() {
+  bomRowCount++;
+  const id = bomRowCount;
+  const row = document.createElement("div");
+  row.id = `bom-row-${id}`;
+  row.className = "grid grid-cols-12 gap-2 items-center";
+  row.innerHTML = `
+    <div class="col-span-4">
+      <input name="mat_name_${id}" placeholder="ชื่อวัตถุดิบ" class="form-input text-xs" required/>
+    </div>
+    <div class="col-span-3">
+      <input name="mat_qty_${id}" type="number" step="0.01" placeholder="ปริมาณ/100กก." class="form-input text-xs" required/>
+    </div>
+    <div class="col-span-2">
+      <input name="mat_unit_${id}" placeholder="kg" class="form-input text-xs"/>
+    </div>
+    <div class="col-span-2">
+      <input name="mat_cost_${id}" type="number" step="0.01" placeholder="ต้นทุน" class="form-input text-xs"/>
+    </div>
+    <div class="col-span-1 flex justify-center">
+      <button type="button" onclick="document.getElementById('bom-row-${id}').remove()" class="text-red-400 hover:text-red-600 text-lg leading-none">×</button>
+    </div>`;
+  document.getElementById("bom-rows").appendChild(row);
+}
+
+function resetProductForm() {
+  document.getElementById("form-product").reset();
+  document.getElementById("bom-rows").innerHTML = "";
+  bomRowCount = 0;
+  document.getElementById("product-form-error").classList.add("hidden");
+  document.getElementById("product-form-result").classList.add("hidden");
+}
+
+function showFormResult(elId, success, msg) {
+  const el = document.getElementById(elId);
+  el.classList.remove("hidden");
+  el.innerHTML = success
+    ? `<div class="bg-green-50 border border-green-300 rounded-lg p-3 text-xs text-green-700">✅ ${msg}</div>`
+    : `<div class="bg-red-50 border border-red-300 rounded-lg p-3 text-xs text-red-700">❌ ${msg}</div>`;
+}
+
+async function submitProduct(e) {
+  e.preventDefault();
+  const form = e.target;
+  const data = Object.fromEntries(new FormData(form));
+  const errEl = document.getElementById("product-form-error");
+  errEl.classList.add("hidden");
+
+  // collect BOM rows
+  const bomItems = [];
+  document.querySelectorAll("#bom-rows > div").forEach(row => {
+    const id = row.id.replace("bom-row-","");
+    const name = data[`mat_name_${id}`]?.trim();
+    const qty  = parseFloat(data[`mat_qty_${id}`] || 0);
+    if (name && qty > 0) {
+      bomItems.push({
+        material_name: name,
+        qty_per_100kg: qty,
+        unit: data[`mat_unit_${id}`]?.trim() || "kg",
+        cost_per_unit: parseFloat(data[`mat_cost_${id}`] || 0),
+      });
+    }
+  });
+
+  const payload = {
+    formula_code: data.formula_code.trim(),
+    formula_name: data.formula_name.trim(),
+    base_price_per_kg: parseFloat(data.base_price_per_kg || 0),
+    description: data.description?.trim() || null,
+    bom_items: bomItems,
+  };
+
+  try {
+    const res = await fetch(`${API}/api/formulas`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.detail || "เกิดข้อผิดพลาด");
+    showFormResult("product-form-result", true, `บันทึกสูตร "${result.formula_code}" สำเร็จ! (BOM ${result.bom_items?.length || 0} รายการ)`);
+    resetProductForm();
+    loadFormulaList();
+    if (!formulaData.length) formulaData = await fetch(`${API}/api/formulas`).then(r=>r.json());
+  } catch(err) {
+    errEl.textContent = err.message; errEl.classList.remove("hidden");
+  }
+}
+
+async function loadFormulaList() {
+  try {
+    const rows = await fetch(`${API}/api/formulas`).then(r=>r.json());
+    formulaData = rows;
+    document.getElementById("formula-list").innerHTML = rows.map(f => `
+      <div class="bg-gray-50 rounded-lg px-3 py-2">
+        <div class="flex justify-between items-center">
+          <span class="font-semibold text-xs">${f.formula_code} — ${f.formula_name}</span>
+          <span class="text-xs text-gray-400">${fmt(f.base_price_per_kg)} บาท/กก.</span>
+        </div>
+        ${f.bom_items?.length ? `<p class="text-xs text-gray-400 mt-0.5">วัตถุดิบ: ${f.bom_items.map(b=>b.material_name).join(", ")}</p>` : ""}
+      </div>`).join("") || '<p class="text-xs text-gray-300 text-center py-4">ยังไม่มีสูตรปุ๋ย</p>';
+  } catch {
+    document.getElementById("formula-list").innerHTML = '<p class="text-xs text-red-400">โหลดข้อมูลไม่ได้ (Backend ยังไม่ได้รัน)</p>';
+  }
+}
+
+// ─── EMPLOYEE FORM ─────────────────────────────────────────
+async function submitEmployee(e) {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const errEl = document.getElementById("employee-form-error");
+  errEl.classList.add("hidden");
+  if (!data.role) { errEl.textContent = "กรุณาเลือกแผนก"; errEl.classList.remove("hidden"); return; }
+
+  const payload = {
+    employee_code: data.employee_code.trim(),
+    full_name: data.full_name.trim(),
+    role: data.role,
+    phone: data.phone?.trim() || null,
+    email: data.email?.trim() || null,
+  };
+
+  try {
+    const res = await fetch(`${API}/api/employees`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.detail || "เกิดข้อผิดพลาด");
+    showFormResult("employee-form-result", true, `บันทึกพนักงาน "${result.full_name}" สำเร็จ!`);
+    e.target.reset();
+    loadEmployees();
+  } catch(err) {
+    errEl.textContent = err.message; errEl.classList.remove("hidden");
+  }
+}
+
+// ─── CUSTOMER MANUAL FORM ──────────────────────────────────
+async function submitCustomerManual(e) {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const errEl = document.getElementById("customer-manual-error");
+  errEl.classList.add("hidden");
+
+  const payload = {
+    customer_code: data.customer_code.trim(),
+    company_name: data.company_name.trim(),
+    contact_name: data.contact_name?.trim() || null,
+    phone: data.phone?.trim() || null,
+    address: data.address?.trim() || null,
+    credit_term: data.credit_term,
+    credit_limit: parseFloat(data.credit_limit || 0),
+    notes: data.notes?.trim() || null,
+  };
+
+  try {
+    const res = await fetch(`${API}/api/customers`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.detail || "เกิดข้อผิดพลาด");
+    showFormResult("customer-manual-result", true, `บันทึกลูกค้า "${result.company_name}" สำเร็จ! วงเงิน ${fmt(result.credit_limit)} บาท`);
+    e.target.reset();
+    loadCustomersImportPreview();
+    custData = await fetch(`${API}/api/customers`).then(r=>r.json());
+  } catch(err) {
+    errEl.textContent = err.message; errEl.classList.remove("hidden");
+  }
+}
+
+// ─── IMPORT HELPERS ───────────────────────────────────────
+const importEndpoints = {
+  "products": "/api/import/products",
+  "employees": "/api/import/employees",
+  "customers-import": "/api/import/customers",
+};
+
+function showImportResult(type, data) {
+  const el = document.getElementById("result-" + type);
+  el.classList.remove("hidden");
+  if (data.errors && data.errors.length > 0) {
+    el.innerHTML = `
+      <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-3">
+        <p class="font-semibold text-yellow-700 text-xs mb-1">⚠️ นำเข้าสำเร็จบางส่วน</p>
+        <p class="text-xs text-gray-600">เพิ่มใหม่: ${data.created ?? data.created_formulas ?? 0} | อัปเดต: ${data.updated ?? data.updated_formulas ?? 0}</p>
+        <ul class="mt-2 text-xs text-red-600 list-disc list-inside">
+          ${data.errors.map(e => `<li>${e}</li>`).join("")}
+        </ul>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <div class="bg-green-50 border border-green-300 rounded-lg p-3">
+        <p class="font-semibold text-green-700 text-xs">✅ นำเข้าสำเร็จ!</p>
+        <p class="text-xs text-gray-600 mt-1">เพิ่มใหม่: <strong>${data.created ?? data.created_formulas ?? 0}</strong> รายการ | อัปเดต: <strong>${data.updated ?? data.updated_formulas ?? 0}</strong> รายการ</p>
+      </div>`;
+  }
+}
+
+async function uploadFile(type, file) {
+  const endpoint = importEndpoints[type];
+  if (!endpoint) return;
+  const zone = document.getElementById("drop-" + (type === "customers-import" ? "customers" : type));
+  if (zone) { zone.innerHTML = `<p class="text-sm text-gray-500">⏳ กำลังอัปโหลด...</p>`; }
+
+  const form = new FormData();
+  form.append("file", file);
+  try {
+    const res = await fetch(API + endpoint, { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "เกิดข้อผิดพลาด");
+    showImportResult(type, data);
+    if (type === "employees") loadEmployees();
+    if (type === "customers-import") loadCustomersImportPreview();
+  } catch (err) {
+    const el = document.getElementById("result-" + type);
+    el.classList.remove("hidden");
+    el.innerHTML = `<div class="bg-red-50 border border-red-300 rounded-lg p-3 text-xs text-red-700">❌ ${err.message}</div>`;
+  } finally {
+    // reset drop zone
+    if (zone) {
+      const icons = {products:"📂", employees:"👥", "customers":"🏢"};
+      const k = type === "customers-import" ? "customers" : type;
+      zone.innerHTML = `
+        <p class="text-3xl mb-2">${icons[k]||"📂"}</p>
+        <p class="text-sm font-medium text-gray-600">คลิกเพื่อเลือกไฟล์ หรือลากวางที่นี่</p>
+        <p class="text-xs text-gray-400 mt-1">รองรับ .xlsx, .xls</p>`;
+    }
+  }
+}
+
+function handleFileSelect(event, type) {
+  const file = event.target.files[0];
+  if (file) uploadFile(type, file);
+  event.target.value = "";
+}
+
+function handleDrop(event, type) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file) uploadFile(type, file);
+}
+
+// ─── EMPLOYEES LIST ───────────────────────────────────────
+const roleLabel = {
+  SALE:"ทีมขาย", SALE_SUPPORT:"Sale Support",
+  WAREHOUSE:"คลัง", PRODUCTION:"ผลิต", ADMIN:"Admin"
+};
+const roleBadge = {
+  SALE:"bg-green-100 text-green-700", SALE_SUPPORT:"bg-blue-100 text-blue-700",
+  WAREHOUSE:"bg-yellow-100 text-yellow-700", PRODUCTION:"bg-orange-100 text-orange-700",
+  ADMIN:"bg-purple-100 text-purple-700"
+};
+
+async function loadEmployees() {
+  try {
+    const rows = await fetch(`${API}/api/employees`).then(r => r.json());
+    const grouped = {};
+    rows.forEach(e => { (grouped[e.role] = grouped[e.role] || []).push(e); });
+    const order = ["SALE","SALE_SUPPORT","WAREHOUSE","PRODUCTION","ADMIN"];
+    document.getElementById("employee-list").innerHTML = order.map(role => {
+      const emps = grouped[role] || [];
+      if (!emps.length) return "";
+      return `
+        <div class="mb-3">
+          <p class="text-xs font-bold text-gray-500 mb-1">${roleLabel[role]} (${emps.length})</p>
+          <div class="space-y-1">
+            ${emps.map(e => `
+              <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                <div>
+                  <span class="font-medium text-xs">${e.full_name}</span>
+                  <span class="text-gray-400 text-xs ml-2">${e.employee_code}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  ${e.phone ? `<span class="text-gray-400 text-xs">${e.phone}</span>` : ""}
+                  <span class="badge ${roleBadge[role]}">${roleLabel[role]}</span>
+                  ${!e.is_active ? '<span class="badge bg-gray-200 text-gray-500">ไม่ใช้งาน</span>' : ""}
+                </div>
+              </div>`).join("")}
+          </div>
+        </div>`;
+    }).join("");
+    if (!rows.length) document.getElementById("employee-list").innerHTML = '<p class="text-xs text-gray-300 text-center py-4">ยังไม่มีพนักงาน</p>';
+  } catch {
+    document.getElementById("employee-list").innerHTML = '<p class="text-xs text-red-400">โหลดข้อมูลไม่ได้ (Backend ยังไม่ได้รัน)</p>';
+  }
+}
+
+async function loadCustomersImportPreview() {
+  try {
+    custData = await fetch(`${API}/api/customers`).then(r => r.json());
+    document.getElementById("customers-import-preview").innerHTML = custData.slice(0, 10).map(c => `
+      <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+        <div>
+          <span class="font-medium text-xs">${c.company_name}</span>
+          <span class="text-gray-400 text-xs ml-2">${c.customer_code}</span>
+        </div>
+        <div class="text-right">
+          <span class="text-xs text-gray-500">วงเงิน ${fmt(c.credit_limit)} บาท</span>
+          <span class="text-xs text-gray-400 ml-2">${c.credit_term} วัน</span>
+        </div>
+      </div>`).join("") + (custData.length > 10 ? `<p class="text-xs text-gray-400 text-center mt-1">...และอีก ${custData.length-10} รายการ</p>` : "");
+  } catch {
+    document.getElementById("customers-import-preview").innerHTML = '<p class="text-xs text-red-400">โหลดข้อมูลไม่ได้ (Backend ยังไม่ได้รัน)</p>';
+  }
+}
+
+// ─── STOCK กระสอบ (Session-based) ────────────────────────────
+let bagSessions = [];
+let bagEntryRowCount = 0;
+
+async function loadBagSessions() {
+  const from = document.getElementById("bag-filter-from")?.value || "";
+  const to   = document.getElementById("bag-filter-to")?.value || "";
+  let url = `${API}/api/bag-stock?`;
+  if (from) url += `from_date=${from}&`;
+  if (to)   url += `to_date=${to}&`;
+  try { bagSessions = await fetch(url).then(r => r.json()); }
+  catch { bagSessions = []; }
+  renderBagSessions();
+}
+
+function renderBagSessions() {
+  const list  = document.getElementById("bag-sessions-list");
+  const empty = document.getElementById("bag-sessions-empty");
+  empty.classList.toggle("hidden", bagSessions.length > 0);
+  list.innerHTML = bagSessions.map(s => {
+    const totalBags = (s.entries||[]).reduce((a,e) => a + Number(e.bag_count||0), 0);
+    const totalCost = Number(s.total_cost || 0);
+    const rows = (s.entries||[]).map(e => `
+      <tr class="border-t hover:bg-gray-50 text-xs">
+        <td class="px-3 py-1.5 font-mono text-blue-700">${e.item_code||"-"}</td>
+        <td class="px-3 py-1.5">${e.item_name||"-"}</td>
+        <td class="px-3 py-1.5 text-right">${Number(e.bag_count||0).toLocaleString()}</td>
+        <td class="px-3 py-1.5 text-right">${fmt(e.bag_price_unit)}</td>
+        <td class="px-3 py-1.5 text-right font-semibold text-green-700">${fmt(e.total_bag_cost)}</td>
+        <td class="px-3 py-1.5 text-gray-400">${e.notes||""}</td>
+      </tr>`).join("");
+    return `
+    <div class="bg-white rounded-xl shadow">
+      <div class="flex justify-between items-center px-4 py-3 border-b cursor-pointer" onclick="toggleBagSession(${s.session_id})">
+        <div class="flex gap-4 items-center">
+          <span class="font-bold text-sm">📅 ${s.stock_date}</span>
+          <span class="text-xs text-gray-400">${s.session_note||""}</span>
+          <span class="text-xs text-gray-500">บันทึกโดย: ${s.created_by||"-"}</span>
+        </div>
+        <div class="flex gap-6 items-center">
+          <div class="text-right"><p class="text-xs text-gray-400">กระสอบรวม</p><p class="font-bold text-blue-600">${totalBags.toLocaleString()} ใบ</p></div>
+          <div class="text-right"><p class="text-xs text-gray-400">มูลค่ารวม</p><p class="font-bold text-green-600">${fmt(totalCost)} บ.</p></div>
+          <button onclick="event.stopPropagation();deleteBagSession(${s.session_id})" class="text-red-400 hover:text-red-600 text-xs">🗑</button>
+          <span class="text-gray-300 text-sm" id="bag-chevron-${s.session_id}">▶</span>
+        </div>
+      </div>
+      <div id="bag-detail-${s.session_id}" class="hidden overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead class="bg-gray-50 text-gray-500 text-[10px]">
+            <tr>
+              <th class="px-3 py-2 text-left">รหัสสินค้า</th>
+              <th class="px-3 py-2 text-left">ชื่อสินค้า</th>
+              <th class="px-3 py-2 text-right">นับจริง (ใบ)</th>
+              <th class="px-3 py-2 text-right">ราคา/ใบ</th>
+              <th class="px-3 py-2 text-right">รวม (บาท)</th>
+              <th class="px-3 py-2 text-left">หมายเหตุ</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+          <tfoot class="bg-gray-50 font-semibold text-xs">
+            <tr>
+              <td colspan="2" class="px-3 py-2 text-right">รวมทั้งหมด</td>
+              <td class="px-3 py-2 text-right text-blue-700">${totalBags.toLocaleString()}</td>
+              <td></td>
+              <td class="px-3 py-2 text-right text-green-700">${fmt(totalCost)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toggleBagSession(id) {
+  const detail  = document.getElementById(`bag-detail-${id}`);
+  const chevron = document.getElementById(`bag-chevron-${id}`);
+  const open = detail.classList.toggle("hidden");
+  chevron.textContent = open ? "▶" : "▼";
+}
+
+function showBagSessionForm() {
+  bagEntryRowCount = 0;
+  document.getElementById("bag-sess-date").value = new Date().toISOString().slice(0,10);
+  document.getElementById("bag-sess-note").value = "เช้าก่อนผลิต";
+  document.getElementById("bag-sess-by").value = "";
+  document.getElementById("bag-entry-tbody").innerHTML = "";
+  document.getElementById("bag-entry-total").textContent = "0";
+  document.getElementById("bag-sess-error").classList.add("hidden");
+  // เพิ่ม 5 แถวเริ่มต้น
+  for(let i=0;i<5;i++) addBagEntryRow();
+  document.getElementById("modal-bag-session").classList.remove("hidden");
+}
+
+function addBagEntryRow() {
+  bagEntryRowCount++;
+  const id = bagEntryRowCount;
+  const tr = document.createElement("tr");
+  tr.id = `bag-row-${id}`;
+  tr.className = "border-t";
+  tr.innerHTML = `
+    <td class="px-1 py-1"><input class="w-full border rounded px-2 py-1 text-xs font-mono" placeholder="15-02-0000-..." oninput="updateBagRowTotal(${id})"/></td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-2 py-1 text-xs" placeholder="ชื่อกระสอบ" oninput="updateBagRowTotal(${id})"/></td>
+    <td class="px-1 py-1"><input type="number" min="0" step="1" class="w-full border rounded px-2 py-1 text-xs text-right" placeholder="0" oninput="updateBagRowTotal(${id})"/></td>
+    <td class="px-1 py-1"><input type="number" min="0" step="0.01" class="w-full border rounded px-2 py-1 text-xs text-right" placeholder="0.00" oninput="updateBagRowTotal(${id})"/></td>
+    <td class="px-1 py-1 text-right text-xs text-green-700 font-semibold" id="bag-rowtotal-${id}">0</td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-2 py-1 text-xs" placeholder="หมายเหตุ"/></td>
+    <td class="px-1 py-1 text-center"><button onclick="document.getElementById('bag-row-${id}').remove();calcBagGrand()" class="text-red-300 hover:text-red-500">✕</button></td>`;
+  document.getElementById("bag-entry-tbody").appendChild(tr);
+}
+
+function updateBagRowTotal(id) {
+  const tr = document.getElementById(`bag-row-${id}`);
+  if (!tr) return;
+  const inputs = tr.querySelectorAll("input[type=number]");
+  const count = parseFloat(inputs[0]?.value||0);
+  const price = parseFloat(inputs[1]?.value||0);
+  const total = count * price;
+  document.getElementById(`bag-rowtotal-${id}`).textContent = fmt(total);
+  calcBagGrand();
+}
+
+function calcBagGrand() {
+  let grand = 0;
+  document.querySelectorAll("#bag-entry-tbody tr").forEach(tr => {
+    const inputs = tr.querySelectorAll("input[type=number]");
+    if (inputs.length >= 2) grand += (parseFloat(inputs[0]?.value||0)) * (parseFloat(inputs[1]?.value||0));
+  });
+  document.getElementById("bag-entry-total").textContent = fmt(grand);
+}
+
+async function submitBagSession() {
+  const errEl = document.getElementById("bag-sess-error");
+  errEl.classList.add("hidden");
+  const stock_date = document.getElementById("bag-sess-date").value;
+  if (!stock_date) { errEl.textContent="กรุณาเลือกวันที่"; errEl.classList.remove("hidden"); return; }
+
+  const entries = [];
+  document.querySelectorAll("#bag-entry-tbody tr").forEach(tr => {
+    const inputs = tr.querySelectorAll("input");
+    const item_code = inputs[0]?.value?.trim();
+    const item_name = inputs[1]?.value?.trim();
+    const bag_count = parseFloat(inputs[2]?.value||0);
+    const bag_price_unit = parseFloat(inputs[3]?.value||0);
+    const notes = inputs[4]?.value?.trim()||null;
+    if (item_name && bag_count > 0) entries.push({item_code:item_code||item_name, item_name, bag_count, bag_price_unit, notes});
+  });
+
+  if (!entries.length) { errEl.textContent="กรุณาเพิ่มรายการอย่างน้อย 1 รายการ"; errEl.classList.remove("hidden"); return; }
+
+  const payload = {
+    stock_date,
+    session_note: document.getElementById("bag-sess-note").value||null,
+    created_by: document.getElementById("bag-sess-by").value||null,
+    entries,
+  };
+  try {
+    const res = await fetch(`${API}/api/bag-stock`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    if (!res.ok) { const e=await res.json(); throw new Error(e.detail||"error"); }
+    document.getElementById("modal-bag-session").classList.add("hidden");
+    loadBagSessions();
+  } catch(err) { errEl.textContent=err.message; errEl.classList.remove("hidden"); }
+}
+
+async function deleteBagSession(id) {
+  if (!confirm("ลบรอบตรวจนับนี้ทั้งหมด?")) return;
+  const res = await fetch(`${API}/api/bag-stock/${id}`, {method:"DELETE"});
+  if (res.ok) loadBagSessions();
+  else alert("ลบไม่สำเร็จ");
+}
+
+async function importBagStockExcel(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append("file", file);
+  try {
+    const res = await fetch(`${API}/api/bag-stock/import`, {method:"POST", body:fd});
+    if (!res.ok) { const err=await res.json(); throw new Error(err.detail||"error"); }
+    const data = await res.json();
+    alert(`✅ Import สำเร็จ ${data.length} รอบ`);
+    loadBagSessions();
+  } catch(err) { alert("❌ " + err.message); }
+  e.target.value = "";
+}
+
+// ─── STOCK วัตถุดิบ + FG ─────────────────────────────────────
+let rmSessions = [];
+
+async function loadRmSessions() {
+  const from = document.getElementById("rm-filter-from")?.value || "";
+  const to   = document.getElementById("rm-filter-to")?.value || "";
+  let url = `${API}/api/rm-stock?`;
+  if (from) url += `from_date=${from}&`;
+  if (to)   url += `to_date=${to}&`;
+  try { rmSessions = await fetch(url).then(r => r.json()); }
+  catch { rmSessions = []; }
+  renderRmSessions();
+}
+
+function renderRmSessions() {
+  const list  = document.getElementById("rm-sessions-list");
+  const empty = document.getElementById("rm-sessions-empty");
+  empty.classList.toggle("hidden", rmSessions.length > 0);
+
+  list.innerHTML = rmSessions.map(s => {
+    const rmEntries = (s.entries||[]).filter(e => e.entry_type === "RAW");
+    const fgEntries = (s.entries||[]).filter(e => e.entry_type === "FG");
+
+    const rmRows = rmEntries.map(e => `
+      <tr class="border-t hover:bg-blue-50/30 text-xs">
+        <td class="px-3 py-1.5 font-medium">${e.material_name}</td>
+        <td class="px-3 py-1.5 text-right">${e.stock_qty_ton != null ? Number(e.stock_qty_ton).toLocaleString(undefined,{maximumFractionDigits:3}) : "-"}</td>
+        <td class="px-3 py-1.5 text-right">${e.price_per_ton != null ? fmt(e.price_per_ton) : "-"}</td>
+        <td class="px-3 py-1.5 text-right font-semibold text-blue-700">${fmt(e.total_value)}</td>
+        <td class="px-3 py-1.5 text-gray-400">${e.notes||""}</td>
+      </tr>`).join("");
+
+    const fgRows = fgEntries.map(e => `
+      <tr class="border-t hover:bg-green-50/30 text-xs">
+        <td class="px-3 py-1.5 font-medium">${e.material_name}</td>
+        <td class="px-3 py-1.5 text-right">${e.stock_qty_ton != null ? Number(e.stock_qty_ton).toLocaleString(undefined,{maximumFractionDigits:3}) : "-"}</td>
+        <td class="px-3 py-1.5 text-right">${e.price_per_ton != null ? fmt(e.price_per_ton) : "-"}</td>
+        <td class="px-3 py-1.5 text-right font-semibold text-green-700">${fmt(e.total_value)}</td>
+        <td class="px-3 py-1.5 text-gray-400">${e.notes||""}</td>
+      </tr>`).join("");
+
+    const entryThead = `<thead class="bg-gray-50 text-gray-500 text-[10px]"><tr>
+      <th class="px-3 py-2 text-left">ชื่อสินค้า</th>
+      <th class="px-3 py-2 text-right">จำนวน (ตัน)</th>
+      <th class="px-3 py-2 text-right">ราคา/ตัน</th>
+      <th class="px-3 py-2 text-right">มูลค่า (บาท)</th>
+      <th class="px-3 py-2 text-left">หมายเหตุ</th>
+    </tr></thead>`;
+
+    return `
+    <div class="bg-white rounded-xl shadow">
+      <div class="flex flex-wrap justify-between items-center px-4 py-3 border-b cursor-pointer" onclick="toggleRmSession(${s.session_id})">
+        <div class="flex gap-4 items-center">
+          <span class="font-bold text-sm">📅 ${s.stock_date}</span>
+          <span class="text-xs text-gray-400">${s.notes||""}</span>
+          <span class="text-xs text-gray-500">โดย: ${s.created_by||"-"}</span>
+        </div>
+        <div class="flex gap-4 items-center flex-wrap">
+          <div class="text-right"><p class="text-[10px] text-gray-400">วัตถุดิบ</p><p class="font-bold text-blue-600 text-sm">${fmt(s.total_rm_value)} บ.</p></div>
+          <div class="text-right"><p class="text-[10px] text-gray-400">FG</p><p class="font-bold text-green-600 text-sm">${fmt(s.total_fg_value)} บ.</p></div>
+          <div class="text-right"><p class="text-[10px] text-gray-400">PO จ่ายแล้ว</p><p class="font-bold text-orange-600 text-sm">${fmt(s.total_paid_po)} บ.</p></div>
+          <div class="text-right"><p class="text-[10px] text-gray-400">PO รอขน</p><p class="font-bold text-red-500 text-sm">${fmt(s.total_pending_po)} บ.</p></div>
+          <button onclick="event.stopPropagation();deleteRmSession(${s.session_id})" class="text-red-400 hover:text-red-600 text-xs">🗑</button>
+          <span class="text-gray-300 text-sm" id="rm-chevron-${s.session_id}">▶</span>
+        </div>
+      </div>
+      <div id="rm-detail-${s.session_id}" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+          <div>
+            <p class="px-4 py-2 text-xs font-semibold text-blue-700 bg-blue-50">🧪 วัตถุดิบ (${rmEntries.length} รายการ)</p>
+            <div class="overflow-x-auto"><table class="w-full">${entryThead}<tbody>${rmRows}</tbody></table></div>
+            <p class="px-4 py-2 text-xs text-right font-bold text-blue-700">รวม: ${fmt(s.total_rm_value)} บาท</p>
+          </div>
+          <div>
+            <p class="px-4 py-2 text-xs font-semibold text-green-700 bg-green-50">📦 สินค้าสำเร็จ FG (${fgEntries.length} รายการ)</p>
+            <div class="overflow-x-auto"><table class="w-full">${entryThead}<tbody>${fgRows}</tbody></table></div>
+            <p class="px-4 py-2 text-xs text-right font-bold text-green-700">รวม: ${fmt(s.total_fg_value)} บาท</p>
+          </div>
+        </div>
+        <div class="px-4 py-2 bg-gray-50 text-xs flex gap-6 border-t">
+          <span>💰 มูลค่ารวมทั้งหมด: <strong>${fmt((Number(s.total_rm_value)||0)+(Number(s.total_fg_value)||0))} บาท</strong></span>
+          <span>📋 PO จ่ายแล้ว: <strong class="text-orange-600">${fmt(s.total_paid_po)} บาท</strong></span>
+          <span>⏳ PO รอขน: <strong class="text-red-500">${fmt(s.total_pending_po)} บาท</strong></span>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toggleRmSession(id) {
+  const d = document.getElementById(`rm-detail-${id}`);
+  const c = document.getElementById(`rm-chevron-${id}`);
+  d.classList.toggle("hidden");
+  c.textContent = d.classList.contains("hidden") ? "▶" : "▼";
+}
+
+async function deleteRmSession(id) {
+  if (!confirm("ลบ Snapshot นี้ทั้งหมด?")) return;
+  const res = await fetch(`${API}/api/rm-stock/${id}`, {method:"DELETE"});
+  if (res.ok) loadRmSessions();
+  else alert("ลบไม่สำเร็จ");
+}
+
+function showRmSessionForm() {
+  alert("กรุณาใช้ปุ่ม Import Excel เพื่อนำเข้าข้อมูลจากไฟล์");
+}
+
+async function importRmStockExcel(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append("file", file);
+  try {
+    const res = await fetch(`${API}/api/rm-stock/import`, {method:"POST", body:fd});
+    if (!res.ok) { const err=await res.json(); throw new Error(err.detail||"error"); }
+    const data = await res.json();
+    alert(`✅ Import สำเร็จ ${data.length} รอบ (${data.map(s=>s.stock_date).join(", ")})`);
+    loadRmSessions();
+  } catch(err) { alert("❌ " + err.message); }
+  e.target.value = "";
+}
+
+// ─── RM SUB-TABS ──────────────────────────────────────────
+function switchRmTab(tab) {
+  ["stock","po","rmsales"].forEach(t => {
+    document.getElementById(`rmtab-${t}`)?.classList.toggle("hidden", t !== tab);
+    const btn = document.getElementById(`rmtab-btn-${t}`);
+    if (btn) {
+      btn.className = t === tab
+        ? "rmtab-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white"
+        : "rmtab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100";
+    }
+  });
+  if (tab === "po") loadPoList();
+  if (tab === "rmsales") loadRmSalesList();
+}
+
+// ─── PO LIST ──────────────────────────────────────────────
+let poData = [];
+
+async function loadPoList() {
+  const supplier = document.getElementById("po-filter-supplier")?.value || "";
+  const status   = document.getElementById("po-filter-status")?.value || "";
+  let url = `${API}/api/rm-stock/po/list?`;
+  if (supplier) url += `supplier=${encodeURIComponent(supplier)}&`;
+  if (status)   url += `po_status=${status}&`;
+  try { poData = await fetch(url).then(r => r.json()); }
+  catch { poData = []; }
+  renderPoList();
+}
+
+function renderPoList() {
+  const tbody = document.getElementById("po-table-body");
+  if (!tbody) return;
+  const totalPaid    = poData.filter(p=>p.po_status==="PAID").reduce((a,b)=>a+(Number(b.amount)||0),0);
+  const totalPending = poData.filter(p=>p.po_status==="PENDING").reduce((a,b)=>a+(Number(b.amount)||0),0);
+  const totalFreight = poData.reduce((a,b)=>a+(Number(b.freight_cost)||0),0);
+
+  document.getElementById("po-summary").innerHTML = `
+    <div class="bg-white rounded-xl shadow p-3 text-center">
+      <p class="text-[10px] text-gray-400">ทั้งหมด</p>
+      <p class="font-bold text-gray-700">${poData.length} รายการ</p>
+    </div>
+    <div class="bg-orange-50 rounded-xl shadow p-3 text-center">
+      <p class="text-[10px] text-gray-400">จ่ายแล้ว</p>
+      <p class="font-bold text-orange-600">${fmt(totalPaid)} บ.</p>
+    </div>
+    <div class="bg-red-50 rounded-xl shadow p-3 text-center">
+      <p class="text-[10px] text-gray-400">รอจ่าย</p>
+      <p class="font-bold text-red-600">${fmt(totalPending)} บ.</p>
+    </div>
+    <div class="bg-gray-50 rounded-xl shadow p-3 text-center">
+      <p class="text-[10px] text-gray-400">ค่าขนรวม</p>
+      <p class="font-bold text-gray-600">${fmt(totalFreight)} บ.</p>
+    </div>`;
+
+  const statusBadge = s => ({
+    PAID:'<span class="badge bg-green-100 text-green-700">จ่ายแล้ว</span>',
+    PENDING:'<span class="badge bg-red-100 text-red-700">รอจ่าย</span>',
+    PARTIAL:'<span class="badge bg-yellow-100 text-yellow-700">บางส่วน</span>',
+  }[s]||s);
+
+  tbody.innerHTML = poData.map(p => `
+    <tr class="border-t hover:bg-gray-50 text-xs">
+      <td class="px-3 py-2 font-mono">${p.po_number||"-"}</td>
+      <td class="px-3 py-2">${p.supplier_name}</td>
+      <td class="px-3 py-2">${p.material_name}</td>
+      <td class="px-3 py-2 text-right">${p.qty_ton!=null?Number(p.qty_ton).toLocaleString(undefined,{maximumFractionDigits:3}):"-"}</td>
+      <td class="px-3 py-2 text-right font-semibold">${fmt(p.amount)}</td>
+      <td class="px-3 py-2 text-right text-gray-500">${p.freight_cost&&Number(p.freight_cost)>0?fmt(p.freight_cost):"-"}</td>
+      <td class="px-3 py-2">${p.payment_date||"-"}</td>
+      <td class="px-3 py-2 text-center">${statusBadge(p.po_status)}</td>
+      <td class="px-3 py-2 text-center">
+        <button onclick="deletePoItem(${p.po_id})" class="text-red-400 hover:text-red-600 text-xs">🗑</button>
+      </td>
+    </tr>`).join("") || '<tr><td colspan="9" class="text-center text-gray-300 py-6">ไม่มีข้อมูล PO</td></tr>';
+}
+
+async function deletePoItem(id) {
+  if (!confirm("ลบ PO นี้?")) return;
+  const res = await fetch(`${API}/api/rm-stock/po/${id}`, {method:"DELETE"});
+  if (res.ok) loadPoList(); else alert("ลบไม่สำเร็จ");
+}
+
+function showPoForm() {
+  document.getElementById("modal-po-form").classList.remove("hidden");
+  document.getElementById("form-po").reset();
+}
+
+async function submitPoForm(e) {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const payload = {
+    supplier_name: data.supplier_name,
+    po_number: data.po_number||null,
+    material_name: data.material_name,
+    qty_ton: data.qty_ton?parseFloat(data.qty_ton):null,
+    price_per_ton: data.price_per_ton?parseFloat(data.price_per_ton):null,
+    amount: data.amount?parseFloat(data.amount):null,
+    freight_cost: data.freight_cost?parseFloat(data.freight_cost):0,
+    payment_date: data.payment_date||null,
+    po_status: data.po_status||"PAID",
+    conditions: data.conditions||null,
+    notes: data.notes||null,
+  };
+  try {
+    const res = await fetch(`${API}/api/rm-stock/po`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    if (!res.ok) { const err=await res.json(); throw new Error(err.detail); }
+    document.getElementById("modal-po-form").classList.add("hidden");
+    loadPoList();
+  } catch(err) { alert("❌ "+err.message); }
+}
+
+// ─── RM SALES LIST ────────────────────────────────────────
+let rmSalesData = [];
+
+async function loadRmSalesList() {
+  const buyer = document.getElementById("rmsale-filter-buyer")?.value || "";
+  let url = `${API}/api/rm-stock/rm-sales?`;
+  if (buyer) url += `buyer=${encodeURIComponent(buyer)}&`;
+  try { rmSalesData = await fetch(url).then(r => r.json()); }
+  catch { rmSalesData = []; }
+  renderRmSalesList();
+}
+
+function renderRmSalesList() {
+  const tbody = document.getElementById("rmsale-table-body");
+  if (!tbody) return;
+  const totalAmt = rmSalesData.reduce((a,b)=>a+(Number(b.amount)||0),0);
+  const buyers   = new Set(rmSalesData.map(s=>s.buyer_name)).size;
+
+  document.getElementById("rmsale-summary").innerHTML = `
+    <div class="bg-white rounded-xl shadow p-3 text-center">
+      <p class="text-[10px] text-gray-400">รายการทั้งหมด</p>
+      <p class="font-bold text-gray-700">${rmSalesData.length} รายการ</p>
+    </div>
+    <div class="bg-purple-50 rounded-xl shadow p-3 text-center">
+      <p class="text-[10px] text-gray-400">มูลค่ารวม</p>
+      <p class="font-bold text-purple-600">${fmt(totalAmt)} บ.</p>
+    </div>
+    <div class="bg-blue-50 rounded-xl shadow p-3 text-center">
+      <p class="text-[10px] text-gray-400">จำนวนบริษัทผู้ซื้อ</p>
+      <p class="font-bold text-blue-600">${buyers} บริษัท</p>
+    </div>`;
+
+  tbody.innerHTML = rmSalesData.map(s => `
+    <tr class="border-t hover:bg-gray-50 text-xs">
+      <td class="px-3 py-2">${s.sale_date}</td>
+      <td class="px-3 py-2 font-medium">${s.buyer_name}</td>
+      <td class="px-3 py-2">${s.material_name}</td>
+      <td class="px-3 py-2 text-right">${s.qty_ton!=null?Number(s.qty_ton).toLocaleString(undefined,{maximumFractionDigits:3}):"-"}</td>
+      <td class="px-3 py-2 text-right">${s.price_per_ton!=null?fmt(s.price_per_ton):"-"}</td>
+      <td class="px-3 py-2 text-right font-semibold text-purple-700">${fmt(s.amount)}</td>
+      <td class="px-3 py-2">${s.payment_date||"-"}</td>
+      <td class="px-3 py-2 text-gray-400">${s.conditions||""}</td>
+      <td class="px-3 py-2 text-center">
+        <button onclick="deleteRmSale(${s.rm_sale_id})" class="text-red-400 hover:text-red-600 text-xs">🗑</button>
+      </td>
+    </tr>`).join("") || '<tr><td colspan="9" class="text-center text-gray-300 py-6">ไม่มีข้อมูลการขาย</td></tr>';
+}
+
+async function deleteRmSale(id) {
+  if (!confirm("ลบรายการขายนี้?")) return;
+  const res = await fetch(`${API}/api/rm-stock/rm-sales/${id}`, {method:"DELETE"});
+  if (res.ok) loadRmSalesList(); else alert("ลบไม่สำเร็จ");
+}
+
+function showRmSaleForm() {
+  document.getElementById("modal-rmsale-form").classList.remove("hidden");
+  document.getElementById("form-rmsale").reset();
+  document.getElementById("rmsale-date").valueAsDate = new Date();
+}
+
+async function submitRmSaleForm(e) {
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target));
+  const payload = {
+    sale_date: data.sale_date,
+    buyer_name: data.buyer_name,
+    material_name: data.material_name,
+    qty_ton: data.qty_ton?parseFloat(data.qty_ton):null,
+    price_per_ton: data.price_per_ton?parseFloat(data.price_per_ton):null,
+    amount: data.amount?parseFloat(data.amount):null,
+    payment_date: data.payment_date||null,
+    conditions: data.conditions||null,
+    notes: data.notes||null,
+  };
+  try {
+    const res = await fetch(`${API}/api/rm-stock/rm-sales`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    if (!res.ok) { const err=await res.json(); throw new Error(err.detail); }
+    document.getElementById("modal-rmsale-form").classList.add("hidden");
+    loadRmSalesList();
+  } catch(err) { alert("❌ "+err.message); }
+}
+
+// ─── PROMOTIONS ───────────────────────────────────────────
+let promoData = [];
+
+async function loadPromotions() {
+  promoData = await fetch(`${API}/api/promotions`).then(r=>r.json()).catch(()=>[]);
+  const list = document.getElementById("promo-list");
+  const empty = document.getElementById("promo-empty");
+  const summary = document.getElementById("promo-summary");
+
+  const total = promoData.length;
+  const active = promoData.filter(p=>p.is_active).length;
+  const totalGifts = promoData.reduce((s,p)=>s+(p.gifts?.length||0),0);
+  summary.innerHTML = `
+    <div class="bg-white rounded-xl shadow p-4"><p class="text-gray-400 text-xs mb-1">โปรโมชันทั้งหมด</p><p class="text-2xl font-bold text-gray-800">${total}</p></div>
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-400"><p class="text-gray-400 text-xs mb-1">เปิดใช้งาน</p><p class="text-2xl font-bold text-green-600">${active}</p></div>
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-400"><p class="text-gray-400 text-xs mb-1">รายการของแจก</p><p class="text-2xl font-bold text-purple-600">${totalGifts}</p></div>`;
+
+  if (!promoData.length) { list.innerHTML=""; empty.classList.remove("hidden"); return; }
+  empty.classList.add("hidden");
+  list.innerHTML = promoData.map(p => `
+    <div class="bg-white rounded-xl shadow p-4">
+      <div class="flex flex-wrap gap-2 items-start justify-between mb-3">
+        <div>
+          <span class="font-bold text-sm">${p.promo_name}</span>
+          ${p.is_active ? '<span class="badge bg-green-100 text-green-700 ml-2">✅ เปิดใช้งาน</span>' : '<span class="badge bg-gray-100 text-gray-500 ml-2">⏸ ปิด</span>'}
+          ${p.start_date||p.end_date ? `<span class="text-xs text-gray-400 ml-2">${p.start_date||'?'} → ${p.end_date||'?'}</span>` : ''}
+        </div>
+        <div class="flex gap-2">
+          <button onclick="showPromoForm(${p.promotion_id})" class="text-xs text-blue-600 hover:underline">✏️ แก้ไข</button>
+          <button onclick="deletePromo(${p.promotion_id})" class="text-xs text-red-500 hover:underline">🗑️ ลบ</button>
+        </div>
+      </div>
+      ${p.description ? `<p class="text-xs text-gray-500 mb-3">${p.description}</p>` : ''}
+      <div class="border-t pt-3">
+        <div class="flex justify-between items-center mb-2">
+          <p class="text-xs font-semibold text-gray-600">🎁 ของแจก</p>
+          <button onclick="showAddGiftModal(${p.promotion_id})" class="text-xs text-purple-600 hover:underline">+ เพิ่มของแจก</button>
+        </div>
+        ${(p.gifts||[]).length === 0 ? '<p class="text-xs text-gray-300">ยังไม่มีของแจก</p>' :
+          `<table class="w-full text-xs">
+            <thead><tr class="text-gray-400"><th class="text-left pb-1">ของแจก</th><th class="text-center pb-1">หน่วย</th><th class="text-right pb-1">Stock คงเหลือ</th><th class="pb-1"></th></tr></thead>
+            <tbody>${(p.gifts||[]).map(g=>`
+              <tr class="border-t">
+                <td class="py-1.5">${g.gift_name}</td>
+                <td class="py-1.5 text-center">${g.unit}</td>
+                <td class="py-1.5 text-right font-semibold ${g.stock_qty<=0?'text-red-500':'text-green-700'}">${g.stock_qty}</td>
+                <td class="py-1.5 text-right">
+                  <button onclick="showGiftStock(${p.promotion_id},${g.gift_id},'${g.gift_name.replace(/'/g,"\\'")}',${g.stock_qty})" class="text-xs text-blue-500 hover:underline mr-2">📦 อัปเดต Stock</button>
+                  <button onclick="deleteGift(${p.promotion_id},${g.gift_id})" class="text-xs text-red-400 hover:underline">ลบ</button>
+                </td>
+              </tr>`).join("")}
+            </tbody>
+          </table>`}
+      </div>
+    </div>`).join("");
+}
+
+function showPromoForm(promoId = null) {
+  document.getElementById("promo-edit-id").value = promoId || "";
+  document.getElementById("promo-form-title").textContent = promoId ? "✏️ แก้ไขโปรโมชัน" : "🎁 เพิ่มรายการส่งเสริมการขาย";
+  document.getElementById("gift-rows").innerHTML = "";
+
+  if (promoId) {
+    const p = promoData.find(x=>x.promotion_id===promoId);
+    if (p) {
+      document.getElementById("promo-name-input").value = p.promo_name;
+      document.getElementById("promo-start").value = p.start_date||"";
+      document.getElementById("promo-end").value = p.end_date||"";
+      document.getElementById("promo-desc").value = p.description||"";
+      document.getElementById("promo-active").checked = p.is_active;
+    }
+  } else {
+    document.getElementById("promo-name-input").value = "";
+    document.getElementById("promo-start").value = "";
+    document.getElementById("promo-end").value = "";
+    document.getElementById("promo-desc").value = "";
+    document.getElementById("promo-active").checked = true;
+  }
+  document.getElementById("modal-promo-form").classList.remove("hidden");
+}
+
+let _giftSeq = 0;
+function addGiftRow(data={}) {
+  _giftSeq++;
+  const id = _giftSeq;
+  const div = document.createElement("div");
+  div.id = `gift-row-${id}`;
+  div.className = "flex gap-2 items-center";
+  div.innerHTML = `
+    <input class="form-input flex-1" placeholder="ชื่อของแจก เช่น เสื้อ" value="${data.gift_name||''}"/>
+    <input class="form-input w-20 text-center" placeholder="หน่วย" value="${data.unit||'ชิ้น'}"/>
+    <input type="number" step="1" min="0" class="form-input w-20 text-right" placeholder="Stock" value="${data.stock_qty||0}"/>
+    <button type="button" onclick="document.getElementById('gift-row-${id}').remove()" class="text-red-400 hover:text-red-600 text-sm">✕</button>`;
+  document.getElementById("gift-rows").appendChild(div);
+}
+
+async function submitPromoForm() {
+  const name = document.getElementById("promo-name-input").value.trim();
+  if (!name) { alert("กรุณาระบุชื่อโปรโมชัน"); return; }
+  const promoId = document.getElementById("promo-edit-id").value;
+
+  const giftRows = document.querySelectorAll("[id^='gift-row-']");
+  const gifts = Array.from(giftRows).map(row => {
+    const inputs = row.querySelectorAll("input");
+    return { gift_name: inputs[0].value.trim(), unit: inputs[1].value||"ชิ้น", stock_qty: parseFloat(inputs[2].value)||0 };
+  }).filter(g=>g.gift_name);
+
+  const body = {
+    promo_name: name,
+    start_date: document.getElementById("promo-start").value||null,
+    end_date: document.getElementById("promo-end").value||null,
+    description: document.getElementById("promo-desc").value||null,
+    is_active: document.getElementById("promo-active").checked,
+    gifts,
+  };
+
+  try {
+    if (promoId) {
+      await fetch(`${API}/api/promotions/${promoId}`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    } else {
+      await fetch(`${API}/api/promotions`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    }
+    document.getElementById("modal-promo-form").classList.add("hidden");
+    loadPromotions();
+  } catch(err) { alert("❌ "+err.message); }
+}
+
+async function deletePromo(id) {
+  if (!confirm("ลบโปรโมชันนี้?")) return;
+  await fetch(`${API}/api/promotions/${id}`, {method:"DELETE"});
+  loadPromotions();
+}
+
+function showAddGiftModal(promoId) {
+  showPromoForm(promoId);
+  setTimeout(()=>addGiftRow(), 100);
+}
+
+function showGiftStock(promoId, giftId, giftName, stock) {
+  document.getElementById("gs-promo-id").value = promoId;
+  document.getElementById("gs-gift-id").value = giftId;
+  document.getElementById("gs-gift-name").textContent = giftName;
+  document.getElementById("gs-stock-qty").value = stock;
+  document.getElementById("modal-gift-stock").classList.remove("hidden");
+}
+
+async function submitGiftStock() {
+  const promoId = document.getElementById("gs-promo-id").value;
+  const giftId  = document.getElementById("gs-gift-id").value;
+  const qty     = parseFloat(document.getElementById("gs-stock-qty").value) || 0;
+  try {
+    const res = await fetch(`${API}/api/promotions/${promoId}/gifts/${giftId}/stock`, {
+      method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({stock_qty:qty})
+    });
+    if (!res.ok) throw new Error((await res.json()).detail);
+    document.getElementById("modal-gift-stock").classList.add("hidden");
+    loadPromotions();
+  } catch(err) { alert("❌ "+err.message); }
+}
+
+async function deleteGift(promoId, giftId) {
+  if (!confirm("ลบของแจกนี้?")) return;
+  await fetch(`${API}/api/promotions/${promoId}/gifts/${giftId}`, {method:"DELETE"});
+  loadPromotions();
+}
+
+// ─── PROMO SUB-TAB ────────────────────────────────────────────
+function switchPromoTab(name) {
+  ["promos","dispatch"].forEach(t => {
+    document.getElementById(`ptab-${t}`).classList.toggle("hidden", t !== name);
+    const btn = document.getElementById(`ptab-btn-${t}`);
+    if (t === name) { btn.classList.add("bg-green-600","text-white"); btn.classList.remove("text-gray-500","hover:bg-gray-100"); }
+    else { btn.classList.remove("bg-green-600","text-white"); btn.classList.add("text-gray-500","hover:bg-gray-100"); }
+  });
+  if (name === "dispatch") loadDispatchSummary();
+}
+
+// ─── GIFT DISPATCH ─────────────────────────────────────────────
+let dispatchData = [];
+
+async function loadDispatchSummary() {
+  dispatchData = await fetch(`${API}/api/promotions/dispatches/summary`).then(r=>r.json()).catch(()=>[]);
+  renderDispatchTable();
+}
+
+function renderDispatchTable() {
+  const filterOrder = document.getElementById("dispatch-filter-order")?.value.toLowerCase() || "";
+  const filterGift  = document.getElementById("dispatch-filter-gift")?.value.toLowerCase() || "";
+  const rows = dispatchData.filter(r =>
+    r.order_id.toLowerCase().includes(filterOrder) &&
+    r.gift_name.toLowerCase().includes(filterGift)
+  );
+
+  // Summary cards
+  const total   = rows.length;
+  const done    = rows.filter(r=>r.qty_remaining<=0).length;
+  const pending = rows.filter(r=>r.qty_remaining>0).length;
+  const totalRemain = rows.reduce((s,r)=>s+r.qty_remaining,0);
+  document.getElementById("dispatch-summary-cards").innerHTML = `
+    <div class="bg-white rounded-xl shadow p-4"><p class="text-gray-400 text-xs mb-1">รายการทั้งหมด</p><p class="text-2xl font-bold">${total}</p></div>
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-orange-400"><p class="text-gray-400 text-xs mb-1">รอแจก/แจกไม่ครบ</p><p class="text-2xl font-bold text-orange-600">${pending}</p></div>
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-400"><p class="text-gray-400 text-xs mb-1">แจกครบแล้ว</p><p class="text-2xl font-bold text-green-600">${done}</p></div>
+    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-red-300"><p class="text-gray-400 text-xs mb-1">ค้างแจกรวม</p><p class="text-2xl font-bold text-red-600">${totalRemain.toLocaleString()}</p></div>`;
+
+  const tbody = document.getElementById("dispatch-table-body");
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-300 py-8">ไม่มีข้อมูล</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const pct = r.qty_given > 0 ? Math.min(100, Math.round(r.qty_dispatched / r.qty_given * 100)) : 0;
+    const done = r.qty_remaining <= 0;
+    const statusBadge = done
+      ? '<span class="badge bg-green-100 text-green-700">✅ ครบ</span>'
+      : (r.qty_dispatched > 0
+          ? '<span class="badge bg-yellow-100 text-yellow-700">⏳ บางส่วน</span>'
+          : '<span class="badge bg-gray-100 text-gray-500">⏸ ยังไม่แจก</span>');
+    return `<tr class="border-b hover:bg-gray-50">
+      <td class="px-3 py-2 font-mono text-blue-600">${r.order_id}</td>
+      <td class="px-3 py-2">${r.gift_name}</td>
+      <td class="px-3 py-2 text-right">${r.qty_given} ${r.unit}</td>
+      <td class="px-3 py-2 text-right text-green-700 font-semibold">${r.qty_dispatched}</td>
+      <td class="px-3 py-2 text-right ${r.qty_remaining>0?'text-red-600 font-semibold':'text-gray-400'}">${r.qty_remaining}</td>
+      <td class="px-3 py-2 text-center">
+        ${statusBadge}
+        <div class="w-full bg-gray-200 rounded-full h-1 mt-1"><div class="bg-green-500 h-1 rounded-full" style="width:${pct}%"></div></div>
+      </td>
+      <td class="px-3 py-2 text-right">
+        ${!done ? `<button onclick="showDispatchForm(${r.op_id})" class="text-xs text-orange-500 hover:underline font-semibold">+ แจก</button>` : ''}
+        <button onclick="showDispatchHistory(${r.op_id})" class="text-xs text-blue-500 hover:underline ml-2">ประวัติ</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+async function showDispatchForm(opId = null) {
+  // ถ้ากดจาก sub-tab ให้ใช้ op_id ที่ส่งมา
+  // ถ้ากดจากปุ่มหลักใน header ให้เลือกจาก dropdown
+  document.getElementById("dispatch-op-id").value = opId || "";
+  document.getElementById("dispatch-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("dispatch-qty").value = "";
+  document.getElementById("dispatch-by").value = "";
+  document.getElementById("dispatch-notes").value = "";
+
+  if (opId) {
+    const row = dispatchData.find(r=>r.op_id===opId);
+    if (row) {
+      document.getElementById("dispatch-op-info").textContent = `Order: ${row.order_id} | ของแจก: ${row.gift_name}`;
+      document.getElementById("dispatch-op-progress").textContent =
+        `แผน ${row.qty_given} ${row.unit} · แจกแล้ว ${row.qty_dispatched} · คงค้าง ${row.qty_remaining} ${row.unit}`;
+      // โหลดประวัติ
+      await loadDispatchHistory(opId, row.order_id);
+    }
+  } else {
+    document.getElementById("dispatch-op-info").textContent = "เลือก Order จากตารางด้านล่าง";
+    document.getElementById("dispatch-op-progress").textContent = "";
+    document.getElementById("dispatch-history").innerHTML = "";
+  }
+  document.getElementById("modal-dispatch-form").classList.remove("hidden");
+}
+
+async function loadDispatchHistory(opId, orderId) {
+  const history = document.getElementById("dispatch-history");
+  try {
+    const dispatches = await fetch(`${API}/api/promotions/order/${orderId}/${opId}/dispatches`).then(r=>r.json());
+    if (!dispatches.length) { history.innerHTML = '<p class="text-gray-300 text-center py-2">ยังไม่มีการแจก</p>'; return; }
+    history.innerHTML = dispatches.map(d=>`
+      <div class="flex justify-between items-center bg-white rounded-lg px-3 py-1.5 border">
+        <div>
+          <span class="font-semibold text-green-700">${d.qty_dispatched}</span> ชิ้น
+          <span class="text-gray-400 ml-2">${d.dispatch_date}</span>
+          ${d.dispatched_by ? `<span class="text-gray-500 ml-1">โดย ${d.dispatched_by}</span>` : ''}
+          ${d.notes ? `<span class="text-gray-400 ml-1">· ${d.notes}</span>` : ''}
+        </div>
+        <button onclick="deleteDispatch('${orderId}',${opId},${d.dispatch_id})" class="text-red-400 hover:text-red-600 ml-2">✕</button>
+      </div>`).join("");
+  } catch { history.innerHTML = '<p class="text-red-300">โหลดไม่ได้</p>'; }
+}
+
+async function showDispatchHistory(opId) {
+  const row = dispatchData.find(r=>r.op_id===opId);
+  if (row) await showDispatchForm(opId);
+}
+
+async function submitDispatch() {
+  const opId = document.getElementById("dispatch-op-id").value;
+  if (!opId) { alert("กรุณาเลือก Order และรายการโปรโมชันก่อน"); return; }
+  const row = dispatchData.find(r=>r.op_id==opId);
+  if (!row) { alert("ไม่พบข้อมูล"); return; }
+  const qty = parseFloat(document.getElementById("dispatch-qty").value);
+  if (!qty || qty <= 0) { alert("กรุณาระบุจำนวนที่แจก"); return; }
+  try {
+    const res = await fetch(`${API}/api/promotions/order/${row.order_id}/${opId}/dispatches`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        dispatch_date: document.getElementById("dispatch-date").value,
+        qty_dispatched: qty,
+        dispatched_by: document.getElementById("dispatch-by").value || null,
+        notes: document.getElementById("dispatch-notes").value || null,
+      })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    await loadDispatchHistory(row.order_id, parseInt(opId));
+    await loadDispatchSummary();
+    // อัปเดต info bar
+    const updated = dispatchData.find(r=>r.op_id==opId);
+    if (updated) {
+      document.getElementById("dispatch-op-progress").textContent =
+        `แผน ${updated.qty_given} ${updated.unit} · แจกแล้ว ${updated.qty_dispatched} · คงค้าง ${updated.qty_remaining} ${updated.unit}`;
+    }
+    document.getElementById("dispatch-qty").value = "";
+  } catch(err) { alert("❌ "+err.message); }
+}
+
+async function deleteDispatch(orderId, opId, dispatchId) {
+  if (!confirm("ลบบันทึกการแจกนี้? (Stock จะถูกคืน)")) return;
+  await fetch(`${API}/api/promotions/order/${orderId}/${opId}/dispatches/${dispatchId}`, {method:"DELETE"});
+  await loadDispatchHistory(orderId, opId);
+  await loadDispatchSummary();
+}
+
+// ─── ORDER PROMOTIONS (ใน Order form) ────────────────────────
+let _orderPromoSeq = 0;
+
+async function addOrderPromoRow() {
+  // โหลด promoData ถ้ายังไม่มี
+  if (!promoData.length) {
+    promoData = await fetch(`${API}/api/promotions?active_only=true`).then(r=>r.json()).catch(()=>[]);
+  }
+  const activePromos = promoData.filter(p=>p.is_active);
+  if (!activePromos.length) { alert("ไม่มีรายการส่งเสริมการขายที่เปิดใช้งาน"); return; }
+
+  _orderPromoSeq++;
+  const id = _orderPromoSeq;
+  const container = document.getElementById("order-promo-rows");
+  const div = document.createElement("div");
+  div.id = `op-row-${id}`;
+  div.className = "flex flex-wrap gap-2 items-end bg-purple-50 rounded-lg p-2 border border-purple-200";
+
+  const promoOpts = activePromos.map(p=>`<option value="${p.promotion_id}">${p.promo_name}</option>`).join("");
+  div.innerHTML = `
+    <div class="flex-1 min-w-36">
+      <label class="block text-[10px] text-gray-500 mb-0.5">โปรโมชัน</label>
+      <select class="form-input text-xs" onchange="updateOrderPromoGifts(${id}, this.value)">
+        <option value="">-- เลือก --</option>${promoOpts}
+      </select>
+    </div>
+    <div class="flex-1 min-w-36">
+      <label class="block text-[10px] text-gray-500 mb-0.5">ของแจก</label>
+      <select id="op-gift-${id}" class="form-input text-xs">
+        <option value="">-- เลือกโปรโมชันก่อน --</option>
+      </select>
+    </div>
+    <div class="w-20">
+      <label class="block text-[10px] text-gray-500 mb-0.5">จำนวน</label>
+      <input type="number" id="op-qty-${id}" step="1" min="1" value="1" class="form-input text-xs text-right"/>
+    </div>
+    <button type="button" onclick="document.getElementById('op-row-${id}').remove()" class="text-red-400 hover:text-red-600 text-sm pb-1">✕</button>`;
+  container.appendChild(div);
+}
+
+function updateOrderPromoGifts(rowId, promoId) {
+  const sel = document.getElementById(`op-gift-${rowId}`);
+  const p = promoData.find(x=>x.promotion_id==promoId);
+  if (!p) { sel.innerHTML = '<option value="">-- เลือกโปรโมชันก่อน --</option>'; return; }
+  sel.innerHTML = p.gifts.map(g=>
+    `<option value="${g.gift_id}" data-unit="${g.unit}" data-stock="${g.stock_qty}">${g.gift_name} (Stock: ${g.stock_qty} ${g.unit})</option>`
+  ).join("") || '<option value="">ไม่มีของแจก</option>';
+}
+
+function getOrderPromosPayload() {
+  return Array.from(document.querySelectorAll("[id^='op-row-']")).map(row => {
+    const promoSel = row.querySelector("select");
+    const giftSel  = row.querySelectorAll("select")[1];
+    const qty      = parseFloat(row.querySelector("input[type='number']")?.value) || 1;
+    if (!promoSel?.value || !giftSel?.value) return null;
+    return { promotion_id: parseInt(promoSel.value), gift_id: parseInt(giftSel.value), qty_given: qty };
+  }).filter(Boolean);
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+loadDashboard();
+populateSelects();
+setInterval(loadDashboard, 60000); // auto refresh ทุก 1 นาที
+</script>
+
+<!-- ══════════════ MODAL: PO FORM ══════════════ -->
+<div id="modal-po-form" class="fixed inset-0 bg-black/50 z-50 hidden flex items-start justify-center pt-10 px-3 overflow-y-auto">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 mb-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="font-bold text-base">🧾 เพิ่ม PO ซื้อวัตถุดิบ</h2>
+      <button onclick="document.getElementById('modal-po-form').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <form id="form-po" onsubmit="submitPoForm(event)" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">ซัพพลายเออร์ *</label>
+          <input name="supplier_name" required placeholder="เรืองอาภัสร์" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">เลขที่ PO</label>
+          <input name="po_number" placeholder="6906015" class="w-full border rounded-lg px-3 py-2 text-xs font-mono"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">สินค้า/วัตถุดิบ *</label>
+        <input name="material_name" required placeholder="21-0-0" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">จำนวน (ตัน)</label>
+          <input name="qty_ton" type="number" step="0.001" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">ราคา/ตัน</label>
+          <input name="price_per_ton" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">มูลค่า (บาท)</label>
+          <input name="amount" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">ค่าขนส่ง (บาท)</label>
+          <input name="freight_cost" type="number" step="0.01" placeholder="0" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">วันที่จ่าย</label>
+          <input name="payment_date" type="date" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">สถานะ</label>
+          <select name="po_status" class="w-full border rounded-lg px-3 py-2 text-xs">
+            <option value="PAID">จ่ายแล้ว</option>
+            <option value="PENDING">รอจ่าย</option>
+            <option value="PARTIAL">จ่ายบางส่วน</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">เงื่อนไข</label>
+          <input name="conditions" placeholder="เช่น วางบิลแล้ว" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">หมายเหตุ</label>
+        <input name="notes" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg text-sm">💾 บันทึก PO</button>
+        <button type="button" onclick="document.getElementById('modal-po-form').classList.add('hidden')" class="px-4 py-2.5 border rounded-lg text-xs">ยกเลิก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: RM SALE FORM ══════════════ -->
+<div id="modal-rmsale-form" class="fixed inset-0 bg-black/50 z-50 hidden flex items-start justify-center pt-10 px-3 overflow-y-auto">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-5 mb-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="font-bold text-base">💸 เพิ่มรายการขายวัตถุดิบออก</h2>
+      <button onclick="document.getElementById('modal-rmsale-form').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <form id="form-rmsale" onsubmit="submitRmSaleForm(event)" class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">วันที่ขาย *</label>
+          <input id="rmsale-date" name="sale_date" type="date" required class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">บริษัทผู้ซื้อ *</label>
+          <input name="buyer_name" required placeholder="ชื่อบริษัท" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">สินค้า/วัตถุดิบ *</label>
+        <input name="material_name" required placeholder="เช่น ยูเรีย, 20-20-0" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">จำนวน (ตัน)</label>
+          <input name="qty_ton" type="number" step="0.001" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">ราคา/ตัน</label>
+          <input name="price_per_ton" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">มูลค่า (บาท)</label>
+          <input name="amount" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">วันรับเงิน</label>
+          <input name="payment_date" type="date" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">เงื่อนไข</label>
+          <input name="conditions" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">หมายเหตุ</label>
+        <input name="notes" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button type="submit" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-lg text-sm">💾 บันทึก</button>
+        <button type="button" onclick="document.getElementById('modal-rmsale-form').classList.add('hidden')" class="px-4 py-2.5 border rounded-lg text-xs">ยกเลิก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+</body>
+</html>

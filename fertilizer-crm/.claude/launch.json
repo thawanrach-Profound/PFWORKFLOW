@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "crm-frontend",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "3030", "--directory", "frontend"],
+      "port": 3030
+    }
+  ]
+}
