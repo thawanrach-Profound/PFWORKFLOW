@@ -1,15 +1,35 @@
+import os
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
-from app.core.database import engine, Base
+from app.core.database import engine
 from app.routers import customers, formulas, orders, production, inventory, reports, imports, employees, bag_stock, rm_stock, promotions
+
+logger = logging.getLogger("crm.startup")
+
+
+def init_db():
+    """Run schema.sql on first deploy — idempotent (CREATE IF NOT EXISTS)."""
+    schema_path = os.path.join(os.path.dirname(__file__), "..", "schema.sql")
+    if not os.path.exists(schema_path):
+        logger.warning("schema.sql not found — skipping DB init")
+        return
+    sql = open(schema_path).read()
+    with engine.connect() as conn:
+        conn.execute(text(sql))
+        conn.commit()
+    logger.info("DB schema initialized")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # สร้าง tables อัตโนมัติถ้ายังไม่มี (Railway fresh deploy)
-    Base.metadata.create_all(bind=engine)
+    try:
+        init_db()
+    except Exception as e:
+        logger.warning(f"DB init skipped: {e}")
     yield
 
 
@@ -43,3 +63,8 @@ app.include_router(promotions.router)
 @app.get("/")
 def health():
     return {"status": "ok", "system": "Fertilizer CRM"}
+
+
+@app.get("/health")
+def healthcheck():
+    return {"status": "ok"}
