@@ -56,6 +56,7 @@ class BOMItemCreate(BaseModel):
 
 class FormulaCreate(BaseModel):
     formula_code: str
+    product_code: Optional[str] = None
     formula_name: str
     description: Optional[str] = None
     base_price_per_kg: Decimal = Decimal("0")
@@ -65,6 +66,7 @@ class FormulaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     formula_id: int
     formula_code: str
+    product_code: Optional[str] = None
     formula_name: str
     base_price_per_kg: Decimal
     is_active: bool

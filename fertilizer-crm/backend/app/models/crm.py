@@ -62,6 +62,7 @@ class FertilizerFormula(Base):
     __tablename__ = "fertilizer_formulas"
     formula_id          = Column(Integer, primary_key=True, autoincrement=True)
     formula_code        = Column(String(30), unique=True, nullable=False)
+    product_code        = Column(String(50))
     formula_name        = Column(String(255), nullable=False)
     description         = Column(Text)
     base_price_per_kg   = Column(Numeric(10, 4), default=0)
