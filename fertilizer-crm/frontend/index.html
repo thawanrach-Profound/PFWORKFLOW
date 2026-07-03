@@ -523,6 +523,30 @@
       <button onclick="loadBagSessions()" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg">🔄 โหลด</button>
     </div>
 
+    <!-- ยอดคงเหลือกระสอบ -->
+    <div class="bg-white rounded-xl shadow px-4 py-3">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-bold text-sm">📊 ยอดคงเหลือกระสอบ (Stock ล่าสุด − ใช้จาก Order)</h3>
+        <button onclick="clearBagUsage()" class="text-xs text-red-400 hover:text-red-600 border border-red-200 rounded px-2 py-1">🗑 ล้างยอดใช้</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead class="bg-gray-50 text-gray-500 text-[10px]">
+            <tr>
+              <th class="px-3 py-2 text-left">ชื่อสินค้า / สูตร</th>
+              <th class="px-3 py-2 text-right">Stock ล่าสุด (ใบ)</th>
+              <th class="px-3 py-2 text-right text-orange-600">ใช้จาก Order (ใบ)</th>
+              <th class="px-3 py-2 text-right text-green-700">คงเหลือ (ใบ)</th>
+              <th class="px-3 py-2 text-left text-gray-400">Order อ้างอิง</th>
+            </tr>
+          </thead>
+          <tbody id="bag-balance-body">
+            <tr><td colspan="5" class="text-center text-gray-300 py-6">โหลดข้อมูล Stock กระสอบก่อน</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Sessions list -->
     <div id="bag-sessions-list" class="space-y-3"></div>
     <p id="bag-sessions-empty" class="hidden text-center text-gray-300 py-10">ยังไม่มีข้อมูล Stock กระสอบ</p>
@@ -1951,6 +1975,18 @@ async function submitOrder(e) {
         }).catch(()=>{});
       }
     }
+    // บันทึก bag usage ลง localStorage
+    const rows = document.querySelectorAll("[id^='oi-row-']");
+    rows.forEach(row => {
+      const rid  = row.id.replace('oi-row-','');
+      const name = document.getElementById(`oi-name-${rid}`)?.value?.trim();
+      const bags = parseInt(document.getElementById(`oi-bags-${rid}`)?.value) || 0;
+      if (name && bags > 0) {
+        const usage = JSON.parse(localStorage.getItem('pf_order_bag_usage')||'[]');
+        usage.push({ orderId: savedOrderId, productName: name, bags, date: new Date().toISOString().slice(0,10) });
+        localStorage.setItem('pf_order_bag_usage', JSON.stringify(usage));
+      }
+    });
     hidePage("new-order");
     loadDashboard();
   } catch(err) {
@@ -2343,6 +2379,60 @@ async function loadCustomersImportPreview() {
 let bagSessions = [];
 let bagEntryRowCount = 0;
 
+function renderBagBalance() {
+  const tbody = document.getElementById("bag-balance-body");
+  if (!tbody) return;
+
+  // Latest stock per product name (from most recent session per item_name)
+  const stockMap = {}; // {item_name: {count, date}}
+  [...bagSessions].reverse().forEach(s => {
+    (s.entries||[]).forEach(e => {
+      const key = (e.item_name||"").trim().toLowerCase();
+      if (!stockMap[key]) stockMap[key] = { name: e.item_name, count: Number(e.bag_count||0), date: s.stock_date };
+      else if (s.stock_date >= stockMap[key].date) {
+        stockMap[key].count = Number(e.bag_count||0);
+        stockMap[key].date  = s.stock_date;
+      }
+    });
+  });
+
+  // Usage from orders (localStorage)
+  const usage = JSON.parse(localStorage.getItem('pf_order_bag_usage')||'[]');
+  const usageMap = {}; // {productName_lower: {total, orders:[orderId]}}
+  usage.forEach(u => {
+    const key = (u.productName||"").trim().toLowerCase();
+    if (!usageMap[key]) usageMap[key] = { name: u.productName, total: 0, orders: [] };
+    usageMap[key].total += u.bags;
+    if (!usageMap[key].orders.includes(u.orderId)) usageMap[key].orders.push(u.orderId);
+  });
+
+  const allKeys = new Set([...Object.keys(stockMap), ...Object.keys(usageMap)]);
+  if (!allKeys.size) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-gray-300 py-6">ยังไม่มีข้อมูล</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = [...allKeys].map(key => {
+    const s = stockMap[key] || { name: usageMap[key]?.name||key, count: 0 };
+    const u = usageMap[key] || { total: 0, orders: [] };
+    const remain = s.count - u.total;
+    const cls = remain < 0 ? 'text-red-600 font-bold' : remain === 0 ? 'text-gray-400' : 'text-green-700 font-semibold';
+    return `<tr class="border-t hover:bg-gray-50">
+      <td class="px-3 py-2 font-medium">${s.name||key}</td>
+      <td class="px-3 py-2 text-right text-blue-700 font-semibold">${s.count.toLocaleString()}</td>
+      <td class="px-3 py-2 text-right text-orange-600">${u.total > 0 ? '-'+u.total.toLocaleString() : '—'}</td>
+      <td class="px-3 py-2 text-right ${cls}">${remain.toLocaleString()}</td>
+      <td class="px-3 py-2 text-gray-400 text-[10px]">${u.orders.join(', ')||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function clearBagUsage() {
+  if (!confirm('ล้างยอดใช้กระสอบจาก Order ทั้งหมด?')) return;
+  localStorage.removeItem('pf_order_bag_usage');
+  renderBagBalance();
+}
+
 async function loadBagSessions() {
   const from = document.getElementById("bag-filter-from")?.value || "";
   const to   = document.getElementById("bag-filter-to")?.value || "";
@@ -2352,6 +2442,7 @@ async function loadBagSessions() {
   try { bagSessions = await fetch(url).then(r => r.json()); }
   catch { bagSessions = []; }
   renderBagSessions();
+  renderBagBalance();
 }
 
 function renderBagSessions() {
