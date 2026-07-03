@@ -653,6 +653,8 @@
               <th class="px-3 py-2 text-left">สินค้า</th>
               <th class="px-3 py-2 text-right">ตัน</th>
               <th class="px-3 py-2 text-right">มูลค่า</th>
+              <th class="px-3 py-2 text-right text-blue-600">ชำระแล้ว</th>
+              <th class="px-3 py-2 text-right text-orange-600">คงเหลือ</th>
               <th class="px-3 py-2 text-right">ค่าขน</th>
               <th class="px-3 py-2 text-left">วันจ่าย</th>
               <th class="px-3 py-2 text-center">สถานะ</th>
@@ -2899,13 +2901,23 @@ function renderPoList() {
       <option value="PARTIAL"${cur==='PARTIAL'?'selected':''}>🔶 บางส่วน</option>
     </select>`;
 
-  tbody.innerHTML = poData.map(p => `
+  tbody.innerHTML = poData.map(p => {
+    const amount  = Number(p.amount)||0;
+    const mPaid   = (p.notes||"").match(/paid_partial:([\d.]+)/);
+    const partial = mPaid ? parseFloat(mPaid[1]) : 0;
+    const balance = partial > 0 ? amount - partial : null;
+    const balanceCell = balance !== null
+      ? `<span class="${balance<=0?'text-green-700':'text-orange-600'} font-semibold">${fmt(balance)}</span>`
+      : `<span class="text-gray-300">—</span>`;
+    return `
     <tr class="border-t hover:bg-blue-50/20 text-xs" id="po-row-${p.po_id}">
       <td class="px-3 py-2 font-mono text-gray-600">${p.po_number||"-"}</td>
       <td class="px-3 py-2 font-medium">${p.supplier_name}</td>
       <td class="px-3 py-2">${p.material_name}</td>
       <td class="px-3 py-2 text-right">${p.qty_ton!=null?Number(p.qty_ton).toLocaleString(undefined,{maximumFractionDigits:3}):"-"}</td>
       <td class="px-3 py-2 text-right font-semibold text-gray-800">${fmt(p.amount)}</td>
+      <td class="px-3 py-2 text-right text-blue-600">${partial>0?fmt(partial):'<span class="text-gray-300">—</span>'}</td>
+      <td class="px-3 py-2 text-right">${balanceCell}</td>
       <td class="px-3 py-2 text-right text-gray-400">${p.freight_cost&&Number(p.freight_cost)>0?fmt(p.freight_cost):"-"}</td>
       <td class="px-3 py-2 text-gray-500">${p.payment_date||"-"}</td>
       <td class="px-3 py-2">${statusSelect(p.po_id, p.po_status)}</td>
@@ -2915,7 +2927,8 @@ function renderPoList() {
           <button onclick="deletePoItem(${p.po_id})" class="bg-red-50 hover:bg-red-100 text-red-500 text-xs px-2 py-1 rounded">ลบ</button>
         </div>
       </td>
-    </tr>`).join("") || '<tr><td colspan="9" class="text-center text-gray-300 py-6">ไม่มีข้อมูล PO</td></tr>';
+    </tr>`;
+  }).join("") || '<tr><td colspan="11" class="text-center text-gray-300 py-6">ไม่มีข้อมูล PO</td></tr>';
 }
 
 async function quickUpdatePoStatus(po_id, status) {
@@ -2944,6 +2957,18 @@ async function deletePoItem(id) {
 
 let _editingPoId = null;
 
+function calcPoBalance() {
+  const amount  = parseFloat(document.getElementById("po-amount")?.value) || 0;
+  const paid    = parseFloat(document.getElementById("po-paid-partial")?.value) || 0;
+  const balance = amount - paid;
+  const el = document.getElementById("po-balance-display");
+  if (!el) return;
+  if (amount <= 0) { el.textContent = "—"; el.className = el.className.replace(/text-\w+-\d+/g,"") + " text-gray-400"; return; }
+  const fmt = n => n.toLocaleString("th-TH", {minimumFractionDigits:2, maximumFractionDigits:2});
+  el.textContent = fmt(balance) + " บาท";
+  el.style.color = balance <= 0 ? "#276749" : balance < amount ? "#c05621" : "#c53030";
+}
+
 function showPoForm(prefill) {
   _editingPoId = prefill?.po_id || null;
   const modal = document.getElementById("modal-po-form");
@@ -2951,6 +2976,7 @@ function showPoForm(prefill) {
   const title = modal.querySelector("h2");
   title.textContent = _editingPoId ? "✏️ แก้ไข PO ซื้อวัตถุดิบ" : "🧾 เพิ่ม PO ซื้อวัตถุดิบ";
   form.reset();
+  document.getElementById("po-balance-display").textContent = "—";
   if (prefill) {
     form.elements["supplier_name"].value = prefill.supplier_name || "";
     form.elements["po_number"].value     = prefill.po_number || "";
@@ -2963,6 +2989,10 @@ function showPoForm(prefill) {
     form.elements["po_status"].value     = prefill.po_status || "PAID";
     form.elements["conditions"].value    = prefill.conditions || "";
     form.elements["notes"].value         = prefill.notes || "";
+    // paid_partial: extract from notes if stored, else 0
+    const m = (prefill.notes||"").match(/paid_partial:([\d.]+)/);
+    if (m) { form.elements["paid_partial"].value = m[1]; }
+    calcPoBalance();
   }
   modal.classList.remove("hidden");
 }
@@ -2975,18 +3005,27 @@ function editPoItem(id) {
 async function submitPoForm(e) {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target));
+  const amount  = data.amount ? parseFloat(data.amount) : null;
+  const partial = data.paid_partial ? parseFloat(data.paid_partial) : 0;
+  // Strip old paid_partial tag from notes, then append new if > 0
+  let notesVal = (data.notes||"").replace(/\s*paid_partial:[\d.]+/, "").trim();
+  if (partial > 0) notesVal = (notesVal ? notesVal + " " : "") + `paid_partial:${partial}`;
+  // Auto-set status when partial payment entered
+  let status = data.po_status || "PAID";
+  if (partial > 0 && amount && partial < amount) status = "PARTIAL";
+  else if (partial > 0 && amount && partial >= amount) status = "PAID";
   const payload = {
     supplier_name: data.supplier_name,
     po_number: data.po_number||null,
     material_name: data.material_name,
     qty_ton: data.qty_ton?parseFloat(data.qty_ton):null,
     price_per_ton: data.price_per_ton?parseFloat(data.price_per_ton):null,
-    amount: data.amount?parseFloat(data.amount):null,
+    amount: amount,
     freight_cost: data.freight_cost?parseFloat(data.freight_cost):0,
     payment_date: data.payment_date||null,
-    po_status: data.po_status||"PAID",
+    po_status: status,
     conditions: data.conditions||null,
-    notes: data.notes||null,
+    notes: notesVal||null,
   };
   try {
     const url    = _editingPoId ? `${API}/api/rm-stock/po/${_editingPoId}` : `${API}/api/rm-stock/po`;
@@ -3664,7 +3703,19 @@ setInterval(loadDashboard, 60000); // auto refresh ทุก 1 นาที
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">มูลค่า (บาท)</label>
-          <input name="amount" type="number" step="0.01" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+          <input name="amount" id="po-amount" type="number" step="0.01" oninput="calcPoBalance()" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">ชำระบางส่วน (บาท)</label>
+          <input name="paid_partial" id="po-paid-partial" type="number" step="0.01" min="0" placeholder="0.00"
+            oninput="calcPoBalance()"
+            class="w-full border rounded-lg px-3 py-2 text-xs"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">ยอดคงเหลือ (บาท)</label>
+          <div id="po-balance-display" class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-xs font-semibold text-red-600 min-h-[34px] flex items-center">—</div>
         </div>
       </div>
       <div class="grid grid-cols-2 gap-3">
