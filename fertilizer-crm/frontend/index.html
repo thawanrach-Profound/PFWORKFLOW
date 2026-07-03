@@ -960,6 +960,7 @@
                 <th class="px-2 py-2 text-left">ชื่อสินค้า / สูตรปุ๋ย *</th>
                 <th class="px-2 py-2 text-right w-20">ตัน</th>
                 <th class="px-2 py-2 text-right w-20 text-blue-600">กระสอบ</th>
+                <th class="px-2 py-2 text-left w-36 text-purple-600">ประเภทกระสอบ</th>
                 <th class="px-2 py-2 text-right w-24">บาท/ตัน</th>
                 <th class="px-2 py-2 text-right w-24">รวม</th>
                 <th class="px-2 py-2 w-6"></th>
@@ -1797,11 +1798,26 @@ function addOrderItemRow(data = {}) {
     <td class="px-1 py-1"><input list="${dlId}" class="w-full border rounded px-1 py-0.5 text-xs" id="oi-name-${id}" placeholder="ชื่อสินค้า *" required value="${data.product_name||""}" oninput="autoFillProduct(${id})"/></td>
     <td class="px-1 py-1"><input type="number" step="0.001" class="w-full border rounded px-1 py-0.5 text-xs text-right" id="oi-ton-${id}" placeholder="0" value="${qty}" oninput="updateOITotal(${id})"/></td>
     <td class="px-1 py-1"><input type="number" step="1" class="w-full border rounded px-1 py-0.5 text-xs text-right bg-blue-50 text-blue-700 font-semibold" id="oi-bags-${id}" placeholder="0" value="${bags}" oninput="updateTonFromBags(${id})"/></td>
+    <td class="px-1 py-1">${buildBagSelect(id, data.bagTypeName||'')}</td>
     <td class="px-1 py-1"><input type="number" step="0.01" class="w-full border rounded px-1 py-0.5 text-xs text-right" id="oi-price-${id}" placeholder="0" value="${price}" oninput="updateOITotal(${id})"/></td>
     <td class="px-1 py-1 text-right font-semibold text-green-700 text-xs whitespace-nowrap" id="oi-amt-${id}">${amt}</td>
     <td class="px-1 py-1 text-center"><button type="button" class="text-red-400 hover:text-red-600 text-xs" onclick="removeOIRow(${id})">✕</button></td>`;
   tbody.appendChild(tr);
   updateOIGrand();
+}
+
+function buildBagSelect(id, selected) {
+  // Collect unique bag item names from latest session
+  const bagItems = {};
+  [...bagSessions].sort((a,b) => a.stock_date > b.stock_date ? 1 : -1).forEach(s => {
+    (s.entries||[]).forEach(e => {
+      if (e.item_name) bagItems[e.item_name] = true;
+    });
+  });
+  const names = Object.keys(bagItems);
+  const opts = [`<option value="">-- เลือกกระสอบ --</option>`]
+    .concat(names.map(n => `<option value="${n}" ${n===selected?'selected':''}>${n}</option>`)).join('');
+  return `<select id="oi-bag-type-${id}" class="w-full border rounded px-1 py-0.5 text-xs text-purple-700 bg-purple-50">${opts}</select>`;
 }
 
 function autoFillProduct(id) {
@@ -1813,6 +1829,13 @@ function autoFillProduct(id) {
   if (match) {
     if (codeEl && !codeEl.value) codeEl.value = match.product_code || match.formula_code || "";
     if (priceEl && !priceEl.value) priceEl.value = match.base_price_per_kg || 0;
+  }
+  // Auto-match กระสอบ: หา bag item ที่ชื่อคล้ายกับสินค้า
+  const bagSel = document.getElementById(`oi-bag-type-${id}`);
+  if (bagSel && !bagSel.value && val) {
+    const nk = normBagKey(val);
+    const found = Array.from(bagSel.options).find(o => o.value && normBagKey(o.value) === nk);
+    if (found) bagSel.value = found.value;
   }
   updateOITotal(id);
 }
@@ -1975,18 +1998,20 @@ async function submitOrder(e) {
         }).catch(()=>{});
       }
     }
-    // บันทึก bag usage ลง localStorage
+    // บันทึก bag usage ลง localStorage — ใช้ชื่อจาก dropdown กระสอบ (ถ้าเลือก) หรือชื่อสินค้า
     const rows = document.querySelectorAll("[id^='oi-row-']");
+    const allUsage = JSON.parse(localStorage.getItem('pf_order_bag_usage')||'[]');
     rows.forEach(row => {
-      const rid  = row.id.replace('oi-row-','');
-      const name = document.getElementById(`oi-name-${rid}`)?.value?.trim();
-      const bags = parseInt(document.getElementById(`oi-bags-${rid}`)?.value) || 0;
-      if (name && bags > 0) {
-        const usage = JSON.parse(localStorage.getItem('pf_order_bag_usage')||'[]');
-        usage.push({ orderId: savedOrderId, productName: name, bags, date: new Date().toISOString().slice(0,10) });
-        localStorage.setItem('pf_order_bag_usage', JSON.stringify(usage));
+      const rid      = row.id.replace('oi-row-','');
+      const bagType  = document.getElementById(`oi-bag-type-${rid}`)?.value?.trim();
+      const prodName = document.getElementById(`oi-name-${rid}`)?.value?.trim();
+      const bagName  = bagType || prodName;
+      const bags     = parseInt(document.getElementById(`oi-bags-${rid}`)?.value) || 0;
+      if (bagName && bags > 0) {
+        allUsage.push({ orderId: savedOrderId, productName: bagName, bags, date: new Date().toISOString().slice(0,10) });
       }
     });
+    localStorage.setItem('pf_order_bag_usage', JSON.stringify(allUsage));
     hidePage("new-order");
     loadDashboard();
   } catch(err) {
