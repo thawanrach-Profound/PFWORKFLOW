@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>CRM ขายปุ๋ย — Sale Support Dashboard</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:9999px; font-size:11px; font-weight:600; }
   .tab-btn { padding:8px 16px; border-bottom:2px solid transparent; font-size:13px; font-weight:500; color:#6b7280; cursor:pointer; }
@@ -50,6 +51,7 @@
   <button class="tab-btn" onclick="switchTab('bag-stock', this)">🎒 Stock กระสอบ</button>
   <button class="tab-btn" onclick="switchTab('rm-stock', this)">🏭 Stock วัตถุดิบ</button>
   <button class="tab-btn" onclick="switchTab('promotions', this)">🎁 ส่งเสริมการขาย</button>
+  <button class="tab-btn" onclick="switchTab('machine-dashboard', this)">⚙️ แดชบอร์ดเครื่องจักร</button>
 </nav>
 
 <main class="p-3 max-w-7xl mx-auto">
@@ -633,6 +635,10 @@
           <option value="PARTIAL">จ่ายบางส่วน</option>
         </select>
         <button onclick="loadPoList()" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg">🔄 โหลด</button>
+        <label class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer">
+          📥 Import Excel
+          <input type="file" accept=".xlsx,.xls" class="hidden" onchange="importPoExcel(event)"/>
+        </label>
         <button onclick="showPoForm()" class="bg-blue-600 text-white text-xs px-4 py-2 rounded-lg font-semibold">+ เพิ่ม PO</button>
       </div>
       <!-- PO Summary Cards -->
@@ -691,6 +697,91 @@
   </div>
 </div>
 
+
+<!-- ── Modal: บันทึก Snapshot วัตถุดิบ + FG ── -->
+<div id="modal-rm-session" class="hidden fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 my-4">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-base">🏭 บันทึก Snapshot Stock วัตถุดิบ + FG</h3>
+      <button onclick="document.getElementById('modal-rm-session').classList.add('hidden')" class="text-gray-400 text-lg">✕</button>
+    </div>
+    <!-- Header fields -->
+    <div class="grid grid-cols-3 gap-3 mb-5">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">วันที่บันทึก *</label>
+        <input id="rm-sess-date" type="date" required class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">หมายเหตุ</label>
+        <input id="rm-sess-note" placeholder="เช่น เช้าก่อนผลิต" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">บันทึกโดย</label>
+        <input id="rm-sess-by" placeholder="ชื่อผู้บันทึก" class="w-full border rounded-lg px-3 py-2 text-xs"/>
+      </div>
+    </div>
+
+    <!-- Section: วัตถุดิบ (RAW) -->
+    <div class="mb-5">
+      <div class="flex justify-between items-center mb-2">
+        <p class="text-xs font-bold text-blue-700">📦 วัตถุดิบ (RAW)</p>
+        <button onclick="addRmRow('raw')" class="text-xs text-blue-600 hover:underline">+ เพิ่มรายการ</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs mb-1">
+          <thead class="bg-blue-50 text-blue-700">
+            <tr>
+              <th class="px-2 py-2 text-left">ชื่อสินค้า</th>
+              <th class="px-2 py-2 text-right w-28">สต็อก (ตัน)</th>
+              <th class="px-2 py-2 text-right w-28">ราคา/ตัน</th>
+              <th class="px-2 py-2 text-right w-28">มูลค่า (บาท)</th>
+              <th class="px-2 py-2 text-left w-28">หมายเหตุ</th>
+              <th class="w-8"></th>
+            </tr>
+          </thead>
+          <tbody id="rm-raw-tbody"></tbody>
+        </table>
+      </div>
+      <div class="text-right text-xs text-blue-700 font-semibold">รวมวัตถุดิบ: <span id="rm-raw-total">0</span> บาท</div>
+    </div>
+
+    <!-- Section: สินค้าสำเร็จ (FG) -->
+    <div class="mb-5">
+      <div class="flex justify-between items-center mb-2">
+        <p class="text-xs font-bold text-green-700">🌱 สินค้าสำเร็จรูป (FG)</p>
+        <button onclick="addRmRow('fg')" class="text-xs text-green-600 hover:underline">+ เพิ่มรายการ</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs mb-1">
+          <thead class="bg-green-50 text-green-700">
+            <tr>
+              <th class="px-2 py-2 text-left">ชื่อสินค้า</th>
+              <th class="px-2 py-2 text-right w-28">สต็อก (ตัน)</th>
+              <th class="px-2 py-2 text-right w-28">ราคา/ตัน</th>
+              <th class="px-2 py-2 text-right w-28">มูลค่า (บาท)</th>
+              <th class="px-2 py-2 text-left w-28">หมายเหตุ</th>
+              <th class="w-8"></th>
+            </tr>
+          </thead>
+          <tbody id="rm-fg-tbody"></tbody>
+        </table>
+      </div>
+      <div class="text-right text-xs text-green-700 font-semibold">รวม FG: <span id="rm-fg-total">0</span> บาท</div>
+    </div>
+
+    <!-- Grand total -->
+    <div class="bg-gray-50 rounded-lg px-4 py-2 mb-4 flex justify-between items-center">
+      <span class="text-xs text-gray-600 font-semibold">มูลค่ารวมทั้งหมด</span>
+      <span class="text-base font-bold text-gray-800" id="rm-grand-total">0 บาท</span>
+    </div>
+
+    <div id="rm-sess-error" class="text-red-500 text-xs hidden mb-2"></div>
+    <div class="flex gap-2">
+      <button onclick="submitRmSession()" class="flex-1 bg-green-600 text-white font-semibold py-2.5 rounded-lg text-sm">💾 บันทึก Snapshot</button>
+      <button onclick="document.getElementById('modal-rm-session').classList.add('hidden')" class="px-4 border rounded-lg text-xs">ยกเลิก</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════════ TAB: PROMOTIONS ══════════════ -->
 <div id="tab-promotions" class="hidden">
@@ -2402,16 +2493,80 @@ async function deleteBagSession(id) {
   else alert("ลบไม่สำเร็จ");
 }
 
-async function importBagStockExcel(e) {
+function importBagStockExcel(e) {
   const file = e.target.files[0]; if (!file) return;
-  const fd = new FormData(); fd.append("file", file);
-  try {
-    const res = await fetch(`${API}/api/bag-stock/import`, {method:"POST", body:fd});
-    if (!res.ok) { const err=await res.json(); throw new Error(err.detail||"error"); }
-    const data = await res.json();
-    alert(`✅ Import สำเร็จ ${data.length} รอบ`);
-    loadBagSessions();
-  } catch(err) { alert("❌ " + err.message); }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result), {type:"array"});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+
+      // แถว index 1 (row 2): col 3 = "วันที่ 26/6/69 เช้าก่อนผลิต"
+      let parsedDate = new Date().toISOString().slice(0,10);
+      let parsedNote = "";
+      const hdrCell = rows[1] && rows[1][3] ? String(rows[1][3]).trim() : "";
+      const dateMatch = hdrCell.match(/วันที่\s*([\d]+)\/([\d]+)\/([\d]+)\s*(.*)/);
+      if (dateMatch) {
+        let d = parseInt(dateMatch[1]), m = parseInt(dateMatch[2]), y = parseInt(dateMatch[3]);
+        if (y < 100) y = y > 50 ? 1900 + y : 2000 + y;  // Buddhist/short year ไม่ใช่ Buddha era
+        // ถ้าเป็นปี พ.ศ. (เช่น 2569) ให้แปลงเป็น ค.ศ.
+        if (y > 2500) y = y - 543;
+        parsedDate = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        parsedNote = dateMatch[4].trim();
+      }
+
+      // หา data rows: ข้ามแถวที่ col0 ไม่ใช่ตัวเลข (header, separator, total)
+      const dataRows = [];
+      for (let i = 3; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+        const seq = row[0];
+        if (seq === null || seq === undefined) continue;
+        if (String(seq).trim() === "รวม" || String(seq).trim() === "") continue;
+        if (isNaN(Number(seq))) continue;
+        const code  = row[1] != null ? String(row[1]).trim() : "";
+        const name  = row[2] != null ? String(row[2]).trim() : "";
+        const qty   = parseFloat(row[3]) || 0;
+        const price = parseFloat(row[4]) || 0;
+        const note  = row[6] != null ? String(row[6]).trim() : "";
+        if (!name && qty === 0) continue;
+        dataRows.push({code, name, qty, price, note});
+      }
+
+      if (!dataRows.length) { alert("❌ ไม่พบข้อมูลในไฟล์ Excel"); return; }
+
+      // เปิด modal และ pre-fill
+      bagEntryRowCount = 0;
+      document.getElementById("bag-sess-date").value = parsedDate;
+      document.getElementById("bag-sess-note").value = parsedNote || "เช้าก่อนผลิต";
+      document.getElementById("bag-sess-by").value = "";
+      document.getElementById("bag-entry-tbody").innerHTML = "";
+      document.getElementById("bag-entry-total").textContent = "0";
+      document.getElementById("bag-sess-error").classList.add("hidden");
+
+      dataRows.forEach(item => {
+        bagEntryRowCount++;
+        const id = bagEntryRowCount;
+        const tr = document.createElement("tr");
+        tr.id = `bag-row-${id}`;
+        tr.className = "border-t";
+        tr.innerHTML = `
+          <td class="px-1 py-1"><input class="w-full border rounded px-2 py-1 text-xs font-mono" value="${item.code}" oninput="updateBagRowTotal(${id})"/></td>
+          <td class="px-1 py-1"><input class="w-full border rounded px-2 py-1 text-xs" value="${item.name}" oninput="updateBagRowTotal(${id})"/></td>
+          <td class="px-1 py-1"><input type="number" min="0" step="1" class="w-full border rounded px-2 py-1 text-xs text-right" value="${item.qty}" oninput="updateBagRowTotal(${id})"/></td>
+          <td class="px-1 py-1"><input type="number" min="0" step="0.01" class="w-full border rounded px-2 py-1 text-xs text-right" value="${item.price}" oninput="updateBagRowTotal(${id})"/></td>
+          <td class="px-1 py-1 text-right text-xs text-green-700 font-semibold" id="bag-rowtotal-${id}">${fmt(item.qty * item.price)}</td>
+          <td class="px-1 py-1"><input class="w-full border rounded px-2 py-1 text-xs" value="${item.note}"/></td>
+          <td class="px-1 py-1 text-center"><button onclick="document.getElementById('bag-row-${id}').remove();calcBagGrand()" class="text-red-300 hover:text-red-500">✕</button></td>`;
+        document.getElementById("bag-entry-tbody").appendChild(tr);
+      });
+
+      calcBagGrand();
+      document.getElementById("modal-bag-session").classList.remove("hidden");
+    } catch(err) { alert("❌ อ่านไฟล์ไม่ได้: " + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
   e.target.value = "";
 }
 
@@ -2518,20 +2673,160 @@ async function deleteRmSession(id) {
   else alert("ลบไม่สำเร็จ");
 }
 
-function showRmSessionForm() {
-  alert("กรุณาใช้ปุ่ม Import Excel เพื่อนำเข้าข้อมูลจากไฟล์");
+let rmRowCount = {raw:0, fg:0};
+
+function showRmSessionForm(prefillRaw, prefillFg, prefillDate, prefillNote) {
+  rmRowCount = {raw:0, fg:0};
+  document.getElementById("rm-sess-date").value  = prefillDate || new Date().toISOString().slice(0,10);
+  document.getElementById("rm-sess-note").value  = prefillNote || "";
+  document.getElementById("rm-sess-by").value    = "";
+  document.getElementById("rm-raw-tbody").innerHTML = "";
+  document.getElementById("rm-fg-tbody").innerHTML  = "";
+  document.getElementById("rm-raw-total").textContent = "0";
+  document.getElementById("rm-fg-total").textContent  = "0";
+  document.getElementById("rm-grand-total").textContent = "0 บาท";
+  document.getElementById("rm-sess-error").classList.add("hidden");
+
+  const rawRows = prefillRaw || Array(3).fill({name:"",ton:"",price:"",note:""});
+  const fgRows  = prefillFg  || Array(3).fill({name:"",ton:"",price:"",note:""});
+  rawRows.forEach(r => addRmRow("raw", r));
+  fgRows.forEach(r  => addRmRow("fg",  r));
+  document.getElementById("modal-rm-session").classList.remove("hidden");
 }
 
-async function importRmStockExcel(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const fd = new FormData(); fd.append("file", file);
+function addRmRow(type, data={}) {
+  rmRowCount[type]++;
+  const id = `${type}-${rmRowCount[type]}`;
+  const color = type === "raw" ? "blue" : "green";
+  const tbody = document.getElementById(`rm-${type}-tbody`);
+  const tr = document.createElement("tr");
+  tr.id = `rm-row-${id}`;
+  tr.className = "border-t";
+  tr.innerHTML = `
+    <td class="px-1 py-1"><input class="w-full border rounded px-2 py-1 text-xs" value="${data.name||''}" placeholder="ชื่อสินค้า" oninput="calcRmRow('${id}','${type}')"/></td>
+    <td class="px-1 py-1"><input type="number" min="0" step="0.001" class="w-full border rounded px-2 py-1 text-xs text-right" value="${data.ton||''}" placeholder="0.000" oninput="calcRmRow('${id}','${type}')"/></td>
+    <td class="px-1 py-1"><input type="number" min="0" step="0.01"  class="w-full border rounded px-2 py-1 text-xs text-right" value="${data.price||''}" placeholder="0.00"  oninput="calcRmRow('${id}','${type}')"/></td>
+    <td class="px-1 py-1 text-right text-xs text-${color}-700 font-semibold" id="rm-val-${id}">${data.ton&&data.price ? fmt(data.ton*data.price) : "0"}</td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-2 py-1 text-xs" value="${data.note||''}" placeholder="หมายเหตุ"/></td>
+    <td class="px-1 py-1 text-center"><button onclick="document.getElementById('rm-row-${id}').remove();calcRmTotal('${type}')" class="text-red-300 hover:text-red-500 text-xs">✕</button></td>`;
+  tbody.appendChild(tr);
+  if (data.ton && data.price) calcRmRow(id, type);
+}
+
+function calcRmRow(id, type) {
+  const tr = document.getElementById(`rm-row-${id}`);
+  if (!tr) return;
+  const inputs = tr.querySelectorAll("input[type=number]");
+  const ton = parseFloat(inputs[0]?.value||0);
+  const price = parseFloat(inputs[1]?.value||0);
+  document.getElementById(`rm-val-${id}`).textContent = fmt(ton * price);
+  calcRmTotal(type);
+}
+
+function calcRmTotal(type) {
+  let total = 0;
+  document.querySelectorAll(`#rm-${type}-tbody tr`).forEach(tr => {
+    const inputs = tr.querySelectorAll("input[type=number]");
+    total += (parseFloat(inputs[0]?.value||0)) * (parseFloat(inputs[1]?.value||0));
+  });
+  document.getElementById(`rm-${type}-total`).textContent = fmt(total);
+  const rawT = parseFloat(document.getElementById("rm-raw-total").textContent.replace(/,/g,""))||0;
+  const fgT  = parseFloat(document.getElementById("rm-fg-total").textContent.replace(/,/g,""))||0;
+  document.getElementById("rm-grand-total").textContent = fmt(rawT + fgT) + " บาท";
+}
+
+async function submitRmSession() {
+  const errEl = document.getElementById("rm-sess-error");
+  errEl.classList.add("hidden");
+  const stock_date = document.getElementById("rm-sess-date").value;
+  if (!stock_date) { errEl.textContent="กรุณาเลือกวันที่"; errEl.classList.remove("hidden"); return; }
+
+  const parseEntries = (type) => {
+    const rows = [];
+    document.querySelectorAll(`#rm-${type}-tbody tr`).forEach(tr => {
+      const inputs = tr.querySelectorAll("input");
+      const name  = inputs[0]?.value?.trim();
+      const ton   = parseFloat(inputs[1]?.value||0);
+      const price = parseFloat(inputs[2]?.value||0);
+      const note  = inputs[3]?.value?.trim()||null;
+      if (name) rows.push({material_name:name, stock_qty_ton:ton||null, price_per_ton:price||null, total_value:ton*price||null, notes:note});
+    });
+    return rows;
+  };
+  const rm_entries = parseEntries("raw");
+  const fg_entries = parseEntries("fg");
+  if (!rm_entries.length && !fg_entries.length) {
+    errEl.textContent="กรุณาเพิ่มรายการอย่างน้อย 1 รายการ"; errEl.classList.remove("hidden"); return;
+  }
+  const payload = {stock_date, notes:document.getElementById("rm-sess-note").value||null, created_by:document.getElementById("rm-sess-by").value||null, rm_entries, fg_entries};
   try {
-    const res = await fetch(`${API}/api/rm-stock/import`, {method:"POST", body:fd});
-    if (!res.ok) { const err=await res.json(); throw new Error(err.detail||"error"); }
-    const data = await res.json();
-    alert(`✅ Import สำเร็จ ${data.length} รอบ (${data.map(s=>s.stock_date).join(", ")})`);
+    const res = await fetch(`${API}/api/rm-stock`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    if (!res.ok) { const e=await res.json(); throw new Error(e.detail||"error"); }
+    document.getElementById("modal-rm-session").classList.add("hidden");
     loadRmSessions();
-  } catch(err) { alert("❌ " + err.message); }
+  } catch(err) { errEl.textContent=err.message; errEl.classList.remove("hidden"); }
+}
+
+function importRmStockExcel(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(new Uint8Array(ev.target.result), {type:"array"});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+
+      // หาวันที่จาก cell ที่มีข้อความ "ณ"
+      let parsedDate = new Date().toISOString().slice(0,10);
+      let parsedNote = "";
+      const thMonths = {มกราคม:1,กุมภาพันธ์:2,มีนาคม:3,เมษายน:4,พฤษภาคม:5,มิถุนายน:6,กรกฎาคม:7,สิงหาคม:8,กันยายน:9,ตุลาคม:10,พฤศจิกายน:11,ธันวาคม:12};
+      for (let i = 0; i < Math.min(rows.length, 12); i++) {
+        const cell = rows[i] ? rows[i].find(c => c && String(c).includes("ณ ")) : null;
+        if (cell) {
+          const m = String(cell).match(/ณ\s+(\d+)\s+([฀-๿]+)\s+(\d+)/);
+          if (m) {
+            let d = parseInt(m[1]), mon = thMonths[m[2]]||1, y = parseInt(m[3]);
+            if (y > 2500) y -= 543;
+            parsedDate = `${y}-${String(mon).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          }
+          break;
+        }
+      }
+
+      // หา header row ของ section วัตถุดิบ (มีคำว่า "สต็อก" หรือ "สินค้า" ใน col2)
+      let dataStart = -1;
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (r && r[2] && String(r[2]).includes("สินค้า") && r[3] && String(r[3]).includes("สต็อก")) {
+          dataStart = i + 1; break;
+        }
+      }
+      if (dataStart < 0) dataStart = 9;
+
+      const rawRows = [], fgRows = [];
+      for (let i = dataStart; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+        const c0 = row[0], c2 = row[2], c3 = row[3], c4 = row[4];
+        if (c2 == null || String(c2).trim() === "") continue;
+        const name = String(c2).trim();
+        if (name.includes("ยอดรวม") || name.includes("หมายเหตุ") || name.includes("รวม")) continue;
+        const ton   = parseFloat(c3)||0;
+        const price = parseFloat(c4)||0;
+        const entry = {name, ton, price, note:""};
+        // col0 NaN = วัตถุดิบ, col0 มีตัวเลข = FG
+        if (c0 == null || String(c0).trim() === "" || isNaN(Number(c0))) {
+          rawRows.push(entry);
+        } else {
+          fgRows.push(entry);
+        }
+      }
+
+      if (!rawRows.length && !fgRows.length) { alert("❌ ไม่พบข้อมูลในไฟล์"); return; }
+      showRmSessionForm(rawRows, fgRows, parsedDate, parsedNote);
+    } catch(err) { alert("❌ อ่านไฟล์ไม่ได้: " + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
   e.target.value = "";
 }
 
@@ -2605,7 +2900,8 @@ function renderPoList() {
       <td class="px-3 py-2 text-right text-gray-500">${p.freight_cost&&Number(p.freight_cost)>0?fmt(p.freight_cost):"-"}</td>
       <td class="px-3 py-2">${p.payment_date||"-"}</td>
       <td class="px-3 py-2 text-center">${statusBadge(p.po_status)}</td>
-      <td class="px-3 py-2 text-center">
+      <td class="px-3 py-2 text-center flex gap-2 justify-center">
+        <button onclick="editPoItem(${p.po_id})" class="text-blue-400 hover:text-blue-600 text-xs">✏️</button>
         <button onclick="deletePoItem(${p.po_id})" class="text-red-400 hover:text-red-600 text-xs">🗑</button>
       </td>
     </tr>`).join("") || '<tr><td colspan="9" class="text-center text-gray-300 py-6">ไม่มีข้อมูล PO</td></tr>';
@@ -2617,9 +2913,34 @@ async function deletePoItem(id) {
   if (res.ok) loadPoList(); else alert("ลบไม่สำเร็จ");
 }
 
-function showPoForm() {
-  document.getElementById("modal-po-form").classList.remove("hidden");
-  document.getElementById("form-po").reset();
+let _editingPoId = null;
+
+function showPoForm(prefill) {
+  _editingPoId = prefill?.po_id || null;
+  const modal = document.getElementById("modal-po-form");
+  const form  = document.getElementById("form-po");
+  const title = modal.querySelector("h2");
+  title.textContent = _editingPoId ? "✏️ แก้ไข PO ซื้อวัตถุดิบ" : "🧾 เพิ่ม PO ซื้อวัตถุดิบ";
+  form.reset();
+  if (prefill) {
+    form.elements["supplier_name"].value = prefill.supplier_name || "";
+    form.elements["po_number"].value     = prefill.po_number || "";
+    form.elements["material_name"].value = prefill.material_name || "";
+    form.elements["qty_ton"].value       = prefill.qty_ton ?? "";
+    form.elements["price_per_ton"].value = prefill.price_per_ton ?? "";
+    form.elements["amount"].value        = prefill.amount ?? "";
+    form.elements["freight_cost"].value  = prefill.freight_cost ?? "";
+    form.elements["payment_date"].value  = prefill.payment_date || "";
+    form.elements["po_status"].value     = prefill.po_status || "PAID";
+    form.elements["conditions"].value    = prefill.conditions || "";
+    form.elements["notes"].value         = prefill.notes || "";
+  }
+  modal.classList.remove("hidden");
+}
+
+function editPoItem(id) {
+  const p = poData.find(x => x.po_id === id);
+  if (p) showPoForm(p);
 }
 
 async function submitPoForm(e) {
@@ -2639,11 +2960,179 @@ async function submitPoForm(e) {
     notes: data.notes||null,
   };
   try {
-    const res = await fetch(`${API}/api/rm-stock/po`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    const url    = _editingPoId ? `${API}/api/rm-stock/po/${_editingPoId}` : `${API}/api/rm-stock/po`;
+    const method = _editingPoId ? "PUT" : "POST";
+    const res = await fetch(url, {method, headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
     if (!res.ok) { const err=await res.json(); throw new Error(err.detail); }
     document.getElementById("modal-po-form").classList.add("hidden");
+    _editingPoId = null;
     loadPoList();
   } catch(err) { alert("❌ "+err.message); }
+}
+
+// ─── PO BATCH IMPORT ──────────────────────────────────────
+let poBatchRowCount = 0;
+
+function importPoExcel(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb   = XLSX.read(new Uint8Array(ev.target.result), {type:"array"});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+
+      // แปลงวันที่ภาษาไทย เช่น "26 มิย.69", "30 มิย.69"
+      const thMonAbbr = {มค:1,กพ:2,มีค:3,เมย:4,พค:5,มิย:6,กค:7,สค:8,กย:9,ตค:10,พย:11,ธค:12};
+      function parseThDate(v) {
+        if (!v) return "";
+        const s = String(v).trim();
+        // Excel serial date
+        if (/^\d{4,5}$/.test(s)) return "";
+        // "26 มิย.69" or "26มิย69"
+        const m = s.match(/(\d+)\s*([ก-๙]+)\.?\s*(\d+)/);
+        if (m) {
+          let d=parseInt(m[1]), mon=thMonAbbr[m[2]]||1, y=parseInt(m[3]);
+          if (y < 100) y = (y > 50 ? 1900 : 2000) + y;
+          if (y > 2500) y -= 543;
+          return `${y}-${String(mon).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        }
+        // ISO from Excel "2569-06-26"
+        const iso = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (iso) {
+          let y = parseInt(iso[1]);
+          if (y > 2500) y -= 543;
+          return `${y}-${iso[2]}-${iso[3]}`;
+        }
+        return "";
+      }
+
+      // map สถานะ
+      function mapStatus(v) {
+        if (!v) return "PAID";
+        const s = String(v).trim();
+        if (s.includes("บางส่วน") || s.includes("บางส")) return "PARTIAL";
+        if (s.includes("รอ") || s.includes("วางบิล") || s.includes("ใหม่")) return "PENDING";
+        return "PAID";
+      }
+
+      // หา header row (มีคำว่า "บริษัท" ใน col1)
+      let dataStart = 4; // default
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (r && r[1] && String(r[1]).trim() === "บริษัท") { dataStart = i + 1; break; }
+      }
+
+      const items = [];
+      let prevItem = null;
+      for (let i = dataStart; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+        const c0 = row[0], c1 = row[1], c3 = row[3], c5 = row[5];
+        if (!c1 || String(c1).trim() === "") continue;
+        if (String(c3||"").trim() === "รวม") continue;
+
+        // ค่าขนส่ง sub-row: col1 = "ค่าขนส่ง"
+        if (String(c1).includes("ค่าขน") && prevItem) {
+          prevItem.freight = parseFloat(c5)||0;
+          continue;
+        }
+
+        const item = {
+          supplier: String(c1).trim(),
+          po_num:   String(row[2]||"").trim(),
+          product:  String(c3||"").trim(),
+          ton:      isNaN(parseFloat(row[4])) ? null : parseFloat(row[4]),
+          amount:   parseFloat(c5)||null,
+          payment_date: parseThDate(row[6]),
+          conditions: String(row[7]||"").trim(),
+          status:   mapStatus(row[8]),
+          freight:  0,
+          notes:    String(row[10]||"").trim(),
+        };
+        if (!item.supplier || !item.product) continue;
+        items.push(item);
+        prevItem = item;
+      }
+
+      if (!items.length) { alert("❌ ไม่พบข้อมูลใน Excel"); return; }
+
+      // เปิด batch modal
+      poBatchRowCount = 0;
+      document.getElementById("po-batch-tbody").innerHTML = "";
+      document.getElementById("po-batch-error").classList.add("hidden");
+      items.forEach(it => addPoBatchRow(it));
+      document.getElementById("po-batch-count").textContent = `${items.length} รายการ`;
+      document.getElementById("modal-po-batch").classList.remove("hidden");
+    } catch(err) { alert("❌ อ่านไฟล์ไม่ได้: " + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = "";
+}
+
+function addPoBatchRow(d={}) {
+  poBatchRowCount++;
+  const id = poBatchRowCount;
+  const statusOpts = [
+    {v:"PAID",label:"จ่ายแล้ว"},{v:"PENDING",label:"รอจ่าย"},{v:"PARTIAL",label:"บางส่วน"}
+  ].map(o=>`<option value="${o.v}"${(d.status||"PAID")===o.v?" selected":""}>${o.label}</option>`).join("");
+
+  const tr = document.createElement("tr");
+  tr.id = `pob-row-${id}`;
+  tr.className = "border-t text-xs";
+  tr.innerHTML = `
+    <td class="px-1 py-1"><input class="w-full border rounded px-1.5 py-1 text-xs" value="${d.supplier||''}" placeholder="บริษัท *"/></td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-1.5 py-1 text-xs font-mono" value="${d.po_num||''}" placeholder="PO#"/></td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-1.5 py-1 text-xs" value="${d.product||''}" placeholder="สินค้า *"/></td>
+    <td class="px-1 py-1"><input type="number" step="0.001" class="w-full border rounded px-1.5 py-1 text-xs text-right" value="${d.ton??''}" placeholder="0.000"/></td>
+    <td class="px-1 py-1"><input type="number" step="0.01"  class="w-full border rounded px-1.5 py-1 text-xs text-right" value="${d.amount??''}" placeholder="0.00"/></td>
+    <td class="px-1 py-1"><input type="number" step="0.01"  class="w-full border rounded px-1.5 py-1 text-xs text-right" value="${d.freight||''}" placeholder="0"/></td>
+    <td class="px-1 py-1"><input type="date" class="w-full border rounded px-1.5 py-1 text-xs" value="${d.payment_date||''}"/></td>
+    <td class="px-1 py-1"><select class="w-full border rounded px-1.5 py-1 text-xs">${statusOpts}</select></td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-1.5 py-1 text-xs" value="${d.conditions||''}" placeholder="เงื่อนไข"/></td>
+    <td class="px-1 py-1"><input class="w-full border rounded px-1.5 py-1 text-xs" value="${d.notes||''}" placeholder="หมายเหตุ"/></td>
+    <td class="px-1 py-1 text-center"><button onclick="document.getElementById('pob-row-${id}').remove();document.getElementById('po-batch-count').textContent=document.querySelectorAll('#po-batch-tbody tr').length+' รายการ'" class="text-red-300 hover:text-red-500">✕</button></td>`;
+  document.getElementById("po-batch-tbody").appendChild(tr);
+}
+
+async function submitPoBatch() {
+  const errEl = document.getElementById("po-batch-error");
+  errEl.classList.add("hidden");
+  const rows = document.querySelectorAll("#po-batch-tbody tr");
+  const payloads = [];
+  let hasErr = false;
+  rows.forEach((tr, idx) => {
+    const inputs = tr.querySelectorAll("input, select");
+    const supplier = inputs[0]?.value?.trim();
+    const product  = inputs[2]?.value?.trim();
+    if (!supplier || !product) { hasErr = true; tr.style.background="#fef2f2"; return; }
+    tr.style.background = "";
+    payloads.push({
+      supplier_name: supplier,
+      po_number:     inputs[1]?.value?.trim()||null,
+      material_name: product,
+      qty_ton:       inputs[3]?.value?parseFloat(inputs[3].value):null,
+      amount:        inputs[4]?.value?parseFloat(inputs[4].value):null,
+      freight_cost:  inputs[5]?.value?parseFloat(inputs[5].value):0,
+      payment_date:  inputs[6]?.value||null,
+      po_status:     inputs[7]?.value||"PAID",
+      conditions:    inputs[8]?.value?.trim()||null,
+      notes:         inputs[9]?.value?.trim()||null,
+    });
+  });
+  if (hasErr) { errEl.textContent="กรุณากรอกซัพพลายเออร์และสินค้าในแถวที่ไฮไลต์แดง"; errEl.classList.remove("hidden"); return; }
+  if (!payloads.length) { errEl.textContent="ไม่มีรายการ"; errEl.classList.remove("hidden"); return; }
+
+  let success = 0, fail = 0;
+  for (const p of payloads) {
+    try {
+      const res = await fetch(`${API}/api/rm-stock/po`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(p)});
+      if (res.ok) success++; else fail++;
+    } catch { fail++; }
+  }
+  document.getElementById("modal-po-batch").classList.add("hidden");
+  alert(`✅ บันทึกสำเร็จ ${success} รายการ${fail?` (ล้มเหลว ${fail} รายการ)`:""}`);
+  loadPoList();
 }
 
 // ─── RM SALES LIST ────────────────────────────────────────
@@ -3242,6 +3731,51 @@ setInterval(loadDashboard, 60000); // auto refresh ทุก 1 นาที
       </div>
     </form>
   </div>
+</div>
+
+<!-- ── Modal: Batch Import PO ── -->
+<div id="modal-po-batch" class="hidden fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-6xl p-6 my-4">
+    <div class="flex justify-between items-center mb-1">
+      <h3 class="font-bold text-base">📥 นำเข้า PO ซื้อวัตถุดิบจาก Excel</h3>
+      <button onclick="document.getElementById('modal-po-batch').classList.add('hidden')" class="text-gray-400 text-lg">✕</button>
+    </div>
+    <p class="text-xs text-gray-400 mb-4">ตรวจสอบและแก้ไขข้อมูลก่อนบันทึก — คลิก ✕ เพื่อลบแถวที่ไม่ต้องการ</p>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead class="bg-indigo-50 text-indigo-700 sticky top-0">
+          <tr>
+            <th class="px-2 py-2 text-left w-36">ซัพพลายเออร์ *</th>
+            <th class="px-2 py-2 text-left w-24">PO#</th>
+            <th class="px-2 py-2 text-left w-28">สินค้า *</th>
+            <th class="px-2 py-2 text-right w-20">ตัน</th>
+            <th class="px-2 py-2 text-right w-24">มูลค่า (บาท)</th>
+            <th class="px-2 py-2 text-right w-20">ค่าขน</th>
+            <th class="px-2 py-2 text-left w-24">วันจ่าย</th>
+            <th class="px-2 py-2 text-left w-20">สถานะ</th>
+            <th class="px-2 py-2 text-left w-28">เงื่อนไข</th>
+            <th class="px-2 py-2 text-left w-28">หมายเหตุ</th>
+            <th class="w-8"></th>
+          </tr>
+        </thead>
+        <tbody id="po-batch-tbody"></tbody>
+      </table>
+    </div>
+    <div class="flex items-center justify-between mt-4">
+      <button onclick="addPoBatchRow({})" class="text-xs text-indigo-600 hover:underline">+ เพิ่มแถว</button>
+      <div class="flex gap-2">
+        <span class="text-xs text-gray-400 self-center" id="po-batch-count"></span>
+        <button onclick="document.getElementById('modal-po-batch').classList.add('hidden')" class="px-4 py-2 border rounded-lg text-xs">ยกเลิก</button>
+        <button onclick="submitPoBatch()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-lg text-sm">💾 บันทึกทั้งหมด</button>
+      </div>
+    </div>
+    <div id="po-batch-error" class="text-red-500 text-xs mt-2 hidden"></div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: MACHINE DASHBOARD ══════════════ -->
+<div id="tab-machine-dashboard" class="hidden" style="margin:-12px; height:calc(100vh - 100px);">
+  <iframe src="production_dashboard.html" style="width:100%; height:100%; border:none;" id="machine-dashboard-iframe"></iframe>
 </div>
 
 </body>

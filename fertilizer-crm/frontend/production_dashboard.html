@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard รายงานการผลิต — แทนไท กรีนคลีน</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a202c; font-size: 13px; }
+  header { background: linear-gradient(135deg, #1a4731 0%, #2d7a52 100%); color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; font-weight: 700; }
+  header p  { font-size: 12px; opacity: .75; margin-top: 2px; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px 16px; }
+
+  /* Upload zone */
+  .upload-zone { background: #fff; border: 2px dashed #a0aec0; border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+  .upload-zone:hover, .upload-zone.drag { border-color: #2d7a52; background: #f0fff4; }
+  .upload-zone input[type=file] { display: none; }
+  .upload-zone .icon { font-size: 36px; margin-bottom: 8px; }
+  .upload-zone p { color: #718096; font-size: 13px; }
+  .upload-zone strong { color: #2d7a52; }
+  .machines-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+  .machine-slot { background: #fff; border: 2px dashed #e2e8f0; border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; transition: all .2s; position: relative; }
+  .machine-slot:hover { border-color: #2d7a52; background: #f0fff4; }
+  .machine-slot.loaded { border-color: #38a169; border-style: solid; background: #f0fff4; }
+  .machine-slot input[type=file] { display: none; }
+  .machine-slot .slot-title { font-weight: 700; color: #2d7a52; margin-bottom: 4px; font-size: 14px; }
+  .machine-slot .slot-file { font-size: 11px; color: #718096; word-break: break-all; margin-top: 4px; }
+  .machine-slot .slot-clear { position: absolute; top: 6px; right: 8px; background: none; border: none; color: #fc8181; cursor: pointer; font-size: 14px; }
+
+  /* Date filter */
+  .filter-bar { background: #fff; border-radius: 10px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .filter-bar label { font-size: 12px; color: #4a5568; font-weight: 600; }
+  .filter-bar input[type=date], .filter-bar select { border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 8px; font-size: 12px; }
+  .btn-primary { background: #2d7a52; color: #fff; border: none; border-radius: 8px; padding: 7px 18px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-primary:hover { background: #1a4731; }
+  .btn-outline { background: #fff; color: #2d7a52; border: 1.5px solid #2d7a52; border-radius: 8px; padding: 6px 16px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-outline:hover { background: #f0fff4; }
+
+  /* Summary cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .card .label { font-size: 11px; color: #718096; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .card .value { font-size: 24px; font-weight: 800; margin: 4px 0 2px; }
+  .card .sub { font-size: 11px; color: #a0aec0; }
+  .card.green .value { color: #276749; }
+  .card.blue  .value { color: #2b6cb0; }
+  .card.orange .value { color: #c05621; }
+  .card.red .value   { color: #c53030; }
+
+  /* Machine summary */
+  .machines-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+  .machine-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); border-top: 4px solid; }
+  .machine-card:nth-child(1) { border-color: #3182ce; }
+  .machine-card:nth-child(2) { border-color: #d69e2e; }
+  .machine-card:nth-child(3) { border-color: #38a169; }
+  .machine-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .machine-stat { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #f7fafc; }
+  .machine-stat:last-child { border: none; }
+  .machine-stat .stat-label { color: #718096; font-size: 12px; }
+  .machine-stat .stat-val   { font-weight: 700; font-size: 13px; }
+
+  /* Charts */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+  .chart-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .chart-card h3 { font-size: 13px; font-weight: 700; color: #4a5568; margin-bottom: 14px; }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* Table */
+  .table-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); margin-top: 16px; overflow: hidden; }
+  .table-card h3 { font-size: 13px; font-weight: 700; color: #4a5568; margin-bottom: 14px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th { background: #1a4731; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #f7fafc; }
+  tbody tr:hover { background: #ebf8f0; }
+  tbody td { padding: 7px 10px; border-bottom: 1px solid #f0f4f8; white-space: nowrap; }
+  .diff-ok   { color: #276749; font-weight: 700; }
+  .diff-warn { color: #c05621; font-weight: 700; }
+  .diff-bad  { color: #c53030; font-weight: 700; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 12px; font-size: 10px; font-weight: 700; }
+  .badge-1 { background: #ebf8ff; color: #2b6cb0; }
+  .badge-2 { background: #fffff0; color: #b7791f; }
+  .badge-3 { background: #f0fff4; color: #276749; }
+
+  /* Section title */
+  .section-title { font-size: 14px; font-weight: 700; color: #2d3748; margin-top: 20px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+
+  /* Placeholder */
+  #placeholder { text-align: center; padding: 50px 20px; color: #a0aec0; }
+  #placeholder .big-icon { font-size: 64px; margin-bottom: 16px; }
+  #placeholder p { font-size: 15px; }
+
+  @media (max-width: 900px) {
+    .machines-grid, .machines-summary, .charts-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="font-size:28px">🏭</div>
+  <div>
+    <h1>Dashboard รายงานการผลิต</h1>
+    <p id="header-company">บริษัท แทนไท กรีนคลีน จำกัด — อัปโหลดไฟล์รายงานเพื่อเริ่มต้น</p>
+  </div>
+  <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+    <button class="btn-outline" onclick="exportCSV()" style="color:#a8e6c4;border-color:#a8e6c4">⬇ Export CSV</button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Upload Section -->
+  <div class="section-title">📂 นำเข้าไฟล์รายงาน</div>
+  <div class="machines-grid">
+    <div class="machine-slot" id="slot-1" onclick="document.getElementById('file-1').click()">
+      <input type="file" id="file-1" accept=".xls,.xlsx" onchange="loadFile(1,this)">
+      <div class="slot-title">🔵 เครื่องที่ 1</div>
+      <div style="font-size:28px;margin:8px 0">📄</div>
+      <div class="slot-file" id="file-1-name">คลิกเพื่อเลือกไฟล์</div>
+    </div>
+    <div class="machine-slot" id="slot-2" onclick="document.getElementById('file-2').click()">
+      <input type="file" id="file-2" accept=".xls,.xlsx" onchange="loadFile(2,this)">
+      <div class="slot-title">🟡 เครื่องที่ 2</div>
+      <div style="font-size:28px;margin:8px 0">📄</div>
+      <div class="slot-file" id="file-2-name">คลิกเพื่อเลือกไฟล์</div>
+    </div>
+    <div class="machine-slot" id="slot-3" onclick="document.getElementById('file-3').click()">
+      <input type="file" id="file-3" accept=".xls,.xlsx" onchange="loadFile(3,this)">
+      <div class="slot-title">🟢 เครื่องที่ 3</div>
+      <div style="font-size:28px;margin:8px 0">📄</div>
+      <div class="slot-file" id="file-3-name">คลิกเพื่อเลือกไฟล์</div>
+    </div>
+  </div>
+
+  <!-- Placeholder -->
+  <div id="placeholder">
+    <div class="big-icon">📊</div>
+    <p>อัปโหลดไฟล์รายงานจากเครื่องผสมเพื่อแสดง Dashboard</p>
+  </div>
+
+  <!-- Dashboard (hidden until data loaded) -->
+  <div id="dashboard" style="display:none">
+
+    <!-- Overall Summary -->
+    <div class="section-title">📊 สรุปภาพรวมทั้งหมด</div>
+    <div class="summary-grid">
+      <div class="card green">
+        <div class="label">รวมน้ำหนักชั่งทั้งหมด</div>
+        <div class="value" id="tot-weight">—</div>
+        <div class="sub">กิโลกรัม</div>
+      </div>
+      <div class="card blue">
+        <div class="label">รวมน้ำหนักสูตร</div>
+        <div class="value" id="tot-target">—</div>
+        <div class="sub">กิโลกรัม</div>
+      </div>
+      <div class="card orange">
+        <div class="label">รวมจำนวนผสม</div>
+        <div class="value" id="tot-trips">—</div>
+        <div class="sub">เที่ยว</div>
+      </div>
+      <div class="card" id="card-diff">
+        <div class="label">ส่วนต่างเฉลี่ย</div>
+        <div class="value" id="tot-diff">—</div>
+        <div class="sub">% (น้ำหนักชั่ง vs สูตร)</div>
+      </div>
+      <div class="card">
+        <div class="label">จำนวนใบสั่งผสม</div>
+        <div class="value" id="tot-orders" style="color:#553c9a">—</div>
+        <div class="sub">รายการ</div>
+      </div>
+      <div class="card">
+        <div class="label">เครื่องที่โหลดแล้ว</div>
+        <div class="value" id="tot-machines" style="color:#2c7a7b">—</div>
+        <div class="sub">เครื่อง</div>
+      </div>
+    </div>
+
+    <!-- Machine-by-machine summary -->
+    <div class="section-title">🏭 สรุปแต่ละเครื่อง</div>
+    <div class="machines-summary" id="machines-summary"></div>
+
+    <!-- Charts -->
+    <div class="section-title">📈 กราฟเปรียบเทียบ</div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>น้ำหนักผสมรวม (กก.) ต่อเครื่อง</h3>
+        <div class="chart-wrap"><canvas id="chart-weight"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>จำนวนเที่ยวผสม ต่อเครื่อง</h3>
+        <div class="chart-wrap"><canvas id="chart-trips"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>ส่วนต่างรวม (%) ต่อเครื่อง</h3>
+        <div class="chart-wrap"><canvas id="chart-diff"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>น้ำหนักชั่ง vs สูตร ต่อสูตร (Top 8)</h3>
+        <div class="chart-wrap"><canvas id="chart-formula"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Detail Table -->
+    <div class="table-card">
+      <h3>รายละเอียดรายใบสั่งผสม</h3>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="search-table" placeholder="🔍 ค้นหาสูตร / รหัส..." style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 10px;font-size:12px;width:200px" oninput="renderTable()">
+        <select id="filter-machine" style="border:1px solid #e2e8f0;border-radius:6px;padding:5px 8px;font-size:12px" onchange="renderTable()">
+          <option value="">ทุกเครื่อง</option>
+          <option value="1">เครื่องที่ 1</option>
+          <option value="2">เครื่องที่ 2</option>
+          <option value="3">เครื่องที่ 3</option>
+        </select>
+        <span style="font-size:11px;color:#a0aec0" id="table-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>เครื่อง</th>
+              <th>เลขที่ใบสั่งผสม</th>
+              <th>รหัสสูตร</th>
+              <th>ชื่อสูตร</th>
+              <th>ลูกค้า</th>
+              <th>จำนวนผสม (เที่ยว)</th>
+              <th>น้ำหนักชั่งรวม (กก.)</th>
+              <th>น้ำหนักสูตรรวม (กก.)</th>
+              <th>ส่วนต่าง (%)</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody id="detail-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- /dashboard -->
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// Global state
+// ─────────────────────────────────────────
+const machineColors = ['#3182ce','#d69e2e','#38a169'];
+const machineLabels = ['เครื่องที่ 1','เครื่องที่ 2','เครื่องที่ 3'];
+let allOrders = [];   // [{machine, orderNo, formulaCode, formulaName, customer, trips, weightActual, weightTarget, diff}]
+let machineSummary = {}; // {1:{trips,weightActual,weightTarget,diff,date}, ...}
+let charts = {};
+
+// ─────────────────────────────────────────
+// File loading & parsing
+// ─────────────────────────────────────────
+function loadFile(machineNo, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      parseAndStore(machineNo, rows, file.name);
+      document.getElementById(`file-${machineNo}-name`).textContent = file.name;
+      document.getElementById(`slot-${machineNo}`).classList.add('loaded');
+      renderDashboard();
+    } catch(err) {
+      alert('ไม่สามารถอ่านไฟล์ได้: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function val(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s === '' || s === 'null' ? null : s;
+}
+
+function parseAndStore(machineNo, rows, filename) {
+  // Remove old data for this machine
+  allOrders = allOrders.filter(o => o.machine !== machineNo);
+  delete machineSummary[machineNo];
+
+  let reportDate = '';
+  let currentOrder = null;
+
+  // Parse header date from row 0
+  if (rows[0] && rows[0][0]) {
+    reportDate = String(rows[0][0]).trim();
+  }
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+
+    const c0 = val(row[0]);
+    const c1 = val(row[1]);
+
+    // Grand total row
+    if (c0 && (c0.includes('รวมผสมทั้งวัน') || c0.includes('รวมน้ำหนักทั้งวัน'))) {
+      const trips  = parseFloat(val(row[2])) || 0;
+      const wActual = parseFloat(val(row[5])) || 0;
+      const wTarget = parseFloat(val(row[8])) || 0;
+      const diff   = parseFloat(val(row[11])) || 0;
+      machineSummary[machineNo] = { trips, weightActual: wActual, weightTarget: wTarget, diff, date: reportDate, filename };
+      continue;
+    }
+
+    // New order header
+    if (c0 && c0.includes('เลขที่ใบสั่งผสม')) {
+      currentOrder = {
+        machine: machineNo,
+        orderNo: val(row[1]) || '',
+        formulaCode: val(row[3]) || '',
+        formulaName: val(row[5]) || '',
+        customer: val(row[7]) || '',
+        trips: 0, weightActual: 0, weightTarget: 0, diff: 0
+      };
+      continue;
+    }
+
+    // Order summary row
+    if (currentOrder && c0 && (c0.includes('จำนวนผสม'))) {
+      currentOrder.trips       = parseFloat(val(row[2])) || 0;
+      currentOrder.weightActual = parseFloat(val(row[5])) || 0;
+      currentOrder.weightTarget = parseFloat(val(row[8])) || 0;
+      currentOrder.diff        = parseFloat(val(row[11])) || 0;
+      allOrders.push({...currentOrder});
+      currentOrder = null;
+      continue;
+    }
+  }
+
+  // If no grand total found, compute from orders
+  if (!machineSummary[machineNo]) {
+    const mOrders = allOrders.filter(o => o.machine === machineNo);
+    const trips       = mOrders.reduce((s,o)=>s+o.trips,0);
+    const weightActual= mOrders.reduce((s,o)=>s+o.weightActual,0);
+    const weightTarget= mOrders.reduce((s,o)=>s+o.weightTarget,0);
+    const diff = weightTarget ? (weightActual - weightTarget)/weightTarget : 0;
+    machineSummary[machineNo] = { trips, weightActual, weightTarget, diff, date: reportDate, filename };
+  }
+}
+
+// ─────────────────────────────────────────
+// Rendering
+// ─────────────────────────────────────────
+function renderDashboard() {
+  const loaded = Object.keys(machineSummary).map(Number);
+  if (loaded.length === 0) { document.getElementById('dashboard').style.display='none'; return; }
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+
+  // Header
+  const dates = [...new Set(Object.values(machineSummary).map(m=>m.date).filter(Boolean))];
+  document.getElementById('header-company').textContent =
+    `บริษัท แทนไท กรีนคลีน จำกัด — ${dates.join(', ')} | โหลดแล้ว ${loaded.length} เครื่อง`;
+
+  // Overall
+  const totWeight  = Object.values(machineSummary).reduce((s,m)=>s+m.weightActual,0);
+  const totTarget  = Object.values(machineSummary).reduce((s,m)=>s+m.weightTarget,0);
+  const totTrips   = Object.values(machineSummary).reduce((s,m)=>s+m.trips,0);
+  const avgDiff    = totTarget ? (totWeight - totTarget)/totTarget*100 : 0;
+
+  document.getElementById('tot-weight').textContent   = fmt(totWeight);
+  document.getElementById('tot-target').textContent   = fmt(totTarget);
+  document.getElementById('tot-trips').textContent    = fmtInt(totTrips);
+  document.getElementById('tot-diff').textContent     = avgDiff.toFixed(4)+'%';
+  document.getElementById('tot-orders').textContent   = allOrders.length;
+  document.getElementById('tot-machines').textContent = loaded.length;
+
+  const dc = document.getElementById('card-diff');
+  const dv = document.getElementById('tot-diff');
+  const absD = Math.abs(avgDiff);
+  dc.style.borderTop = '';
+  if (absD <= 0.05) { dv.style.color='#276749'; }
+  else if (absD <= 0.3) { dv.style.color='#c05621'; }
+  else { dv.style.color='#c53030'; }
+
+  renderMachineCards(loaded);
+  renderCharts(loaded);
+  renderTable();
+}
+
+function renderMachineCards(loaded) {
+  const el = document.getElementById('machines-summary');
+  el.innerHTML = '';
+  [1,2,3].forEach(m => {
+    const s = machineSummary[m];
+    const isEmpty = !s;
+    const d = isEmpty ? {trips:0,weightActual:0,weightTarget:0,diff:0,date:'—',filename:'ยังไม่ได้โหลด'} : s;
+    const diffPct = (d.diff * 100).toFixed(4);
+    const diffClass = Math.abs(d.diff*100) <= 0.05 ? 'diff-ok' : Math.abs(d.diff*100) <= 0.3 ? 'diff-warn' : 'diff-bad';
+    const effPct = d.weightTarget ? (d.weightActual/d.weightTarget*100).toFixed(2) : '—';
+    el.innerHTML += `
+      <div class="machine-card" style="opacity:${isEmpty?0.4:1}">
+        <h3>${['🔵','🟡','🟢'][m-1]} ${machineLabels[m-1]}
+          <span style="font-size:10px;color:#a0aec0;font-weight:400;margin-left:6px">${d.filename||''}</span>
+        </h3>
+        <div class="machine-stat"><span class="stat-label">วันที่รายงาน</span><span class="stat-val">${d.date}</span></div>
+        <div class="machine-stat"><span class="stat-label">จำนวนผสมรวม</span><span class="stat-val">${fmtInt(d.trips)} เที่ยว</span></div>
+        <div class="machine-stat"><span class="stat-label">น้ำหนักชั่งรวม</span><span class="stat-val">${fmt(d.weightActual)} กก.</span></div>
+        <div class="machine-stat"><span class="stat-label">น้ำหนักสูตรรวม</span><span class="stat-val">${fmt(d.weightTarget)} กก.</span></div>
+        <div class="machine-stat"><span class="stat-label">ส่วนต่างรวม</span><span class="stat-val ${diffClass}">${diffPct}%</span></div>
+        <div class="machine-stat"><span class="stat-label">ประสิทธิภาพ</span><span class="stat-val">${effPct}%</span></div>
+        <div class="machine-stat"><span class="stat-label">ใบสั่งผสม</span><span class="stat-val">${allOrders.filter(o=>o.machine===m).length} รายการ</span></div>
+      </div>`;
+  });
+}
+
+function renderCharts(loaded) {
+  // Weight bar chart
+  destroyChart('chart-weight');
+  charts['chart-weight'] = new Chart(document.getElementById('chart-weight'), {
+    type: 'bar',
+    data: {
+      labels: [1,2,3].map(m => machineSummary[m] ? machineLabels[m-1] : machineLabels[m-1]+' (ว่าง)'),
+      datasets: [
+        { label:'น้ำหนักชั่ง (กก.)', data:[1,2,3].map(m=>(machineSummary[m]?.weightActual||0)),
+          backgroundColor: machineColors.map(c=>c+'cc'), borderColor: machineColors, borderWidth:2 },
+        { label:'น้ำหนักสูตร (กก.)', data:[1,2,3].map(m=>(machineSummary[m]?.weightTarget||0)),
+          backgroundColor:'transparent', borderColor: machineColors, borderWidth:2, borderDash:[5,3], type:'line', pointRadius:5 }
+      ]
+    },
+    options: chartOpts('กก.')
+  });
+
+  // Trips bar chart
+  destroyChart('chart-trips');
+  charts['chart-trips'] = new Chart(document.getElementById('chart-trips'), {
+    type: 'bar',
+    data: {
+      labels: machineLabels,
+      datasets: [{ label:'จำนวนเที่ยว', data:[1,2,3].map(m=>(machineSummary[m]?.trips||0)),
+        backgroundColor: machineColors.map(c=>c+'cc'), borderColor: machineColors, borderWidth:2 }]
+    },
+    options: chartOpts('เที่ยว')
+  });
+
+  // Diff bar chart
+  destroyChart('chart-diff');
+  charts['chart-diff'] = new Chart(document.getElementById('chart-diff'), {
+    type: 'bar',
+    data: {
+      labels: machineLabels,
+      datasets: [{ label:'ส่วนต่าง (%)', data:[1,2,3].map(m=>((machineSummary[m]?.diff||0)*100)),
+        backgroundColor: [1,2,3].map(m=>{
+          const d = Math.abs((machineSummary[m]?.diff||0)*100);
+          return d<=0.05?'#38a16988':d<=0.3?'#d69e2e88':'#e5393588';
+        }),
+        borderColor: [1,2,3].map(m=>{
+          const d = Math.abs((machineSummary[m]?.diff||0)*100);
+          return d<=0.05?'#38a169':d<=0.3?'#d69e2e':'#e53935';
+        }),
+        borderWidth:2 }]
+    },
+    options: { ...chartOpts('%'), plugins:{ legend:{display:false}, tooltip:{callbacks:{label:v=>v.raw.toFixed(4)+'%'}} } }
+  });
+
+  // Top formulas chart
+  const formulaMap = {};
+  allOrders.forEach(o => {
+    const key = o.formulaCode+' '+o.formulaName;
+    if (!formulaMap[key]) formulaMap[key] = {actual:0, target:0};
+    formulaMap[key].actual  += o.weightActual;
+    formulaMap[key].target  += o.weightTarget;
+  });
+  const top8 = Object.entries(formulaMap).sort((a,b)=>b[1].actual-a[1].actual).slice(0,8);
+  destroyChart('chart-formula');
+  charts['chart-formula'] = new Chart(document.getElementById('chart-formula'), {
+    type: 'bar',
+    data: {
+      labels: top8.map(([k])=> k.length>20 ? k.slice(0,18)+'…' : k),
+      datasets: [
+        { label:'น้ำหนักชั่ง', data:top8.map(([,v])=>v.actual), backgroundColor:'#3182ceaa', borderColor:'#3182ce', borderWidth:1.5 },
+        { label:'น้ำหนักสูตร', data:top8.map(([,v])=>v.target), backgroundColor:'#38a16966', borderColor:'#38a169', borderWidth:1.5 }
+      ]
+    },
+    options: { ...chartOpts('กก.'), indexAxis:'y' }
+  });
+}
+
+function renderTable() {
+  const q = (document.getElementById('search-table')?.value||'').toLowerCase();
+  const mf = document.getElementById('filter-machine')?.value || '';
+  const filtered = allOrders.filter(o => {
+    const matchM = !mf || String(o.machine) === mf;
+    const matchQ = !q || [o.orderNo,o.formulaCode,o.formulaName,o.customer].some(v=>(v||'').toLowerCase().includes(q));
+    return matchM && matchQ;
+  });
+  document.getElementById('table-count').textContent = `แสดง ${filtered.length} / ${allOrders.length} รายการ`;
+  const tbody = document.getElementById('detail-tbody');
+  tbody.innerHTML = filtered.map(o => {
+    const d = (o.diff*100);
+    const dc = Math.abs(d)<=0.05?'diff-ok':Math.abs(d)<=0.3?'diff-warn':'diff-bad';
+    const status = Math.abs(d)<=0.05?'✅ ปกติ':Math.abs(d)<=0.3?'⚠️ เฝ้าระวัง':'🔴 เกินค่า';
+    return `<tr>
+      <td><span class="badge badge-${o.machine}">${machineLabels[o.machine-1]}</span></td>
+      <td style="font-family:monospace;font-weight:700">${o.orderNo}</td>
+      <td style="font-family:monospace">${o.formulaCode}</td>
+      <td>${o.formulaName}</td>
+      <td>${o.customer}</td>
+      <td style="text-align:right">${fmtInt(o.trips)}</td>
+      <td style="text-align:right;font-weight:600">${fmt(o.weightActual)}</td>
+      <td style="text-align:right">${fmt(o.weightTarget)}</td>
+      <td class="${dc}" style="text-align:right">${d.toFixed(4)}%</td>
+      <td>${status}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="10" style="text-align:center;color:#a0aec0;padding:20px">ไม่มีข้อมูล</td></tr>';
+}
+
+// ─────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────
+function fmt(n)    { return Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtInt(n) { return Math.round(n||0).toLocaleString('th-TH'); }
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+function chartOpts(unit) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend:{ labels:{ font:{size:11} } } },
+    scales: { x:{ ticks:{font:{size:11}} }, y:{ ticks:{font:{size:11}, callback:v=>Number(v).toLocaleString('th-TH')} } }
+  };
+}
+
+function exportCSV() {
+  if (allOrders.length === 0) { alert('ยังไม่มีข้อมูล'); return; }
+  const rows = [['เครื่อง','เลขที่ใบสั่งผสม','รหัสสูตร','ชื่อสูตร','ลูกค้า','จำนวนผสม','น้ำหนักชั่งรวม','น้ำหนักสูตรรวม','ส่วนต่าง(%)']];
+  allOrders.forEach(o => rows.push([machineLabels[o.machine-1],o.orderNo,o.formulaCode,o.formulaName,o.customer,o.trips,o.weightActual,o.weightTarget,(o.diff*100).toFixed(4)]));
+  const csv = rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='production_report.csv'; a.click();
+}
+</script>
+</body>
+</html>
