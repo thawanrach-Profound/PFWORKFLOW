@@ -225,6 +225,14 @@
             <label class="form-label">คำอธิบาย</label>
             <input name="description" placeholder="สูตรมาตรฐาน" class="form-input"/>
           </div>
+          <div>
+            <label class="form-label text-purple-700">🎒 กระสอบที่ใช้บรรจุ</label>
+            <input name="bag_type_name" id="formula-bag-type" list="dl-bag-types-formula"
+              placeholder="เช่น กระสอบ คนเขียว 4-4-30"
+              class="form-input border-purple-200 focus:border-purple-400"/>
+            <datalist id="dl-bag-types-formula"></datalist>
+            <p class="text-[10px] text-gray-400 mt-0.5">ใช้ตัดกระสอบอัตโนมัติเมื่อสร้าง Order</p>
+          </div>
         </div>
 
         <!-- BOM section -->
@@ -1830,12 +1838,23 @@ function autoFillProduct(id) {
     if (codeEl && !codeEl.value) codeEl.value = match.product_code || match.formula_code || "";
     if (priceEl && !priceEl.value) priceEl.value = match.base_price_per_kg || 0;
   }
-  // Auto-match กระสอบ: หา bag item ที่ชื่อคล้ายกับสินค้า
+  // Auto-fill กระสอบ: 1) ดูจาก formula-bag-map ก่อน  2) fuzzy match ชื่อ
   const bagSel = document.getElementById(`oi-bag-type-${id}`);
   if (bagSel && !bagSel.value && val) {
-    const nk = normBagKey(val);
-    const found = Array.from(bagSel.options).find(o => o.value && normBagKey(o.value) === nk);
-    if (found) bagSel.value = found.value;
+    const map = JSON.parse(localStorage.getItem('pf_formula_bag_map')||'{}');
+    const codeVal = document.getElementById(`oi-code-${id}`)?.value?.trim() || '';
+    // lookup by formula_name, formula_code, product_code
+    const mapped = map[val] || map[codeVal] || map[match?.formula_code] || map[match?.product_code];
+    if (mapped) {
+      // find exact option
+      const opt = Array.from(bagSel.options).find(o => o.value === mapped);
+      if (opt) bagSel.value = mapped;
+    } else {
+      // fallback: fuzzy normalize match
+      const nk = normBagKey(val);
+      const found = Array.from(bagSel.options).find(o => o.value && normBagKey(o.value) === nk);
+      if (found) bagSel.value = found.value;
+    }
   }
   updateOITotal(id);
 }
@@ -2176,6 +2195,15 @@ async function submitProduct(e) {
     const res = await fetch(`${API}/api/formulas`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
     const result = await res.json();
     if (!res.ok) throw new Error(result.detail || "เกิดข้อผิดพลาด");
+    // บันทึก mapping สูตร → กระสอบ
+    const bagTypeName = data.bag_type_name?.trim();
+    if (bagTypeName) {
+      const map = JSON.parse(localStorage.getItem('pf_formula_bag_map')||'{}');
+      map[result.formula_code] = bagTypeName;
+      if (result.formula_name) map[result.formula_name] = bagTypeName;
+      if (data.product_code?.trim()) map[data.product_code.trim()] = bagTypeName;
+      localStorage.setItem('pf_formula_bag_map', JSON.stringify(map));
+    }
     showFormResult("product-form-result", true, `บันทึกสูตร "${result.formula_code}" สำเร็จ! (BOM ${result.bom_items?.length || 0} รายการ)`);
     resetProductForm();
     loadFormulaList();
@@ -2189,17 +2217,22 @@ async function loadFormulaList() {
   try {
     const rows = await fetch(`${API}/api/formulas`).then(r=>r.json());
     formulaData = rows;
-    document.getElementById("formula-list").innerHTML = rows.map(f => `
+    const bagMap = JSON.parse(localStorage.getItem('pf_formula_bag_map')||'{}');
+    document.getElementById("formula-list").innerHTML = rows.map(f => {
+      const bagType = bagMap[f.formula_code] || bagMap[f.formula_name] || bagMap[f.product_code] || '';
+      return `
       <div class="bg-gray-50 rounded-lg px-3 py-2">
         <div class="flex justify-between items-center">
           <div>
             <span class="font-semibold text-xs">${f.formula_code} — ${f.formula_name}</span>
             ${f.product_code ? `<span class="ml-2 text-xs text-blue-500 bg-blue-50 px-2 py-0.5 rounded">${f.product_code}</span>` : ''}
+            ${bagType ? `<span class="ml-2 text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded">🎒 ${bagType}</span>` : ''}
           </div>
           <span class="text-xs text-gray-400">${fmt(f.base_price_per_kg)} บาท/กก.</span>
         </div>
         ${f.bom_items?.length ? `<p class="text-xs text-gray-400 mt-0.5">วัตถุดิบ: ${f.bom_items.map(b=>b.material_name).join(", ")}</p>` : ""}
-      </div>`).join("") || '<p class="text-xs text-gray-300 text-center py-4">ยังไม่มีสูตรปุ๋ย</p>';
+      </div>`;
+    }).join("") || '<p class="text-xs text-gray-300 text-center py-4">ยังไม่มีสูตรปุ๋ย</p>';
   } catch {
     document.getElementById("formula-list").innerHTML = '<p class="text-xs text-red-400">โหลดข้อมูลไม่ได้ (Backend ยังไม่ได้รัน)</p>';
   }
@@ -2477,6 +2510,16 @@ async function loadBagSessions() {
   catch { bagSessions = []; }
   renderBagSessions();
   renderBagBalance();
+  populateBagTypeDatalist();
+}
+
+function populateBagTypeDatalist() {
+  // Collect unique bag names from latest sessions
+  const names = {};
+  bagSessions.forEach(s => (s.entries||[]).forEach(e => { if (e.item_name) names[e.item_name] = true; }));
+  // Populate formula form datalist
+  const dl = document.getElementById('dl-bag-types-formula');
+  if (dl) dl.innerHTML = Object.keys(names).map(n => `<option value="${n}">`).join('');
 }
 
 function renderBagSessions() {
