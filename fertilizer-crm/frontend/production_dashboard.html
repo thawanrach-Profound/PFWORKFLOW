@@ -224,6 +224,14 @@
       </div>
     </div>
 
+    <!-- Deduct Stock Button -->
+    <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button class="btn-primary" onclick="deductRmStock()" style="background:#c05621;font-size:13px;padding:9px 22px">
+        📤 บันทึกตัด Stock วัตถุดิบ
+      </button>
+      <span id="deduct-status" style="font-size:12px;color:#718096"></span>
+    </div>
+
     <!-- Charts -->
     <div class="section-title">📈 กราฟเปรียบเทียบ</div>
     <div class="charts-grid">
@@ -476,6 +484,65 @@ function loadFromLocalStorage() {
     });
     if (Object.keys(machineSummary).length > 0) renderDashboard();
   } catch(e) {}
+}
+
+const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+  ? "http://localhost:8000"
+  : "https://pfworkflow-production.up.railway.app";
+
+async function deductRmStock() {
+  if (Object.keys(machineSummary).length === 0) {
+    alert('กรุณานำเข้าไฟล์รายงานเครื่องจักรก่อน'); return;
+  }
+
+  // รวม matActual จากทุกเครื่อง
+  const totals = {};
+  const machineNos = [];
+  Object.entries(machineSummary).forEach(([m, s]) => {
+    machineNos.push(`เครื่องที่ ${m}`);
+    Object.entries(s.matActual || {}).forEach(([name, kg]) => {
+      totals[name] = (totals[name] || 0) + kg;
+    });
+  });
+
+  const materials = Object.entries(totals)
+    .filter(([, kg]) => kg > 0)
+    .map(([name, qty_kg]) => ({ name, qty_kg: Math.round(qty_kg * 1000) / 1000 }));
+
+  if (materials.length === 0) { alert('ไม่พบข้อมูลวัตถุดิบในรายงาน'); return; }
+
+  // แสดง preview
+  const preview = materials.map(m => `• ${m.name}: ${(m.qty_kg/1000).toLocaleString(undefined,{maximumFractionDigits:3})} ตัน`).join('\n');
+  if (!confirm(`ยืนยันบันทึกตัด Stock วัตถุดิบ?\n\n${preview}\n\nจาก: ${machineNos.join(', ')}`)) return;
+
+  // หาวันที่จากรายงาน
+  const dates = Object.values(machineSummary).map(s => s.date).filter(Boolean).sort();
+  const usageDate = dates[dates.length - 1] || new Date().toISOString().slice(0, 10);
+
+  const statusEl = document.getElementById('deduct-status');
+  statusEl.textContent = '⏳ กำลังบันทึก...';
+  statusEl.style.color = '#718096';
+
+  try {
+    const res = await fetch(`${API}/api/rm-stock/production-usage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        usage_date: usageDate,
+        machine_nos: machineNos,
+        materials,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || res.statusText);
+    }
+    statusEl.textContent = `✅ บันทึกตัด Stock สำเร็จ (${usageDate}) — ไปดูที่เมนู Stock วัตถุดิบ`;
+    statusEl.style.color = '#276749';
+  } catch (e) {
+    statusEl.textContent = `❌ บันทึกไม่สำเร็จ: ${e.message}`;
+    statusEl.style.color = '#c53030';
+  }
 }
 
 function clearAllData() {

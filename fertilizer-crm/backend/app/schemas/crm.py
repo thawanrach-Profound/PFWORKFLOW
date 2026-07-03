@@ -290,6 +290,16 @@ class RmSessionCreate(BaseModel):
     rm_entries: list[RmStockEntryIn] = []
     fg_entries: list[RmStockEntryIn] = []
 
+class ProductionMaterialUsage(BaseModel):
+    name: str
+    qty_kg: float
+
+class ProductionUsageIn(BaseModel):
+    usage_date: date
+    notes: Optional[str] = None
+    machine_nos: list[str] = []
+    materials: list[ProductionMaterialUsage]
+
 class RmStockEntryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     entry_id: int

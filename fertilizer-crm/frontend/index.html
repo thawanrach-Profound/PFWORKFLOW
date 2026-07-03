@@ -3013,24 +3013,53 @@ function renderRmSessions() {
       <th class="px-3 py-2 text-left">หมายเหตุ</th>
     </tr></thead>`;
 
+    const isProdDeduct = (s.notes||"").includes("ตัดจากรายงานการผลิต");
+    const sessionBg = isProdDeduct ? "bg-orange-50 border-l-4 border-orange-400" : "bg-white";
+    const sessionIcon = isProdDeduct ? "📤" : "📅";
     return `
-    <div class="bg-white rounded-xl shadow">
+    <div class="${sessionBg} rounded-xl shadow">
       <div class="flex flex-wrap justify-between items-center px-4 py-3 border-b cursor-pointer" onclick="toggleRmSession(${s.session_id})">
         <div class="flex gap-4 items-center">
-          <span class="font-bold text-sm">📅 ${s.stock_date}</span>
+          <span class="font-bold text-sm">${sessionIcon} ${s.stock_date}</span>
+          ${isProdDeduct ? `<span class="text-xs font-semibold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">ตัดสต็อกจากผลิต</span>` : ""}
           <span class="text-xs text-gray-400">${s.notes||""}</span>
           <span class="text-xs text-gray-500">โดย: ${s.created_by||"-"}</span>
         </div>
         <div class="flex gap-4 items-center flex-wrap">
-          <div class="text-right"><p class="text-[10px] text-gray-400">วัตถุดิบ</p><p class="font-bold text-blue-600 text-sm">${fmt(s.total_rm_value)} บ.</p></div>
-          <div class="text-right"><p class="text-[10px] text-gray-400">FG</p><p class="font-bold text-green-600 text-sm">${fmt(s.total_fg_value)} บ.</p></div>
-          <div class="text-right"><p class="text-[10px] text-gray-400">PO จ่ายแล้ว</p><p class="font-bold text-orange-600 text-sm">${fmt(s.total_paid_po)} บ.</p></div>
-          <div class="text-right"><p class="text-[10px] text-gray-400">PO รอขน</p><p class="font-bold text-red-500 text-sm">${fmt(s.total_pending_po)} บ.</p></div>
+          ${isProdDeduct
+            ? `<div class="text-right"><p class="text-[10px] text-gray-400">ตัดวัตถุดิบ</p><p class="font-bold text-orange-600 text-sm">${rmEntries.length} รายการ</p></div>`
+            : `<div class="text-right"><p class="text-[10px] text-gray-400">วัตถุดิบ</p><p class="font-bold text-blue-600 text-sm">${fmt(s.total_rm_value)} บ.</p></div>
+               <div class="text-right"><p class="text-[10px] text-gray-400">FG</p><p class="font-bold text-green-600 text-sm">${fmt(s.total_fg_value)} บ.</p></div>
+               <div class="text-right"><p class="text-[10px] text-gray-400">PO จ่ายแล้ว</p><p class="font-bold text-orange-600 text-sm">${fmt(s.total_paid_po)} บ.</p></div>
+               <div class="text-right"><p class="text-[10px] text-gray-400">PO รอขน</p><p class="font-bold text-red-500 text-sm">${fmt(s.total_pending_po)} บ.</p></div>`
+          }
           <button onclick="event.stopPropagation();deleteRmSession(${s.session_id})" class="text-red-400 hover:text-red-600 text-xs">🗑</button>
           <span class="text-gray-300 text-sm" id="rm-chevron-${s.session_id}">▶</span>
         </div>
       </div>
       <div id="rm-detail-${s.session_id}" class="hidden">
+        ${isProdDeduct ? `
+        <div>
+          <p class="px-4 py-2 text-xs font-semibold text-orange-700 bg-orange-50">📤 วัตถุดิบที่ตัดออก (${rmEntries.length} รายการ)</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead class="bg-gray-50 text-gray-500 text-[10px]"><tr>
+                <th class="px-3 py-2 text-left">วัตถุดิบ</th>
+                <th class="px-3 py-2 text-right text-orange-600">ตัดออก (ตัน)</th>
+                <th class="px-3 py-2 text-left">หมายเหตุ</th>
+              </tr></thead>
+              <tbody>${rmEntries.map(e=>`
+                <tr class="border-t hover:bg-orange-50/40 text-xs">
+                  <td class="px-3 py-1.5 font-medium">${e.material_name}</td>
+                  <td class="px-3 py-1.5 text-right font-semibold text-orange-600">${Math.abs(Number(e.stock_qty_ton||0)).toLocaleString(undefined,{maximumFractionDigits:3})} ตัน</td>
+                  <td class="px-3 py-1.5 text-gray-400">${e.notes||""}</td>
+                </tr>`).join("")}</tbody>
+            </table>
+          </div>
+          <p class="px-4 py-2 text-xs text-right font-bold text-orange-600">
+            รวมตัดออก: ${rmEntries.reduce((s,e)=>s+Math.abs(Number(e.stock_qty_ton||0)),0).toLocaleString(undefined,{maximumFractionDigits:3})} ตัน
+          </p>
+        </div>` : `
         <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
           <div>
             <p class="px-4 py-2 text-xs font-semibold text-blue-700 bg-blue-50">🧪 วัตถุดิบ (${rmEntries.length} รายการ)</p>
@@ -3047,7 +3076,7 @@ function renderRmSessions() {
           <span>💰 มูลค่ารวมทั้งหมด: <strong>${fmt((Number(s.total_rm_value)||0)+(Number(s.total_fg_value)||0))} บาท</strong></span>
           <span>📋 PO จ่ายแล้ว: <strong class="text-orange-600">${fmt(s.total_paid_po)} บาท</strong></span>
           <span>⏳ PO รอขน: <strong class="text-red-500">${fmt(s.total_pending_po)} บาท</strong></span>
-        </div>
+        </div>`}
       </div>
     </div>`;
   }).join("");

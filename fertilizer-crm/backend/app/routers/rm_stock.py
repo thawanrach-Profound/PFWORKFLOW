@@ -10,6 +10,7 @@ from app.schemas.crm import (
     RmSessionCreate, RmSessionOut, RmStockEntryOut,
     PoCreate, PoOut,
     RmSaleCreate, RmSaleOut,
+    ProductionUsageIn,
 )
 
 router = APIRouter(prefix="/api/rm-stock", tags=["rm-stock"])
@@ -79,6 +80,34 @@ def delete_session(session_id: int, db: Session = Depends(get_db)):
     s = db.get(RmStockSession, session_id)
     if not s: raise HTTPException(404, "ไม่พบรอบ snapshot")
     db.delete(s); db.commit()
+
+
+# ── Production Usage (ตัดสต็อกจากรายงานเครื่องจักร) ──────────
+@router.post("/production-usage", response_model=RmSessionOut, status_code=201)
+def create_production_usage(payload: ProductionUsageIn, db: Session = Depends(get_db)):
+    machines = ", ".join(payload.machine_nos) if payload.machine_nos else "ทุกเครื่อง"
+    notes = payload.notes or f"ตัดจากรายงานการผลิต [{machines}]"
+    s = RmStockSession(
+        stock_date=payload.usage_date,
+        notes=notes,
+        created_by="machine-import",
+    )
+    db.add(s); db.flush()
+    for m in payload.materials:
+        if m.qty_kg <= 0:
+            continue
+        qty_ton = Decimal(str(round(m.qty_kg / 1000, 4)))
+        db.add(RmStockEntry(
+            session_id=s.session_id,
+            entry_type=RmEntryTypeEnum.RAW,
+            material_name=m.name,
+            stock_qty_ton=-qty_ton,
+            notes="ใช้ผลิต",
+        ))
+    db.flush()
+    _calc_totals(s)
+    db.commit(); db.refresh(s)
+    return s
 
 
 # ── Purchase Orders ───────────────────────────────────────────
