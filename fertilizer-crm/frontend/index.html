@@ -6,6 +6,7 @@
 <title>CRM ขายปุ๋ย — Sale Support Dashboard</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:9999px; font-size:11px; font-weight:600; }
   .tab-btn { padding:8px 16px; border-bottom:2px solid transparent; font-size:13px; font-weight:500; color:#6b7280; cursor:pointer; }
@@ -128,6 +129,73 @@
       </table>
     </div>
     <p id="dash-empty" class="text-center text-gray-300 py-10 hidden">ไม่พบข้อมูล</p>
+  </div>
+
+  <!-- ══ Sales Analytics ══ -->
+  <div class="mt-4">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-sm font-bold text-gray-700">📊 วิเคราะห์ยอดขาย</h2>
+      <div class="flex gap-1">
+        <button id="sa-tab-customer" onclick="setSaTab('customer')"
+          class="sa-tab-btn px-3 py-1 rounded-full text-xs font-semibold bg-green-700 text-white">ต่อลูกค้า</button>
+        <button id="sa-tab-sale" onclick="setSaTab('sale')"
+          class="sa-tab-btn px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">ต่อ Sale</button>
+        <button id="sa-tab-formula" onclick="setSaTab('formula')"
+          class="sa-tab-btn px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">ต่อสูตร</button>
+      </div>
+    </div>
+
+    <!-- customer -->
+    <div id="sa-customer" class="sa-panel grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-xl shadow p-4">
+        <canvas id="chart-customer" height="260"></canvas>
+      </div>
+      <div class="bg-white rounded-xl shadow p-4 overflow-auto max-h-80">
+        <table class="w-full text-xs">
+          <thead><tr class="text-left border-b">
+            <th class="pb-1">#</th><th class="pb-1">ลูกค้า</th>
+            <th class="pb-1 text-right">ยอดขาย (บาท)</th>
+            <th class="pb-1 text-right">Orders</th>
+          </tr></thead>
+          <tbody id="sa-customer-tbl"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- sale -->
+    <div id="sa-sale" class="sa-panel hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-xl shadow p-4">
+        <canvas id="chart-sale" height="260"></canvas>
+      </div>
+      <div class="bg-white rounded-xl shadow p-4 overflow-auto max-h-80">
+        <table class="w-full text-xs">
+          <thead><tr class="text-left border-b">
+            <th class="pb-1">#</th><th class="pb-1">Sales</th>
+            <th class="pb-1 text-right">ยอดขาย (บาท)</th>
+            <th class="pb-1 text-right">Orders</th>
+          </tr></thead>
+          <tbody id="sa-sale-tbl"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- formula -->
+    <div id="sa-formula" class="sa-panel hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white rounded-xl shadow p-4">
+        <canvas id="chart-formula" height="260"></canvas>
+      </div>
+      <div class="bg-white rounded-xl shadow p-4 overflow-auto max-h-80">
+        <p id="sa-formula-loading" class="text-xs text-gray-400 py-4 text-center">กำลังโหลด...</p>
+        <table class="w-full text-xs">
+          <thead><tr class="text-left border-b">
+            <th class="pb-1">#</th><th class="pb-1">สูตร / สินค้า</th>
+            <th class="pb-1 text-right">ตัน</th>
+            <th class="pb-1 text-right">Orders</th>
+          </tr></thead>
+          <tbody id="sa-formula-tbl"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1336,6 +1404,138 @@ async function loadDashboard() {
   document.getElementById("kpi-profit").textContent = fmt(sum.total_profit);
   document.getElementById("last-refresh").textContent = "อัปเดต " + new Date().toLocaleTimeString("th-TH");
   renderDashTable();
+  renderSalesAnalytics();
+}
+
+/* ── Sales Analytics ─────────────────────────────── */
+const saCharts = {};
+let saCurrentTab = 'customer';
+let saFormulaLoaded = false;
+
+function setSaTab(tab) {
+  saCurrentTab = tab;
+  document.querySelectorAll('.sa-panel').forEach(el => el.classList.add('hidden'));
+  document.getElementById(`sa-${tab}`).classList.remove('hidden');
+  document.querySelectorAll('.sa-tab-btn').forEach(b => {
+    b.classList.remove('bg-green-700','text-white');
+    b.classList.add('bg-gray-100','text-gray-600');
+  });
+  const active = document.getElementById(`sa-tab-${tab}`);
+  active.classList.remove('bg-gray-100','text-gray-600');
+  active.classList.add('bg-green-700','text-white');
+  if (tab === 'formula' && !saFormulaLoaded) loadFormulaAnalytics();
+}
+
+function renderSalesAnalytics() {
+  renderSaGroup('customer', dashData, d => d.customer_name || '(ไม่ระบุ)');
+  renderSaGroup('sale', dashData, d => d.salesperson || d.sale_support_name || '(ไม่ระบุ)');
+}
+
+function renderSaGroup(key, data, groupFn) {
+  const map = {};
+  data.forEach(d => {
+    const g = groupFn(d);
+    if (!map[g]) map[g] = { amount: 0, count: 0 };
+    map[g].amount += parseFloat(d.total_amount) || 0;
+    map[g].count  += 1;
+  });
+  const sorted = Object.entries(map).sort((a,b) => b[1].amount - a[1].amount).slice(0, 15);
+  const labels = sorted.map(e => e[0]);
+  const amounts = sorted.map(e => e[1].amount);
+  const counts  = sorted.map(e => e[1].count);
+
+  const tbody = document.getElementById(`sa-${key}-tbl`);
+  tbody.innerHTML = sorted.map(([name, v], i) =>
+    `<tr class="border-b border-gray-50 hover:bg-gray-50">
+      <td class="py-1 pr-1 text-gray-400">${i+1}</td>
+      <td class="py-1 font-medium">${name}</td>
+      <td class="py-1 text-right text-green-700 font-semibold">${v.amount.toLocaleString('th-TH',{maximumFractionDigits:0})}</td>
+      <td class="py-1 text-right text-gray-500">${v.count}</td>
+    </tr>`
+  ).join('');
+
+  const canvasId = `chart-${key}`;
+  if (saCharts[key]) { saCharts[key].destroy(); }
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  saCharts[key] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'ยอดขาย (บาท)',
+        data: amounts,
+        backgroundColor: 'rgba(22,163,74,0.75)',
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => ' ' + ctx.parsed.x.toLocaleString('th-TH',{maximumFractionDigits:0}) + ' บาท' }
+      }},
+      scales: {
+        x: { ticks: { font: { size: 10 }, callback: v => (v/1000).toFixed(0)+'K' }, grid: { color: '#f0f0f0' } },
+        y: { ticks: { font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+async function loadFormulaAnalytics() {
+  saFormulaLoaded = true;
+  const loadingEl = document.getElementById('sa-formula-loading');
+  try {
+    const orders = await fetch(`${API}/api/orders`).then(r => r.json());
+    const map = {};
+    orders.forEach(o => {
+      (o.items || []).forEach(it => {
+        const name = it.product_name || it.formula_name || '(ไม่ระบุ)';
+        if (!map[name]) map[name] = { tons: 0, count: 0 };
+        map[name].tons  += parseFloat(it.quantity_ton) || 0;
+        map[name].count += 1;
+      });
+    });
+    const sorted = Object.entries(map).sort((a,b) => b[1].tons - a[1].tons).slice(0, 15);
+    if (loadingEl) loadingEl.classList.add('hidden');
+
+    const tbody = document.getElementById('sa-formula-tbl');
+    tbody.innerHTML = sorted.map(([name, v], i) =>
+      `<tr class="border-b border-gray-50 hover:bg-gray-50">
+        <td class="py-1 pr-1 text-gray-400">${i+1}</td>
+        <td class="py-1 font-medium">${name}</td>
+        <td class="py-1 text-right text-blue-700 font-semibold">${v.tons.toLocaleString('th-TH',{maximumFractionDigits:2})}</td>
+        <td class="py-1 text-right text-gray-500">${v.count}</td>
+      </tr>`
+    ).join('');
+
+    if (saCharts['formula']) saCharts['formula'].destroy();
+    const ctx = document.getElementById('chart-formula');
+    if (ctx) {
+      saCharts['formula'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(e => e[0]),
+          datasets: [{ label: 'ตัน', data: sorted.map(e => e[1].tons),
+            backgroundColor: 'rgba(59,130,246,0.75)', borderRadius: 4 }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: { legend: { display: false }, tooltip: {
+            callbacks: { label: c => ' ' + c.parsed.x.toLocaleString('th-TH',{maximumFractionDigits:2}) + ' ตัน' }
+          }},
+          scales: {
+            x: { ticks: { font: { size: 10 } }, grid: { color: '#f0f0f0' } },
+            y: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+  } catch(e) {
+    if (loadingEl) loadingEl.textContent = 'โหลดไม่สำเร็จ';
+  }
 }
 
 function creditBadge(o) {
