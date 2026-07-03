@@ -227,10 +227,10 @@
           </div>
           <div>
             <label class="form-label text-purple-700">🎒 กระสอบที่ใช้บรรจุ</label>
-            <input name="bag_type_name" id="formula-bag-type" list="dl-bag-types-formula"
-              placeholder="เช่น กระสอบ คนเขียว 4-4-30"
-              class="form-input border-purple-200 focus:border-purple-400"/>
-            <datalist id="dl-bag-types-formula"></datalist>
+            <select name="bag_type_name" id="formula-bag-type"
+              class="form-input border-purple-200 focus:border-purple-400 text-purple-700">
+              <option value="">-- เลือกประเภทกระสอบ --</option>
+            </select>
             <p class="text-[10px] text-gray-400 mt-0.5">ใช้ตัดกระสอบอัตโนมัติเมื่อสร้าง Order</p>
           </div>
         </div>
@@ -1237,6 +1237,7 @@ function switchTab(name, btn) {
   if (name === "bag-stock") loadBagSessions();
   if (name === "rm-stock") loadRmSessions();
   if (name === "promotions") loadPromotions();
+  if (name === "import-products") ensureBagSessionsLoaded();
 }
 
 // ─── MODAL ────────────────────────────────────────────────
@@ -2514,12 +2515,20 @@ async function loadBagSessions() {
 }
 
 function populateBagTypeDatalist() {
-  // Collect unique bag names from latest sessions
   const names = {};
   bagSessions.forEach(s => (s.entries||[]).forEach(e => { if (e.item_name) names[e.item_name] = true; }));
-  // Populate formula form datalist
-  const dl = document.getElementById('dl-bag-types-formula');
-  if (dl) dl.innerHTML = Object.keys(names).map(n => `<option value="${n}">`).join('');
+  const sel = document.getElementById('formula-bag-type');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">-- เลือกประเภทกระสอบ --</option>`
+    + Object.keys(names).sort().map(n => `<option value="${n}" ${n===cur?'selected':''}>${n}</option>`).join('');
+}
+
+async function ensureBagSessionsLoaded() {
+  if (bagSessions.length === 0) {
+    try { bagSessions = await fetch(`${API}/api/bag-stock`).then(r => r.json()); } catch {}
+  }
+  populateBagTypeDatalist();
 }
 
 function renderBagSessions() {
