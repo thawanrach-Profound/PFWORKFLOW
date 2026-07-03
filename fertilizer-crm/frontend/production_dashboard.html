@@ -388,9 +388,43 @@ function parseAndStore(machineNo, rows, filename) {
       continue;
     }
 
-    // New order header
+    // New order header — search labels dynamically
     if (c0 && c0.includes('เลขที่ใบสั่งผสม')) {
-      currentOrder = { machine: machineNo, orderNo: val(row[1])||'', formulaCode: val(row[3])||'', formulaName: val(row[5])||'', customer: val(row[7])||'', trips:0, weightActual:0, weightTarget:0, diff:0, matActual:{}, matTarget:{} };
+      const findAfterLabel = (lbl) => {
+        for (let ci = 0; ci < row.length - 1; ci++) {
+          const cell = val(row[ci]);
+          if (cell && cell.includes(lbl)) {
+            // value is either in same cell after ":" or next non-empty cell
+            const same = cell.replace(lbl,'').replace(/^[\s:]+/,'');
+            if (same) return same;
+            for (let ni = ci+1; ni < row.length; ni++) {
+              const nv = val(row[ni]);
+              if (nv && nv !== ':') return nv;
+            }
+          }
+        }
+        return '';
+      };
+      // Also handle colon as separate cell
+      const rowVals = row.map((c,i) => ({v: val(c)||'', i}));
+      const afterLabel = (lbl) => {
+        const idx = rowVals.findIndex(x => x.v.includes(lbl));
+        if (idx < 0) return '';
+        // next non-colon, non-empty cell
+        for (let ni = idx+1; ni < rowVals.length; ni++) {
+          const nv = rowVals[ni].v;
+          if (nv && nv !== ':') return nv;
+        }
+        return '';
+      };
+      currentOrder = {
+        machine: machineNo,
+        orderNo:     afterLabel('เลขที่ใบสั่งผสม') || val(row[1]) || '',
+        formulaCode: afterLabel('รหัสสูตร') || '',
+        formulaName: afterLabel('ชื่อสูตร') || '',
+        customer:    afterLabel('ลูกค้า') || afterLabel('ลูกค้า') || '',
+        trips:0, weightActual:0, weightTarget:0, diff:0, matActual:{}, matTarget:{}
+      };
       curMatHdrs = []; curMatActual = {}; curMatTarget = {};
       continue;
     }
