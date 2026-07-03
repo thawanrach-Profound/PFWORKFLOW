@@ -415,6 +415,7 @@ class PromotionUpdate(BaseModel):
     end_date: Optional[date] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
+    gifts: Optional[list[PromotionGiftCreate]] = None
 
 class PromotionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

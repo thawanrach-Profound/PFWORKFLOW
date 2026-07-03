@@ -3746,6 +3746,7 @@ function showPromoForm(promoId = null) {
       document.getElementById("promo-end").value = p.end_date||"";
       document.getElementById("promo-desc").value = p.description||"";
       document.getElementById("promo-active").checked = p.is_active;
+      (p.gifts||[]).forEach(g => addGiftRow(g));
     }
   } else {
     document.getElementById("promo-name-input").value = "";

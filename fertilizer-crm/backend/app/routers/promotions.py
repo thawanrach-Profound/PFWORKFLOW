@@ -59,8 +59,16 @@ def update_promotion(promo_id: int, payload: PromotionUpdate, db: Session = Depe
     p = db.get(Promotion, promo_id)
     if not p:
         raise HTTPException(404, "ไม่พบรายการส่งเสริมการขาย")
-    for k, v in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    gifts_payload = data.pop("gifts", None)
+    for k, v in data.items():
         setattr(p, k, v)
+    if gifts_payload is not None:
+        for g in list(p.gifts):
+            db.delete(g)
+        db.flush()
+        for g in gifts_payload:
+            db.add(PromotionGift(promotion_id=promo_id, **g))
     db.commit(); db.refresh(p)
     return p
 
