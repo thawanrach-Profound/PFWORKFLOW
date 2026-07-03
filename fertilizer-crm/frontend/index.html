@@ -935,6 +935,7 @@
                 <th class="px-2 py-2 text-left w-24">รหัส</th>
                 <th class="px-2 py-2 text-left">ชื่อสินค้า / สูตรปุ๋ย *</th>
                 <th class="px-2 py-2 text-right w-20">ตัน</th>
+                <th class="px-2 py-2 text-right w-20 text-blue-600">กระสอบ</th>
                 <th class="px-2 py-2 text-right w-24">บาท/ตัน</th>
                 <th class="px-2 py-2 text-right w-24">รวม</th>
                 <th class="px-2 py-2 w-6"></th>
@@ -1764,12 +1765,14 @@ function addOrderItemRow(data = {}) {
     formulaData.map(f => `<option value="${f.formula_name}" data-code="${f.product_code||f.formula_code}" data-price="${f.base_price_per_kg||0}">${f.product_code||f.formula_code}</option>`).join("")
   }</datalist>`;
 
+  const bags = (qty && qty > 0) ? Math.round(qty * 1000 / 50) : "";
   tr.innerHTML = `
     ${dlHtml}
     <td class="px-1 py-1 text-gray-400 text-xs">${id}</td>
     <td class="px-1 py-1"><input class="w-full border rounded px-1 py-0.5 text-xs" id="oi-code-${id}" placeholder="รหัส" value="${data.product_code||""}" oninput="updateOITotal(${id})"/></td>
     <td class="px-1 py-1"><input list="${dlId}" class="w-full border rounded px-1 py-0.5 text-xs" id="oi-name-${id}" placeholder="ชื่อสินค้า *" required value="${data.product_name||""}" oninput="autoFillProduct(${id})"/></td>
-    <td class="px-1 py-1"><input type="number" step="0.001" class="w-full border rounded px-1 py-0.5 text-xs text-right" placeholder="0" value="${qty}" oninput="updateOITotal(${id})"/></td>
+    <td class="px-1 py-1"><input type="number" step="0.001" class="w-full border rounded px-1 py-0.5 text-xs text-right" id="oi-ton-${id}" placeholder="0" value="${qty}" oninput="updateOITotal(${id})"/></td>
+    <td class="px-1 py-1"><input type="number" step="1" class="w-full border rounded px-1 py-0.5 text-xs text-right bg-blue-50 text-blue-700 font-semibold" id="oi-bags-${id}" placeholder="0" value="${bags}" oninput="updateTonFromBags(${id})"/></td>
     <td class="px-1 py-1"><input type="number" step="0.01" class="w-full border rounded px-1 py-0.5 text-xs text-right" id="oi-price-${id}" placeholder="0" value="${price}" oninput="updateOITotal(${id})"/></td>
     <td class="px-1 py-1 text-right font-semibold text-green-700 text-xs whitespace-nowrap" id="oi-amt-${id}">${amt}</td>
     <td class="px-1 py-1 text-center"><button type="button" class="text-red-400 hover:text-red-600 text-xs" onclick="removeOIRow(${id})">✕</button></td>`;
@@ -1791,10 +1794,22 @@ function autoFillProduct(id) {
 }
 
 function updateOITotal(id) {
-  const row = document.getElementById(`oi-row-${id}`);
-  const numInputs = row.querySelectorAll("input[type='number']");
-  const qty   = parseFloat(numInputs[0]?.value) || 0;
-  const price = parseFloat(numInputs[1]?.value) || 0;
+  const qty   = parseFloat(document.getElementById(`oi-ton-${id}`)?.value) || 0;
+  const price = parseFloat(document.getElementById(`oi-price-${id}`)?.value) || 0;
+  // Auto-calc bags from tons (1 bag = 50 kg)
+  const bagsEl = document.getElementById(`oi-bags-${id}`);
+  if (bagsEl) bagsEl.value = qty > 0 ? Math.round(qty * 1000 / 50) : "";
+  document.getElementById(`oi-amt-${id}`).textContent = fmt(qty * price);
+  updateOIGrand();
+  checkCredit();
+}
+
+function updateTonFromBags(id) {
+  const bags = parseFloat(document.getElementById(`oi-bags-${id}`)?.value) || 0;
+  const tonEl = document.getElementById(`oi-ton-${id}`);
+  if (tonEl) tonEl.value = bags > 0 ? (bags * 50 / 1000).toFixed(3) : "";
+  const price = parseFloat(document.getElementById(`oi-price-${id}`)?.value) || 0;
+  const qty   = parseFloat(tonEl?.value) || 0;
   document.getElementById(`oi-amt-${id}`).textContent = fmt(qty * price);
   updateOIGrand();
   checkCredit();
@@ -1826,9 +1841,9 @@ function getOrderItemsPayload() {
       seq:          i + 1,
       product_code: allInputs[0]?.value.trim() || null,
       product_name: allInputs[1]?.value.trim() || "",
-      quantity_ton: parseFloat(numInputs[0]?.value) || 0,
+      quantity_ton: parseFloat(document.getElementById(`oi-ton-${row.id.replace('oi-row-','')}`)?.value) || 0,
       unit:         "ตัน",
-      unit_price:   parseFloat(numInputs[1]?.value) || 0,
+      unit_price:   parseFloat(document.getElementById(`oi-price-${row.id.replace('oi-row-','')}`)?.value) || 0,
       discount:     0,
     };
   }).filter(it => it.product_name);
