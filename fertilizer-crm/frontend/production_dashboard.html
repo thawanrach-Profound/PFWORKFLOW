@@ -209,19 +209,15 @@
           <option value="2">เครื่องที่ 2</option>
           <option value="3">เครื่องที่ 3</option>
         </select>
-        <span style="font-size:11px;color:#a0aec0">* คลิกเลือกเครื่องเพื่อดูข้อมูลเฉพาะเครื่อง</span>
+        <div style="display:flex;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden">
+          <button id="mat-view-agg" onclick="setMatView('agg')" style="padding:4px 12px;font-size:12px;border:none;cursor:pointer;background:#2d7a52;color:#fff;font-weight:600">รวมทั้งหมด</button>
+          <button id="mat-view-order" onclick="setMatView('order')" style="padding:4px 12px;font-size:12px;border:none;cursor:pointer;background:#fff;color:#4a5568">แยกตามใบสั่ง</button>
+        </div>
+        <input type="text" id="mat-search" placeholder="🔍 ค้นหาเลขที่ / สูตร..." oninput="renderMaterialTable()" style="border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:12px;width:200px;display:none" id="mat-search">
       </div>
       <div class="table-wrap">
         <table class="mat-table" id="mat-table">
-          <thead>
-            <tr>
-              <th>วัตถุดิบ</th>
-              <th>น้ำหนักชั่ง (กก.)</th>
-              <th>น้ำหนักสูตร (กก.)</th>
-              <th>ส่วนต่าง (กก.)</th>
-              <th>ส่วนต่าง (%)</th>
-            </tr>
-          </thead>
+          <thead id="mat-thead"></thead>
           <tbody id="mat-tbody"></tbody>
           <tfoot id="mat-tfoot"></tfoot>
         </table>
@@ -331,9 +327,9 @@ function parseAndStore(machineNo, rows, filename) {
 
   let reportDate = '';
   let currentOrder = null;
-  let matHeaders = [];   // [{name, col}]
-  let matActual  = {};   // {name: kg}
-  let matTarget  = {};   // {name: kg}
+  let curMatHdrs = [];   // material headers for current order block
+  let curMatActual = {}, curMatTarget = {};  // per current order
+  let totMatActual = {}, totMatTarget = {};  // machine-level totals
 
   const KNOWN_MATS = ['OX','UREA','AM','FILLER','DAP','MOP'];
 
@@ -343,40 +339,42 @@ function parseAndStore(machineNo, rows, filename) {
     const row = rows[i];
     if (!row) continue;
     const c0 = val(row[0]);
-    const c1 = val(row[1]);
     const c2 = val(row[2]);
 
-    // Detect material header row (row containing OX / UREA / AM / etc.)
+    // Detect material header row (contains OX / UREA / AM / No.N)
     const hasMat = row.some(c => {
       const v = c ? String(c).trim().toUpperCase() : '';
       return KNOWN_MATS.includes(v) || /^NO\.\d+$/.test(v);
     });
     if (hasMat) {
-      matHeaders = [];
+      curMatHdrs = [];
       row.forEach((c, idx) => {
         if (!c) return;
         const v = String(c).trim();
         const u = v.toUpperCase();
         if (KNOWN_MATS.includes(u) || /^No\.\d+$/i.test(v)) {
-          matHeaders.push({ name: v.toUpperCase(), col: idx });
+          curMatHdrs.push({ name: u, col: idx });
         }
       });
+      curMatActual = {}; curMatTarget = {};
       continue;
     }
 
-    // น้ำหนักชั่ง row — accumulate actual usage
-    if ((c2 && c2.includes('น้ำหนักชั่ง')) && matHeaders.length > 0) {
-      matHeaders.forEach(h => {
+    // น้ำหนักชั่ง row
+    if (c2 && c2.includes('น้ำหนักชั่ง') && curMatHdrs.length > 0) {
+      curMatHdrs.forEach(h => {
         const v = parseFloat(val(row[h.col])) || 0;
-        matActual[h.name] = (matActual[h.name] || 0) + v;
+        curMatActual[h.name] = (curMatActual[h.name] || 0) + v;
+        totMatActual[h.name] = (totMatActual[h.name] || 0) + v;
       });
     }
 
-    // น้ำหนักสูตร row — accumulate target usage
-    if ((c2 && c2.includes('น้ำหนักสูตร')) && matHeaders.length > 0) {
-      matHeaders.forEach(h => {
+    // น้ำหนักสูตร row
+    if (c2 && c2.includes('น้ำหนักสูตร') && curMatHdrs.length > 0) {
+      curMatHdrs.forEach(h => {
         const v = parseFloat(val(row[h.col])) || 0;
-        matTarget[h.name] = (matTarget[h.name] || 0) + v;
+        curMatTarget[h.name] = (curMatTarget[h.name] || 0) + v;
+        totMatTarget[h.name] = (totMatTarget[h.name] || 0) + v;
       });
     }
 
@@ -386,22 +384,25 @@ function parseAndStore(machineNo, rows, filename) {
       const wActual = parseFloat(val(row[5])) || 0;
       const wTarget = parseFloat(val(row[8])) || 0;
       const diff    = parseFloat(val(row[11])) || 0;
-      machineSummary[machineNo] = { trips, weightActual: wActual, weightTarget: wTarget, diff, date: reportDate, filename, matActual: {...matActual}, matTarget: {...matTarget} };
+      machineSummary[machineNo] = { trips, weightActual: wActual, weightTarget: wTarget, diff, date: reportDate, filename, matActual: {...totMatActual}, matTarget: {...totMatTarget} };
       continue;
     }
 
     // New order header
     if (c0 && c0.includes('เลขที่ใบสั่งผสม')) {
-      currentOrder = { machine: machineNo, orderNo: val(row[1])||'', formulaCode: val(row[3])||'', formulaName: val(row[5])||'', customer: val(row[7])||'', trips:0, weightActual:0, weightTarget:0, diff:0 };
+      currentOrder = { machine: machineNo, orderNo: val(row[1])||'', formulaCode: val(row[3])||'', formulaName: val(row[5])||'', customer: val(row[7])||'', trips:0, weightActual:0, weightTarget:0, diff:0, matActual:{}, matTarget:{} };
+      curMatHdrs = []; curMatActual = {}; curMatTarget = {};
       continue;
     }
 
-    // Order summary row
+    // Order summary row — finalize order
     if (currentOrder && c0 && c0.includes('จำนวนผสม')) {
       currentOrder.trips        = parseFloat(val(row[2])) || 0;
       currentOrder.weightActual = parseFloat(val(row[5])) || 0;
       currentOrder.weightTarget = parseFloat(val(row[8])) || 0;
       currentOrder.diff         = parseFloat(val(row[11])) || 0;
+      currentOrder.matActual    = {...curMatActual};
+      currentOrder.matTarget    = {...curMatTarget};
       allOrders.push({...currentOrder});
       currentOrder = null;
       continue;
@@ -414,7 +415,7 @@ function parseAndStore(machineNo, rows, filename) {
     const weightActual = mOrders.reduce((s,o)=>s+o.weightActual,0);
     const weightTarget = mOrders.reduce((s,o)=>s+o.weightTarget,0);
     const diff = weightTarget ? (weightActual - weightTarget)/weightTarget : 0;
-    machineSummary[machineNo] = { trips, weightActual, weightTarget, diff, date: reportDate, filename, matActual: {...matActual}, matTarget: {...matTarget} };
+    machineSummary[machineNo] = { trips, weightActual, weightTarget, diff, date: reportDate, filename, matActual: {...totMatActual}, matTarget: {...totMatTarget} };
   }
 }
 
@@ -595,61 +596,110 @@ function renderCharts(loaded) {
   });
 }
 
+let matView = 'agg'; // 'agg' | 'order'
+
+function setMatView(v) {
+  matView = v;
+  document.getElementById('mat-view-agg').style.background   = v==='agg'   ? '#2d7a52' : '#fff';
+  document.getElementById('mat-view-agg').style.color        = v==='agg'   ? '#fff'    : '#4a5568';
+  document.getElementById('mat-view-order').style.background = v==='order' ? '#2d7a52' : '#fff';
+  document.getElementById('mat-view-order').style.color      = v==='order' ? '#fff'    : '#4a5568';
+  document.getElementById('mat-search').style.display        = v==='order' ? '' : 'none';
+  renderMaterialTable();
+}
+
 function renderMaterialTable() {
-  const sel = document.getElementById('mat-filter-machine')?.value || '';
+  const sel   = document.getElementById('mat-filter-machine')?.value || '';
+  const q     = (document.getElementById('mat-search')?.value || '').toLowerCase();
+  const thead = document.getElementById('mat-thead');
   const tbody = document.getElementById('mat-tbody');
   const tfoot = document.getElementById('mat-tfoot');
   if (!tbody) return;
 
-  // Aggregate material data
-  const combined = {}; // {matName: {actual, target}}
-  Object.entries(machineSummary).forEach(([m, s]) => {
-    if (sel && String(m) !== sel) return;
-    const a = s.matActual || {};
-    const t = s.matTarget || {};
-    const allKeys = new Set([...Object.keys(a), ...Object.keys(t)]);
-    allKeys.forEach(k => {
-      if (!combined[k]) combined[k] = { actual: 0, target: 0 };
-      combined[k].actual += a[k] || 0;
-      combined[k].target += t[k] || 0;
-    });
-  });
-
-  const keys = Object.keys(combined).filter(k => combined[k].actual > 0 || combined[k].target > 0);
-  if (keys.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#a0aec0;padding:20px">ไม่มีข้อมูลวัตถุดิบ (กรุณาอัปโหลดไฟล์ Excel)</td></tr>`;
-    tfoot.innerHTML = '';
-    return;
-  }
-
   const fmt = n => Number(n).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
-  const diffPctClass = p => Math.abs(p) < 0.05 ? 'diff-pct-ok' : Math.abs(p) < 0.1 ? 'diff-pct-warn' : 'diff-pct-bad';
+  const diffCls = p => Math.abs(p) < 0.05 ? 'diff-pct-ok' : Math.abs(p) < 0.1 ? 'diff-pct-warn' : 'diff-pct-bad';
+  const sign = n => n >= 0 ? '+' : '';
 
-  let totActual = 0, totTarget = 0;
-  tbody.innerHTML = keys.map(k => {
-    const { actual, target } = combined[k];
-    totActual += actual; totTarget += target;
-    const diffKg  = actual - target;
-    const diffPct = target > 0 ? (diffKg / target) * 100 : 0;
-    const cls = diffPctClass(diffPct);
-    return `<tr>
-      <td>${k}</td>
-      <td>${fmt(actual)}</td>
-      <td>${fmt(target)}</td>
-      <td class="${cls}">${diffKg >= 0 ? '+' : ''}${fmt(diffKg)}</td>
-      <td class="${cls}">${diffKg >= 0 ? '+' : ''}${diffPct.toFixed(3)}%</td>
+  if (matView === 'agg') {
+    // Aggregate by material across machines
+    const combined = {};
+    Object.entries(machineSummary).forEach(([m, s]) => {
+      if (sel && String(m) !== sel) return;
+      [['actual', s.matActual||{}], ['target', s.matTarget||{}]].forEach(([type, obj]) => {
+        Object.entries(obj).forEach(([k, v]) => {
+          if (!combined[k]) combined[k] = { actual:0, target:0 };
+          combined[k][type] += v;
+        });
+      });
+    });
+    const keys = Object.keys(combined).filter(k => combined[k].actual > 0 || combined[k].target > 0);
+    if (!keys.length) {
+      thead.innerHTML = '';
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#a0aec0;padding:20px">ไม่มีข้อมูลวัตถุดิบ</td></tr>`;
+      tfoot.innerHTML = ''; return;
+    }
+    thead.innerHTML = `<tr><th>วัตถุดิบ</th><th>น้ำหนักชั่ง (กก.)</th><th>น้ำหนักสูตร (กก.)</th><th>ส่วนต่าง (กก.)</th><th>ส่วนต่าง (%)</th></tr>`;
+    let totA = 0, totT = 0;
+    tbody.innerHTML = keys.map(k => {
+      const {actual:a, target:t} = combined[k];
+      totA += a; totT += t;
+      const dk = a-t, dp = t > 0 ? (dk/t)*100 : 0;
+      return `<tr><td>${k}</td><td>${fmt(a)}</td><td>${fmt(t)}</td><td class="${diffCls(dp)}">${sign(dk)}${fmt(dk)}</td><td class="${diffCls(dp)}">${sign(dp)}${dp.toFixed(3)}%</td></tr>`;
+    }).join('');
+    const dk=totA-totT, dp=totT>0?(dk/totT)*100:0;
+    tfoot.innerHTML = `<tr><td>รวมทั้งหมด</td><td>${fmt(totA)}</td><td>${fmt(totT)}</td><td>${sign(dk)}${fmt(dk)}</td><td>${sign(dp)}${dp.toFixed(3)}%</td></tr>`;
+
+  } else {
+    // Per-order breakdown
+    const orders = allOrders.filter(o => {
+      if (sel && String(o.machine) !== sel) return false;
+      if (q && !o.orderNo.toLowerCase().includes(q) && !o.formulaCode.toLowerCase().includes(q) && !o.formulaName.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    if (!orders.length) {
+      thead.innerHTML = '';
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#a0aec0;padding:20px">ไม่มีข้อมูล</td></tr>`;
+      tfoot.innerHTML = ''; return;
+    }
+    thead.innerHTML = `<tr>
+      <th style="text-align:left">เลขที่ใบสั่งผสม</th>
+      <th style="text-align:left">รหัสสูตร</th>
+      <th style="text-align:left">ชื่อสูตร</th>
+      <th style="text-align:left">วัตถุดิบ</th>
+      <th>น้ำหนักชั่ง (กก.)</th>
+      <th>น้ำหนักสูตร (กก.)</th>
+      <th>ส่วนต่าง (%)</th>
     </tr>`;
-  }).join('');
-
-  const totDiffKg  = totActual - totTarget;
-  const totDiffPct = totTarget > 0 ? (totDiffKg / totTarget) * 100 : 0;
-  tfoot.innerHTML = `<tr>
-    <td>รวมทั้งหมด</td>
-    <td>${fmt(totActual)}</td>
-    <td>${fmt(totTarget)}</td>
-    <td>${totDiffKg >= 0 ? '+' : ''}${fmt(totDiffKg)}</td>
-    <td>${totDiffKg >= 0 ? '+' : ''}${totDiffPct.toFixed(3)}%</td>
-  </tr>`;
+    const machBadge = m => `<span class="badge badge-${m}" style="margin-right:4px">เครื่อง ${m}</span>`;
+    let rows = '';
+    orders.forEach(o => {
+      const mats = Object.keys({...o.matActual, ...o.matTarget}).filter(k => (o.matActual[k]||0)+(o.matTarget[k]||0) > 0);
+      if (!mats.length) {
+        rows += `<tr>
+          <td>${machBadge(o.machine)}${o.orderNo}</td>
+          <td>${o.formulaCode}</td>
+          <td>${o.formulaName}</td>
+          <td colspan="4" style="color:#a0aec0;font-style:italic">ไม่มีข้อมูลวัตถุดิบ</td>
+        </tr>`;
+        return;
+      }
+      mats.forEach((k, idx) => {
+        const a = o.matActual[k]||0, t = o.matTarget[k]||0;
+        const dp = t > 0 ? ((a-t)/t)*100 : 0;
+        rows += `<tr style="${idx>0?'border-top:none':''}">
+          ${idx===0 ? `<td rowspan="${mats.length}" style="vertical-align:top;font-weight:700">${machBadge(o.machine)}${o.orderNo}</td>
+            <td rowspan="${mats.length}" style="vertical-align:top">${o.formulaCode}</td>
+            <td rowspan="${mats.length}" style="vertical-align:top">${o.formulaName}</td>` : ''}
+          <td style="padding-left:${idx>0?'12px':''}px;color:#4a5568">${k}</td>
+          <td>${fmt(a)}</td>
+          <td>${fmt(t)}</td>
+          <td class="${diffCls(dp)}">${sign(dp)}${dp.toFixed(3)}%</td>
+        </tr>`;
+      });
+    });
+    tbody.innerHTML = rows;
+    tfoot.innerHTML = `<tr><td colspan="7" style="text-align:right;font-size:11px;color:#a8e6c4">${orders.length} ใบสั่งผสม</td></tr>`;
+  }
 }
 
 function renderTable() {
