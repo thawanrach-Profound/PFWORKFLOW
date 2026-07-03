@@ -109,6 +109,7 @@
   </div>
   <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
     <button class="btn-outline" onclick="exportCSV()" style="color:#a8e6c4;border-color:#a8e6c4">⬇ Export CSV</button>
+    <button class="btn-outline" onclick="clearAllData()" style="color:#fc8181;border-color:#fc8181">🗑 ล้างข้อมูล</button>
   </div>
 </header>
 
@@ -264,6 +265,7 @@ function loadFile(machineNo, input) {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
       parseAndStore(machineNo, rows, file.name);
+      saveToLocalStorage();
       document.getElementById(`file-${machineNo}-name`).textContent = file.name;
       document.getElementById(`slot-${machineNo}`).classList.add('loaded');
       renderDashboard();
@@ -344,6 +346,44 @@ function parseAndStore(machineNo, rows, filename) {
     const diff = weightTarget ? (weightActual - weightTarget)/weightTarget : 0;
     machineSummary[machineNo] = { trips, weightActual, weightTarget, diff, date: reportDate, filename };
   }
+}
+
+// ─────────────────────────────────────────
+// LocalStorage persistence
+// ─────────────────────────────────────────
+function saveToLocalStorage() {
+  localStorage.setItem('pf_machine_orders', JSON.stringify(allOrders));
+  localStorage.setItem('pf_machine_summary', JSON.stringify(machineSummary));
+}
+
+function loadFromLocalStorage() {
+  try {
+    const orders = localStorage.getItem('pf_machine_orders');
+    const summary = localStorage.getItem('pf_machine_summary');
+    if (orders) allOrders = JSON.parse(orders);
+    if (summary) machineSummary = JSON.parse(summary);
+    Object.keys(machineSummary).forEach(m => {
+      const s = machineSummary[m];
+      if (s.filename) {
+        document.getElementById(`file-${m}-name`).textContent = s.filename;
+        document.getElementById(`slot-${m}`).classList.add('loaded');
+      }
+    });
+    if (Object.keys(machineSummary).length > 0) renderDashboard();
+  } catch(e) {}
+}
+
+function clearAllData() {
+  if (!confirm('ล้างข้อมูลทั้งหมด?')) return;
+  localStorage.removeItem('pf_machine_orders');
+  localStorage.removeItem('pf_machine_summary');
+  allOrders = []; machineSummary = {};
+  [1,2,3].forEach(m => {
+    document.getElementById(`file-${m}-name`).textContent = 'คลิกเพื่อเลือกไฟล์';
+    document.getElementById(`slot-${m}`).classList.remove('loaded');
+  });
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('placeholder').style.display = 'block';
 }
 
 // ─────────────────────────────────────────
@@ -537,5 +577,6 @@ function exportCSV() {
   const a = document.createElement('a'); a.href=url; a.download='production_report.csv'; a.click();
 }
 </script>
+<script>loadFromLocalStorage();</script>
 </body>
 </html>
