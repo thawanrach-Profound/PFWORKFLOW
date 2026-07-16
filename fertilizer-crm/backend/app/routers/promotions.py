@@ -194,6 +194,8 @@ def add_dispatch(order_id: str, op_id: int, payload: GiftDispatchCreate, db: Ses
         dispatch_date=payload.dispatch_date,
         qty_dispatched=payload.qty_dispatched,
         dispatched_by=payload.dispatched_by,
+        shop_name=payload.shop_name,
+        region=payload.region,
         notes=payload.notes,
     )
     db.add(d); db.commit(); db.refresh(d)
@@ -245,3 +247,40 @@ def dispatch_summary(db: Session = Depends(get_db)):
         }
         for r in rows
     ]
+
+
+@router.get("/dispatches/region-summary", response_model=list[dict])
+def region_summary(db: Session = Depends(get_db)):
+    """สรุปการแจกของแจกแยกตามภาค x ประเภทของแจก"""
+    from sqlalchemy import func as sqlfunc
+    rows = (
+        db.query(
+            sqlfunc.coalesce(GiftDispatch.region, "ไม่ระบุ").label("region"),
+            OrderPromotion.gift_name,
+            sqlfunc.sum(GiftDispatch.qty_dispatched).label("total_qty"),
+        )
+        .join(OrderPromotion, GiftDispatch.op_id == OrderPromotion.op_id)
+        .group_by(GiftDispatch.region, OrderPromotion.gift_name)
+        .order_by("region", OrderPromotion.gift_name)
+        .all()
+    )
+    return [{"region": r.region, "gift_name": r.gift_name, "total_qty": float(r.total_qty)} for r in rows]
+
+
+@router.get("/dispatches/shop-summary", response_model=list[dict])
+def shop_summary(db: Session = Depends(get_db)):
+    """สรุปการแจกของแจกแยกตามร้านค้า"""
+    from sqlalchemy import func as sqlfunc
+    rows = (
+        db.query(
+            sqlfunc.coalesce(GiftDispatch.shop_name, "ไม่ระบุร้าน").label("shop_name"),
+            sqlfunc.coalesce(GiftDispatch.region, "ไม่ระบุ").label("region"),
+            OrderPromotion.gift_name,
+            sqlfunc.sum(GiftDispatch.qty_dispatched).label("total_qty"),
+        )
+        .join(OrderPromotion, GiftDispatch.op_id == OrderPromotion.op_id)
+        .group_by(GiftDispatch.shop_name, GiftDispatch.region, OrderPromotion.gift_name)
+        .order_by("region", "shop_name")
+        .all()
+    )
+    return [{"shop_name": r.shop_name, "region": r.region, "gift_name": r.gift_name, "total_qty": float(r.total_qty)} for r in rows]

@@ -381,6 +381,8 @@ class GiftDispatch(Base):
     dispatch_date  = Column(Date, nullable=False, server_default=func.current_date())
     qty_dispatched = Column(Numeric(12, 2), nullable=False)
     dispatched_by  = Column(String(100))
+    shop_name      = Column(String(200))
+    region         = Column(String(50))
     notes          = Column(Text)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
 

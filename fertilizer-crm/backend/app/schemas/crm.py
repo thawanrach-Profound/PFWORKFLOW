@@ -448,6 +448,8 @@ class GiftDispatchCreate(BaseModel):
     dispatch_date: date
     qty_dispatched: Decimal
     dispatched_by: Optional[str] = None
+    shop_name: Optional[str] = None
+    region: Optional[str] = None
     notes: Optional[str] = None
 
 class GiftDispatchOut(BaseModel):
@@ -457,6 +459,8 @@ class GiftDispatchOut(BaseModel):
     dispatch_date: date
     qty_dispatched: Decimal
     dispatched_by: Optional[str]
+    shop_name: Optional[str]
+    region: Optional[str]
     notes: Optional[str]
     created_at: Optional[datetime]
 

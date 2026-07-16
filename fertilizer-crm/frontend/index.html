@@ -899,6 +899,8 @@
     <div class="flex gap-1 bg-white rounded-xl shadow px-4 py-2">
       <button id="ptab-btn-promos" onclick="switchPromoTab('promos')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white">🎁 รายการโปรโมชัน</button>
       <button id="ptab-btn-dispatch" onclick="switchPromoTab('dispatch')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📦 การแจกของแจก</button>
+      <button id="ptab-btn-region" onclick="switchPromoTab('region')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">🗺️ สรุปรายภาค</button>
+      <button id="ptab-btn-shops" onclick="switchPromoTab('shops')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">🏪 ร้านค้า</button>
     </div>
 
     <!-- SUB-TAB: รายการโปรโมชัน -->
@@ -917,8 +919,12 @@
       <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-end">
         <input id="dispatch-filter-order" placeholder="ค้นหา Order ID..." class="border rounded-lg px-3 py-2 text-xs w-44"/>
         <input id="dispatch-filter-gift" placeholder="ค้นหาของแจก..." class="border rounded-lg px-3 py-2 text-xs w-44"/>
+        <select id="dispatch-filter-region" class="border rounded-lg px-3 py-2 text-xs" onchange="renderDispatchTable()">
+          <option value="">ภาค: ทั้งหมด</option>
+          <option>อีสานตอนบน</option><option>อีสานตอนล่าง</option>
+          <option>ตะวันออก</option><option>กลาง</option><option>เหนือ</option><option>ใต้</option>
+        </select>
         <button onclick="loadDispatchSummary()" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg">🔄 โหลด</button>
-        <button onclick="showDispatchForm()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs px-4 py-2 rounded-lg font-semibold">+ บันทึกการแจก</button>
       </div>
 
       <!-- Summary Cards -->
@@ -931,6 +937,7 @@
             <tr>
               <th class="px-3 py-2 text-left">Order ID</th>
               <th class="px-3 py-2 text-left">ของแจก</th>
+              <th class="px-3 py-2 text-left">ร้านค้า / ภาค</th>
               <th class="px-3 py-2 text-right">แผน</th>
               <th class="px-3 py-2 text-right">แจกแล้ว</th>
               <th class="px-3 py-2 text-right">คงค้าง</th>
@@ -942,6 +949,47 @@
         </table>
       </div>
 
+    </div>
+
+    <!-- SUB-TAB: สรุปรายภาค -->
+    <div id="ptab-region" class="hidden">
+      <div class="bg-white rounded-xl shadow px-4 py-3 flex gap-3 items-center mb-3">
+        <h3 class="font-bold text-sm text-purple-700">🗺️ ยอดจ่ายของแจกสะสมแยกตามภาค</h3>
+        <button onclick="loadRegionSummary()" class="ml-auto bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg">🔄 รีเฟรช</button>
+      </div>
+      <div class="bg-white rounded-xl shadow overflow-x-auto">
+        <table class="w-full text-xs" id="region-summary-table">
+          <thead id="region-summary-thead" class="bg-purple-50 text-purple-700"></thead>
+          <tbody id="region-summary-tbody"></tbody>
+        </table>
+        <p id="region-summary-empty" class="text-center text-gray-300 py-8">ยังไม่มีข้อมูลการแจก</p>
+      </div>
+    </div>
+
+    <!-- SUB-TAB: ร้านค้า -->
+    <div id="ptab-shops" class="hidden">
+      <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-center mb-3">
+        <h3 class="font-bold text-sm">🏪 Master ร้านค้า (153 ร้าน)</h3>
+        <input id="shop-search" type="text" placeholder="🔍 ค้นหาร้าน..." oninput="renderShopTable()"
+          class="border rounded-lg px-3 py-1.5 text-xs w-52 ml-auto"/>
+        <select id="shop-filter-region" class="border rounded-lg px-3 py-1.5 text-xs" onchange="renderShopTable()">
+          <option value="">ภาค: ทั้งหมด</option>
+          <option>อีสานตอนบน</option><option>อีสานตอนล่าง</option>
+          <option>ตะวันออก</option><option>กลาง</option><option>เหนือ</option><option>ใต้</option>
+        </select>
+      </div>
+      <div class="bg-white rounded-xl shadow overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead class="bg-gray-50 text-gray-500">
+            <tr>
+              <th class="px-3 py-2 text-left">#</th>
+              <th class="px-3 py-2 text-left">ชื่อร้านค้า</th>
+              <th class="px-3 py-2 text-left">ภาค</th>
+            </tr>
+          </thead>
+          <tbody id="shop-table-body"></tbody>
+        </table>
+      </div>
     </div>
 
   </div>
@@ -1172,8 +1220,24 @@
         </div>
       </div>
       <div>
-        <label class="form-label">ผู้แจก</label>
-        <input id="dispatch-by" class="form-input" placeholder="ชื่อผู้แจก"/>
+        <label class="form-label">ร้านค้า / ผู้รับ</label>
+        <datalist id="dispatch-shop-list"></datalist>
+        <input id="dispatch-shop" class="form-input" list="dispatch-shop-list" placeholder="ชื่อร้านค้า..."
+          oninput="autoFillRegion(this.value)"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">ภาค</label>
+          <select id="dispatch-region" class="form-input">
+            <option value="">-- เลือกภาค --</option>
+            <option>อีสานตอนบน</option><option>อีสานตอนล่าง</option>
+            <option>ตะวันออก</option><option>กลาง</option><option>เหนือ</option><option>ใต้</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">ผู้แจก</label>
+          <input id="dispatch-by" class="form-input" placeholder="ชื่อผู้แจก"/>
+        </div>
       </div>
       <div>
         <label class="form-label">หมายเหตุ</label>
@@ -3873,14 +3937,35 @@ async function deleteGift(promoId, giftId) {
 }
 
 // ─── PROMO SUB-TAB ────────────────────────────────────────────
+/* ── Shop & Gift Master ─────────────────────────────────── */
+const SHOP_MASTER = [{"name":"ไพบูรณ์การเกษตร","region":"อีสานตอนบน"},{"name":"บัวทองนที","region":"อีสานตอนบน"},{"name":"เดชพาณิชย์","region":"อีสานตอนบน"},{"name":"ชาตรีการเกษตร","region":"อีสานตอนบน"},{"name":"บุญมีรุ่งเรืองอินเตอร์เทรด","region":"อีสานตอนบน"},{"name":"กล้า น้ำ ข้าว ทรัพย์เกษตร","region":"อีสานตอนบน"},{"name":"ดวงพรการเกษตร/ส่งเสริม","region":"อีสานตอนบน"},{"name":"เอ็น.ดี.เอฟ","region":"อีสานตอนบน"},{"name":"แสงรุ่งเรือง","region":"อีสานตอนบน"},{"name":"รัตนชัยการเกษตร","region":"อีสานตอนบน"},{"name":"ฮั่วหลีชัยภูมิ","region":"อีสานตอนบน"},{"name":"ไทยการค้าดงเย็น","region":"อีสานตอนบน"},{"name":"เขียวดีการเกษตร","region":"อีสานตอนบน"},{"name":"วุฒิผ่องพืชผล","region":"อีสานตอนบน"},{"name":"ไคฮวดการเกษตร","region":"อีสานตอนบน"},{"name":"ต้นข้าวเกษตรพันธุ์","region":"อีสานตอนบน"},{"name":"อ.รุ่งเรืองการเกษตร","region":"อีสานตอนบน"},{"name":"ดินดีทรัพย์เกษตร","region":"อีสานตอนบน"},{"name":"นพชัยการเกษตร","region":"อีสานตอนบน"},{"name":"ยิ่งการเกษตร","region":"อีสานตอนบน"},{"name":"มหาเฮง เคมีเกษตรภัณฑ์","region":"อีสานตอนบน"},{"name":"ก.เกษตร (2012) จำกัด","region":"อีสานตอนบน"},{"name":"รุ่งระวีการเกษตร","region":"อีสานตอนบน"},{"name":"หนองบัวใหญ่","region":"อีสานตอนบน"},{"name":"ดอกคูณการเกษตร","region":"อีสานตอนบน"},{"name":"เมล็ดพันธุ์การเกษตร","region":"อีสานตอนบน"},{"name":"รุ่งเรืองชัยเกษตรนากลาง","region":"อีสานตอนบน"},{"name":"พ.พืชผล","region":"อีสานตอนบน"},{"name":"แก่นการเกษตร","region":"อีสานตอนบน"},{"name":"เกษเคมีภัณฑ์","region":"อีสานตอนบน"},{"name":"คลีนิคเกษตร","region":"อีสานตอนบน"},{"name":"ศักดิ์เสนาการเกษตร/รวม","region":"อีสานตอนล่าง"},{"name":"รุ่งเกษตร","region":"อีสานตอนล่าง"},{"name":"จึงเจริญการเกษตร","region":"อีสานตอนล่าง"},{"name":"ทรัพย์ทวี","region":"อีสานตอนล่าง"},{"name":"แสงอรุณพาณิชย์","region":"อีสานตอนล่าง"},{"name":"ปราสาทเกษตรภัณฑ์","region":"อีสานตอนล่าง"},{"name":"กิตติพงษ์ทรัพย์เกษตร","region":"อีสานตอนล่าง"},{"name":"กิจรุ่งเรืองการเกษตร","region":"อีสานตอนล่าง"},{"name":"ส.นิยม","region":"อีสานตอนล่าง"},{"name":"ทองพูนการเกษตร","region":"อีสานตอนล่าง"},{"name":"เพื่อนเกษตรสังขะ","region":"อีสานตอนล่าง"},{"name":"ทรัพย์มงคลการเกษตร 1","region":"อีสานตอนล่าง"},{"name":"น.เกษตร ปักธงชัย","region":"อีสานตอนล่าง"},{"name":"ศรีเสถียรการเกษตร/บุญมาก","region":"อีสานตอนล่าง"},{"name":"ตังนันต์เกษตร","region":"อีสานตอนล่าง"},{"name":"เกษตรธรรมชาติ/เจริญพัฒนา","region":"อีสานตอนล่าง"},{"name":"ชญานุตย์พาณิชย์","region":"อีสานตอนล่าง"},{"name":"ศรีโพธิไทรการเกษตร","region":"อีสานตอนล่าง"},{"name":"รุ่งเรืองการค้า","region":"อีสานตอนล่าง"},{"name":"ศักดิ์รุ่งเรือง","region":"อีสานตอนล่าง"},{"name":"มเหสักข์รุ่งเรืองการเกษตร","region":"อีสานตอนล่าง"},{"name":"แทนคุณการเกษตร","region":"อีสานตอนล่าง"},{"name":"รุ่งทรัพย์เกษตร 2","region":"อีสานตอนล่าง"},{"name":"ทรัพย์มงคล 2","region":"อีสานตอนล่าง"},{"name":"ทองมาเฟอร์นิเจอร์","region":"อีสานตอนล่าง"},{"name":"แคนดงการเกษตร","region":"อีสานตอนล่าง"},{"name":"โนนไทยอาหารสัตว์","region":"อีสานตอนล่าง"},{"name":"สหกรณ์เลิงนกทา","region":"อีสานตอนล่าง"},{"name":"วิทยาการเกษตร","region":"อีสานตอนล่าง"},{"name":"กิมไถ่การเกษตร","region":"อีสานตอนล่าง"},{"name":"บัวเกษตร","region":"อีสานตอนล่าง"},{"name":"เปรมชัย","region":"อีสานตอนล่าง"},{"name":"พฤกษาภัณฑ์","region":"ตะวันออก"},{"name":"ชัยพฤกษ์ตรีรัตน์","region":"ตะวันออก"},{"name":"เกษตรวัฒนา","region":"ตะวันออก"},{"name":"ชัยพฤกษ์เขาไร่ยา","region":"ตะวันออก"},{"name":"ชัยพฤกษ์ ไดร์ฟทรู","region":"ตะวันออก"},{"name":"ชัยพฤกษ์ทับไทร","region":"ตะวันออก"},{"name":"โลกเกษตร","region":"ตะวันออก"},{"name":"เพื่อนเกษตรแสนตุ้ง","region":"ตะวันออก"},{"name":"หนุ่มแซร์ออร์","region":"ตะวันออก"},{"name":"นายาวการเกษตร","region":"ตะวันออก"},{"name":"บุญเจริญทรัพย์เกษตร","region":"ตะวันออก"},{"name":"ก้องการเกษตร","region":"ตะวันออก"},{"name":"บุญชัยการเกษตร","region":"ตะวันออก"},{"name":"กมลวรรณการเกษตร","region":"ตะวันออก"},{"name":"สองเกษตร","region":"ตะวันออก"},{"name":"ซอย8รุ่งเรืองค้า","region":"ตะวันออก"},{"name":"ปังธงเฮง (อบแพทย์)","region":"ตะวันออก"},{"name":"ทิพย์การเกษตร","region":"ตะวันออก"},{"name":"นิลกาฬการเกษตร","region":"ตะวันออก"},{"name":"รุ่งทรัพย์เกษตร","region":"ตะวันออก"},{"name":"ทวีเกษตร2","region":"กลาง"},{"name":"สำรวยการเกษตร","region":"กลาง"},{"name":"เพรชศิริอนันต์เคมีเกษตร","region":"กลาง"},{"name":"คมคิดการเกษตร","region":"กลาง"},{"name":"ทวีเกษตร3","region":"กลาง"},{"name":"หนองกร่างการเกษตร","region":"กลาง"},{"name":"ภูธารการเกษตร","region":"กลาง"},{"name":"เพลาพิราศ","region":"กลาง"},{"name":"ตาตือ","region":"กลาง"},{"name":"โก๋การเกษตร","region":"กลาง"},{"name":"เพื่อนเกษตร-64","region":"กลาง"},{"name":"อำนาจเกษตรสิงห์","region":"กลาง"},{"name":"นาทองเคมีเกษตร","region":"กลาง"},{"name":"เกษตรแทนคุณ","region":"กลาง"},{"name":"ดีเด่นอะโกเทรด","region":"กลาง"},{"name":"มาลีพัน์ข้าว","region":"กลาง"},{"name":"จตุพรการเกษตร","region":"เหนือ"},{"name":"บ้านร่องบงมิตรเกษตร","region":"เหนือ"},{"name":"เสน่ห์การเกษตร","region":"เหนือ"},{"name":"สวนสมหมายการเกษตร","region":"เหนือ"},{"name":"เงินทองมาก้าวหน้า","region":"เหนือ"},{"name":"ธัญธวัชพืชผล","region":"เหนือ"},{"name":"ภาวินการเกษตร","region":"เหนือ"},{"name":"ป.ทรัพย์เกษตร","region":"เหนือ"},{"name":"บุญดามิตรเกษตร","region":"เหนือ"},{"name":"หจก. เอสเคเพื่อนเกษตร","region":"เหนือ"},{"name":"พัชรพรการเกษตร","region":"เหนือ"},{"name":"ชาญชัยการเกษตร","region":"เหนือ"},{"name":"คลองเจริญ","region":"เหนือ"},{"name":"ศิริทรัพย์","region":"เหนือ"},{"name":"ธนพร","region":"เหนือ"},{"name":"ส.กิจเริญ","region":"เหนือ"},{"name":"แผ่นดินเกษตร","region":"เหนือ"},{"name":"ห้วงสลิด","region":"เหนือ"},{"name":"โรงสีโชคสงวนทรัพย์","region":"เหนือ"},{"name":"เกษตร99","region":"เหนือ"},{"name":"พิมเพื่อนเกษตร","region":"เหนือ"},{"name":"เกษตรเจริญทรัพย์","region":"เหนือ"},{"name":"ภัสสรเคมี","region":"เหนือ"},{"name":"แม่จามิตรเกษตร","region":"เหนือ"},{"name":"อเนก เคมีเกษตร","region":"ใต้"},{"name":"ส.เจริญสหกิจ","region":"ใต้"},{"name":"เกียร์การเกษตร","region":"ใต้"},{"name":"ดร.สมพร","region":"ใต้"},{"name":"วัชระพานิช","region":"ใต้"},{"name":"จำเริญการเกษตร","region":"ใต้"},{"name":"ถาวรการเกษตร","region":"ใต้"},{"name":"พีพีการเกษตร","region":"ใต้"},{"name":"บ้านเกษตร","region":"ใต้"},{"name":"พงษ์เกษตรภัณฑ์","region":"ใต้"},{"name":"ทุ่งใหญ่การเกษตร 1995 จำกัด","region":"ใต้"},{"name":"อารีการเกษตร","region":"ใต้"},{"name":"ป่าถล่ม","region":"ใต้"},{"name":"บรรดิษฐการเกษตร","region":"ใต้"},{"name":"พรหมบุตรการเกษตร","region":"ใต้"},{"name":"จิตเกษตร","region":"ใต้"},{"name":"สมบูรณ์การเกษตร","region":"ใต้"},{"name":"ณัฐกิตติ์เกษตรภัณฑ์","region":"ใต้"},{"name":"ไก่เกษตร","region":"ใต้"},{"name":"ทุ่งระโนด","region":"ใต้"},{"name":"โกดังเพื่อนเกษตร","region":"ใต้"},{"name":"บ้านหมอการเกษตร","region":"ใต้"},{"name":"วิจิตรการเกษตร","region":"ใต้"},{"name":"เกษตรยิ้ม","region":"ใต้"},{"name":"หัวถนน","region":"ใต้"},{"name":"เอี๊ยวเจริญ","region":"ใต้"},{"name":"อุดมทรัพย์การเกษตร","region":"ใต้"},{"name":"ปรีดากการเกษตร","region":"ใต้"},{"name":"ทุ่งหว้าสหภัณฑ์","region":"ใต้"},{"name":"ไชโย","region":"ใต้"}];
+
+const GIFT_MASTER = [{"name":"เสื้อ 666-639","unit":"ตัว"},{"name":"เสื้อ 30-0-0","unit":"ตัว"},{"name":"เสื้อ 21-0-0","unit":"ตัว"},{"name":"เสื้อยิปซั่ม","unit":"ตัว"},{"name":"เสื้อคนเขียว","unit":"ตัว"},{"name":"ไวนิลคนเขียว","unit":"ผืน"},{"name":"ถุงใน+กระสอบ","unit":"ใบ"},{"name":"เสื้อ 15-10-30","unit":"ตัว"},{"name":"เสื้อลายสก็อต ไก่งวง","unit":"ตัว"},{"name":"เสื้อไก่งวง","unit":"ตัว"},{"name":"ไวนิลเซฟซอย","unit":"ผืน"},{"name":"ไวนิลไก่งวง","unit":"ผืน"},{"name":"เต็นท์คนเขียว","unit":"ชุด"},{"name":"หมวก","unit":"ใบ"},{"name":"PVC 666-639","unit":"แผ่น"},{"name":"PVC 30-0-0","unit":"แผ่น"},{"name":"เสื้อ 46-0-0","unit":"ตัว"},{"name":"เสื้อลายสก็อต คนเขียว","unit":"ตัว"},{"name":"เสื้อ0-0-60","unit":"ตัว"}];
+
+function initShopDatalist() {
+  const dl = document.getElementById('dispatch-shop-list');
+  if (!dl) return;
+  dl.innerHTML = SHOP_MASTER.map(s => `<option value="${s.name}">`).join('');
+}
+
+function autoFillRegion(shopName) {
+  const found = SHOP_MASTER.find(s => s.name === shopName);
+  if (found) {
+    const sel = document.getElementById('dispatch-region');
+    if (sel) sel.value = found.region;
+  }
+}
+
 function switchPromoTab(name) {
-  ["promos","dispatch"].forEach(t => {
+  ["promos","dispatch","region","shops"].forEach(t => {
     document.getElementById(`ptab-${t}`).classList.toggle("hidden", t !== name);
     const btn = document.getElementById(`ptab-btn-${t}`);
     if (t === name) { btn.classList.add("bg-green-600","text-white"); btn.classList.remove("text-gray-500","hover:bg-gray-100"); }
     else { btn.classList.remove("bg-green-600","text-white"); btn.classList.add("text-gray-500","hover:bg-gray-100"); }
   });
   if (name === "dispatch") loadDispatchSummary();
+  if (name === "region") loadRegionSummary();
+  if (name === "shops") renderShopTable();
 }
 
 // ─── GIFT DISPATCH ─────────────────────────────────────────────
@@ -3892,11 +3977,13 @@ async function loadDispatchSummary() {
 }
 
 function renderDispatchTable() {
-  const filterOrder = document.getElementById("dispatch-filter-order")?.value.toLowerCase() || "";
-  const filterGift  = document.getElementById("dispatch-filter-gift")?.value.toLowerCase() || "";
+  const filterOrder  = document.getElementById("dispatch-filter-order")?.value.toLowerCase() || "";
+  const filterGift   = document.getElementById("dispatch-filter-gift")?.value.toLowerCase() || "";
+  const filterRegion = document.getElementById("dispatch-filter-region")?.value || "";
   const rows = dispatchData.filter(r =>
     r.order_id.toLowerCase().includes(filterOrder) &&
-    r.gift_name.toLowerCase().includes(filterGift)
+    r.gift_name.toLowerCase().includes(filterGift) &&
+    (!filterRegion || (r.region || "") === filterRegion)
   );
 
   // Summary cards
@@ -3948,7 +4035,10 @@ async function showDispatchForm(opId = null) {
   document.getElementById("dispatch-date").value = new Date().toISOString().split("T")[0];
   document.getElementById("dispatch-qty").value = "";
   document.getElementById("dispatch-by").value = "";
+  document.getElementById("dispatch-shop").value = "";
+  document.getElementById("dispatch-region").value = "";
   document.getElementById("dispatch-notes").value = "";
+  initShopDatalist();
 
   if (opId) {
     const row = dispatchData.find(r=>r.op_id===opId);
@@ -4004,6 +4094,8 @@ async function submitDispatch() {
         dispatch_date: document.getElementById("dispatch-date").value,
         qty_dispatched: qty,
         dispatched_by: document.getElementById("dispatch-by").value || null,
+        shop_name: document.getElementById("dispatch-shop").value || null,
+        region: document.getElementById("dispatch-region").value || null,
         notes: document.getElementById("dispatch-notes").value || null,
       })
     });
@@ -4025,6 +4117,64 @@ async function deleteDispatch(orderId, opId, dispatchId) {
   await fetch(`${API}/api/promotions/order/${orderId}/${opId}/dispatches/${dispatchId}`, {method:"DELETE"});
   await loadDispatchHistory(orderId, opId);
   await loadDispatchSummary();
+}
+
+async function loadRegionSummary() {
+  const tbody = document.getElementById("region-summary-tbody");
+  if (tbody) tbody.innerHTML = `<tr><td colspan="3" class="text-center text-gray-300 py-6">กำลังโหลด...</td></tr>`;
+  try {
+    const data = await fetch(`${API}/api/promotions/dispatches/region-summary`).then(r=>r.json());
+    if (!data.length) {
+      tbody.innerHTML = `<tr><td colspan="3" class="text-center text-gray-300 py-6">ยังไม่มีข้อมูลการแจก</td></tr>`;
+      return;
+    }
+    // group by region
+    const regionMap = {};
+    data.forEach(r => {
+      if (!regionMap[r.region]) regionMap[r.region] = [];
+      regionMap[r.region].push(r);
+    });
+    const REGION_ORDER = ["อีสานตอนบน","อีสานตอนล่าง","ตะวันออก","กลาง","เหนือ","ใต้","ไม่ระบุ"];
+    const regions = [...new Set([...REGION_ORDER, ...Object.keys(regionMap)])].filter(k => regionMap[k]);
+    tbody.innerHTML = regions.map(region => {
+      const items = regionMap[region];
+      const totalQty = items.reduce((s,i) => s + i.total_qty, 0);
+      return `
+        <tr class="bg-green-50 border-b font-semibold">
+          <td class="px-4 py-2 text-green-800">🗺️ ${region}</td>
+          <td class="px-4 py-2">รวม ${items.length} ประเภท</td>
+          <td class="px-4 py-2 text-right text-green-700">${totalQty.toLocaleString()} ชิ้น</td>
+        </tr>` +
+        items.map(i => `
+        <tr class="border-b hover:bg-gray-50">
+          <td class="px-4 py-2 pl-8 text-gray-500 text-xs">└ ${i.gift_name}</td>
+          <td class="px-4 py-2"></td>
+          <td class="px-4 py-2 text-right text-sm font-semibold">${i.total_qty.toLocaleString()}</td>
+        </tr>`).join("");
+    }).join("");
+  } catch { tbody.innerHTML = `<tr><td colspan="3" class="text-center text-red-300 py-4">โหลดไม่ได้</td></tr>`; }
+}
+
+let shopTableData = null;
+function renderShopTable() {
+  const tbody = document.getElementById("shop-table-body");
+  if (!tbody) return;
+  const search = (document.getElementById("shop-search")?.value || "").toLowerCase();
+  const filterRegion = document.getElementById("shop-filter-region")?.value || "";
+  const rows = SHOP_MASTER.filter(s =>
+    s.name.toLowerCase().includes(search) &&
+    (!filterRegion || s.region === filterRegion)
+  );
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-gray-300 py-6">ไม่พบร้านค้า</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((s,i) => `
+    <tr class="border-b hover:bg-gray-50">
+      <td class="px-4 py-2 text-gray-400 text-xs">${i+1}</td>
+      <td class="px-4 py-2 font-medium">${s.name}</td>
+      <td class="px-4 py-2"><span class="badge bg-blue-100 text-blue-700">${s.region}</span></td>
+    </tr>`).join("");
 }
 
 // ─── ORDER PROMOTIONS (ใน Order form) ────────────────────────
