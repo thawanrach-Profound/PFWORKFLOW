@@ -448,7 +448,16 @@ def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)
 
 
 @router.get("/dispatches/direct", response_model=list[dict])
-def list_direct_dispatches(promo_id: int = None, gift_id: int = None, limit: int = 100, db: Session = Depends(get_db)):
+def list_direct_dispatches(
+    promo_id: int = None,
+    gift_id: int = None,
+    dispatch_type: str = None,
+    shop: str = None,
+    date_from: date = None,
+    date_to: date = None,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
     """รายการแจกของแจกโดยตรง (ทั้งผ่าน promo_shop และตรงจากสต๊อก)"""
     q = db.query(GiftDispatch).filter(GiftDispatch.gift_id.isnot(None))
     if promo_id:
@@ -456,6 +465,14 @@ def list_direct_dispatches(promo_id: int = None, gift_id: int = None, limit: int
              .filter(PromoShop.promotion_id == promo_id)
     if gift_id:
         q = q.filter(GiftDispatch.gift_id == gift_id)
+    if dispatch_type:
+        q = q.filter(GiftDispatch.dispatch_type == dispatch_type)
+    if shop:
+        q = q.filter(GiftDispatch.shop_name.ilike(f"%{shop}%"))
+    if date_from:
+        q = q.filter(GiftDispatch.dispatch_date >= date_from)
+    if date_to:
+        q = q.filter(GiftDispatch.dispatch_date <= date_to)
     rows = q.order_by(GiftDispatch.dispatch_date.desc(), GiftDispatch.dispatch_id.desc()).limit(limit).all()
     return [
         {

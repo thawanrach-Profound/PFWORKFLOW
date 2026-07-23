@@ -996,12 +996,22 @@
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-bold text-sm text-gray-700">📋 ประวัติการแจก</h3>
           <div class="flex gap-2 items-center flex-wrap">
+            <select id="dd-history-type" class="border rounded-lg px-3 py-1.5 text-xs" onchange="loadDirectHistory()">
+              <option value="">ประเภท: ทั้งหมด</option>
+              <option value="dispatch">🎁 แจกให้ร้านค้า</option>
+              <option value="trip_withdrawal">🚗 เซลเบิกออกทริป</option>
+            </select>
+            <input id="dd-history-shop" class="border rounded-lg px-3 py-1.5 text-xs w-36" placeholder="🔍 ค้นหาร้านค้า..." oninput="clearTimeout(window._ddShopT); window._ddShopT=setTimeout(loadDirectHistory,400)"/>
+            <input type="date" id="dd-history-from" class="border rounded-lg px-2 py-1.5 text-xs" onchange="loadDirectHistory()" title="ตั้งแต่วันที่"/>
+            <span class="text-xs text-gray-400">→</span>
+            <input type="date" id="dd-history-to" class="border rounded-lg px-2 py-1.5 text-xs" onchange="loadDirectHistory()" title="ถึงวันที่"/>
             <select id="dd-history-gift" class="border rounded-lg px-3 py-1.5 text-xs" onchange="loadDirectHistory()">
               <option value="">ของแจก: ทั้งหมด</option>
             </select>
             <select id="dd-history-promo" class="border rounded-lg px-3 py-1.5 text-xs" onchange="loadDirectHistory()">
               <option value="">โปรโมชัน: ทั้งหมด</option>
             </select>
+            <button onclick="clearHistoryFilters()" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg" title="ล้างตัวกรอง">✕ ล้าง</button>
             <button onclick="loadDirectHistory()" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg">🔄</button>
           </div>
         </div>
@@ -4565,9 +4575,17 @@ async function loadDirectHistory() {
 
   const promoId = document.getElementById("dd-history-promo")?.value || "";
   const giftId = document.getElementById("dd-history-gift")?.value || "";
+  const dType = document.getElementById("dd-history-type")?.value || "";
+  const shopQ = document.getElementById("dd-history-shop")?.value?.trim() || "";
+  const dateFrom = document.getElementById("dd-history-from")?.value || "";
+  const dateTo = document.getElementById("dd-history-to")?.value || "";
   let url = `${API}/api/promotions/dispatches/direct?limit=100`;
   if (promoId) url += `&promo_id=${promoId}`;
   if (giftId) url += `&gift_id=${giftId}`;
+  if (dType) url += `&dispatch_type=${dType}`;
+  if (shopQ) url += `&shop=${encodeURIComponent(shopQ)}`;
+  if (dateFrom) url += `&date_from=${dateFrom}`;
+  if (dateTo) url += `&date_to=${dateTo}`;
   const data = await fetch(url).then(r=>r.json()).catch(()=>[]);
   const tbody = document.getElementById("dd-history-tbody");
   const empty = document.getElementById("dd-history-empty");
@@ -4600,6 +4618,14 @@ async function loadDirectHistory() {
       </td>
     </tr>`;
   }).join("");
+}
+
+function clearHistoryFilters() {
+  ["dd-history-type","dd-history-shop","dd-history-from","dd-history-to","dd-history-gift","dd-history-promo"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  loadDirectHistory();
 }
 
 async function deleteDirectDispatch(id) {
