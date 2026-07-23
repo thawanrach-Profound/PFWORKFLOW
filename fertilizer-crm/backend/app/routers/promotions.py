@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.crm import Promotion, PromotionGift, OrderPromotion, GiftDispatch, Sales, Customer, OrderItem
+from app.models.crm import Promotion, PromotionGift, PromoShop, OrderPromotion, GiftDispatch, Sales, Customer, OrderItem
 from app.schemas.crm import (
     PromotionCreate, PromotionUpdate, PromotionOut,
     PromotionGiftCreate, PromotionGiftOut, PromotionGiftStockUpdate,
+    PromoShopCreate, PromoShopOut,
     OrderPromotionIn, OrderPromotionOut,
-    GiftDispatchCreate, GiftDispatchOut,
+    GiftDispatchCreate, DirectDispatchCreate, GiftDispatchOut,
 )
 
 router = APIRouter(prefix="/api/promotions", tags=["promotions"])
@@ -28,6 +29,8 @@ def create_promotion(payload: PromotionCreate, db: Session = Depends(get_db)):
     promo = Promotion(
         promo_name=payload.promo_name,
         description=payload.description,
+        product_filter=payload.product_filter,
+        multiplier=payload.multiplier,
         start_date=payload.start_date,
         end_date=payload.end_date,
         is_active=payload.is_active,
@@ -40,7 +43,17 @@ def create_promotion(payload: PromotionCreate, db: Session = Depends(get_db)):
             gift_name=g.gift_name,
             unit=g.unit,
             stock_qty=g.stock_qty,
+            qty_per_ton=g.qty_per_ton,
             notes=g.notes,
+        ))
+    for s in payload.shops:
+        db.add(PromoShop(
+            promotion_id=promo.promotion_id,
+            shop_name=s.shop_name,
+            region=s.region,
+            qty_ton=s.qty_ton,
+            qty_allocated=s.qty_allocated,
+            notes=s.notes,
         ))
     db.commit(); db.refresh(promo)
     return promo
@@ -61,6 +74,7 @@ def update_promotion(promo_id: int, payload: PromotionUpdate, db: Session = Depe
         raise HTTPException(404, "ไม่พบรายการส่งเสริมการขาย")
     data = payload.model_dump(exclude_unset=True)
     gifts_payload = data.pop("gifts", None)
+    shops_payload = data.pop("shops", None)
     for k, v in data.items():
         setattr(p, k, v)
     if gifts_payload is not None:
@@ -69,6 +83,12 @@ def update_promotion(promo_id: int, payload: PromotionUpdate, db: Session = Depe
         db.flush()
         for g in gifts_payload:
             db.add(PromotionGift(promotion_id=promo_id, **g))
+    if shops_payload is not None:
+        for s in list(p.shops):
+            db.delete(s)
+        db.flush()
+        for s in shops_payload:
+            db.add(PromoShop(promotion_id=promo_id, **s))
     db.commit(); db.refresh(p)
     return p
 
@@ -284,6 +304,160 @@ def shop_summary(db: Session = Depends(get_db)):
         .all()
     )
     return [{"shop_name": r.shop_name, "region": r.region, "gift_name": r.gift_name, "total_qty": float(r.total_qty)} for r in rows]
+
+
+# ── PromoShops CRUD ───────────────────────────────────────────
+
+@router.get("/{promo_id}/shops", response_model=list[PromoShopOut])
+def list_promo_shops(promo_id: int, db: Session = Depends(get_db)):
+    if not db.get(Promotion, promo_id):
+        raise HTTPException(404, "ไม่พบรายการส่งเสริมการขาย")
+    return db.query(PromoShop).filter(PromoShop.promotion_id == promo_id).all()
+
+
+@router.post("/{promo_id}/shops", response_model=PromoShopOut, status_code=201)
+def add_promo_shop(promo_id: int, payload: PromoShopCreate, db: Session = Depends(get_db)):
+    if not db.get(Promotion, promo_id):
+        raise HTTPException(404, "ไม่พบรายการส่งเสริมการขาย")
+    s = PromoShop(promotion_id=promo_id, **payload.model_dump())
+    db.add(s); db.commit(); db.refresh(s)
+    return s
+
+
+@router.put("/{promo_id}/shops/{shop_id}", response_model=PromoShopOut)
+def update_promo_shop(promo_id: int, shop_id: int, payload: PromoShopCreate, db: Session = Depends(get_db)):
+    s = db.get(PromoShop, shop_id)
+    if not s or s.promotion_id != promo_id:
+        raise HTTPException(404, "ไม่พบร้านค้า")
+    for k, v in payload.model_dump(exclude_unset=True).items():
+        setattr(s, k, v)
+    db.commit(); db.refresh(s)
+    return s
+
+
+@router.delete("/{promo_id}/shops/{shop_id}", status_code=204)
+def delete_promo_shop(promo_id: int, shop_id: int, db: Session = Depends(get_db)):
+    s = db.get(PromoShop, shop_id)
+    if not s or s.promotion_id != promo_id:
+        raise HTTPException(404, "ไม่พบร้านค้า")
+    db.delete(s); db.commit()
+
+
+# ── Direct Dispatch (แจกตรง promo → shop → gift) ─────────────
+
+@router.post("/dispatches/direct", response_model=GiftDispatchOut, status_code=201)
+def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)):
+    """แจกของแจกโดยตรง: ตรวจสต๊อก + ตัดสต๊อก + อัปเดต promo_shop.qty_dispatched"""
+    shop = db.get(PromoShop, payload.promo_shop_id)
+    if not shop:
+        raise HTTPException(404, "ไม่พบร้านค้าในโปรโมชัน")
+
+    gift = db.get(PromotionGift, payload.gift_id)
+    if not gift:
+        raise HTTPException(404, "ไม่พบของแจก")
+
+    # ตรวจสิทธิ์ร้าน
+    remaining_quota = shop.qty_allocated - shop.qty_dispatched
+    if payload.qty_dispatched > remaining_quota:
+        raise HTTPException(400, f"แจกเกินสิทธิ์ร้าน (สิทธิ์คงเหลือ {remaining_quota} {gift.unit})")
+
+    # ตรวจ stock ของแจก
+    if gift.stock_qty < payload.qty_dispatched:
+        raise HTTPException(400, f"Stock ของแจก '{gift.gift_name}' ไม่พอ (คงเหลือ {gift.stock_qty} {gift.unit})")
+
+    # ตัด stock
+    gift.stock_qty -= payload.qty_dispatched
+    shop.qty_dispatched += payload.qty_dispatched
+
+    d = GiftDispatch(
+        op_id=None,
+        promo_shop_id=payload.promo_shop_id,
+        gift_id=payload.gift_id,
+        dispatch_date=payload.dispatch_date,
+        qty_dispatched=payload.qty_dispatched,
+        dispatched_by=payload.dispatched_by,
+        shop_name=shop.shop_name,
+        region=shop.region,
+        notes=payload.notes,
+    )
+    db.add(d); db.commit(); db.refresh(d)
+    return d
+
+
+@router.get("/dispatches/direct", response_model=list[dict])
+def list_direct_dispatches(promo_id: int = None, db: Session = Depends(get_db)):
+    """รายการแจกของแจกโดยตรง (ผ่าน promo_shop)"""
+    q = db.query(GiftDispatch).filter(GiftDispatch.promo_shop_id.isnot(None))
+    if promo_id:
+        q = q.join(PromoShop, GiftDispatch.promo_shop_id == PromoShop.shop_id)\
+             .filter(PromoShop.promotion_id == promo_id)
+    rows = q.order_by(GiftDispatch.dispatch_date.desc()).all()
+    return [
+        {
+            "dispatch_id": d.dispatch_id,
+            "promo_shop_id": d.promo_shop_id,
+            "gift_id": d.gift_id,
+            "gift_name": d.gift.gift_name if d.gift else "",
+            "gift_unit": d.gift.unit if d.gift else "",
+            "shop_name": d.shop_name,
+            "region": d.region,
+            "dispatch_date": str(d.dispatch_date),
+            "qty_dispatched": float(d.qty_dispatched),
+            "dispatched_by": d.dispatched_by,
+            "notes": d.notes,
+        }
+        for d in rows
+    ]
+
+
+@router.delete("/dispatches/direct/{dispatch_id}", status_code=204)
+def delete_direct_dispatch(dispatch_id: int, db: Session = Depends(get_db)):
+    """ลบบันทึกการแจกตรง — คืน stock และ quota"""
+    d = db.get(GiftDispatch, dispatch_id)
+    if not d or d.promo_shop_id is None:
+        raise HTTPException(404, "ไม่พบบันทึกการแจก")
+    if d.gift:
+        d.gift.stock_qty += d.qty_dispatched
+    if d.promo_shop:
+        d.promo_shop.qty_dispatched -= d.qty_dispatched
+    db.delete(d); db.commit()
+
+
+@router.get("/{promo_id}/gift-stock", response_model=list[dict])
+def get_gift_stock(promo_id: int, db: Session = Depends(get_db)):
+    """รายการสต๊อกของแจกในโปรโมชัน"""
+    if not db.get(Promotion, promo_id):
+        raise HTTPException(404, "ไม่พบรายการส่งเสริมการขาย")
+    gifts = db.query(PromotionGift).filter(PromotionGift.promotion_id == promo_id).all()
+    return [
+        {
+            "gift_id": g.gift_id,
+            "gift_name": g.gift_name,
+            "unit": g.unit,
+            "stock_qty": float(g.stock_qty),
+            "qty_per_ton": float(g.qty_per_ton),
+        }
+        for g in gifts
+    ]
+
+
+@router.get("/gifts/all-stock", response_model=list[dict])
+def all_gift_stock(db: Session = Depends(get_db)):
+    """รายการสต๊อกของแจกทั้งหมดทุกโปรโมชัน"""
+    from sqlalchemy.orm import joinedload
+    gifts = db.query(PromotionGift).join(Promotion).options(joinedload(PromotionGift.promotion)).all()
+    return [
+        {
+            "gift_id": g.gift_id,
+            "promotion_id": g.promotion_id,
+            "promo_name": g.promotion.promo_name if g.promotion else "",
+            "gift_name": g.gift_name,
+            "unit": g.unit,
+            "stock_qty": float(g.stock_qty),
+            "qty_per_ton": float(g.qty_per_ton),
+        }
+        for g in gifts
+    ]
 
 
 @router.get("/{promo_id}/shop-dispatch-status", response_model=list[dict])

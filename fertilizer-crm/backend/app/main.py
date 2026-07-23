@@ -30,6 +30,27 @@ MIGRATIONS = [
     "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS region VARCHAR(50)",
     # 2026-07: add qty_per_ton to promotion_gifts
     "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS qty_per_ton NUMERIC(10,2) DEFAULT 0",
+    # 2026-07: add product_filter and multiplier to promotions
+    "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS product_filter TEXT",
+    "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS multiplier NUMERIC(10,2) DEFAULT 0",
+    # 2026-07: create promo_shops table
+    """CREATE TABLE IF NOT EXISTS promo_shops (
+        shop_id         SERIAL          PRIMARY KEY,
+        promotion_id    INT             NOT NULL REFERENCES promotions(promotion_id) ON DELETE CASCADE,
+        shop_name       VARCHAR(200)    NOT NULL,
+        region          VARCHAR(50),
+        qty_ton         NUMERIC(12,2)   NOT NULL DEFAULT 0,
+        qty_allocated   NUMERIC(12,2)   NOT NULL DEFAULT 0,
+        qty_dispatched  NUMERIC(12,2)   NOT NULL DEFAULT 0,
+        notes           TEXT,
+        created_at      TIMESTAMPTZ     NOT NULL DEFAULT now()
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_promo_shops_promo ON promo_shops(promotion_id)",
+    # 2026-07: add promo_shop_id and gift_id FK to gift_dispatches
+    "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS promo_shop_id INT REFERENCES promo_shops(shop_id) ON DELETE SET NULL",
+    "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS gift_id INT REFERENCES promotion_gifts(gift_id) ON DELETE SET NULL",
+    # 2026-07: make op_id nullable in gift_dispatches
+    "ALTER TABLE gift_dispatches ALTER COLUMN op_id DROP NOT NULL",
 ]
 
 def run_migrations():

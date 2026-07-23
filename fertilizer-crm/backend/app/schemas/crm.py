@@ -411,34 +411,61 @@ class PromotionGiftOut(BaseModel):
 class PromotionGiftStockUpdate(BaseModel):
     stock_qty: Decimal
 
+class PromoShopCreate(BaseModel):
+    shop_name: str
+    region: Optional[str] = None
+    qty_ton: Decimal = Decimal("0")
+    qty_allocated: Decimal = Decimal("0")
+    notes: Optional[str] = None
+
+class PromoShopOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    shop_id: int
+    promotion_id: int
+    shop_name: str
+    region: Optional[str]
+    qty_ton: Decimal
+    qty_allocated: Decimal
+    qty_dispatched: Decimal
+    notes: Optional[str]
+
 class PromotionCreate(BaseModel):
     promo_name: str
     description: Optional[str] = None
+    product_filter: Optional[str] = None
+    multiplier: Decimal = Decimal("0")
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     is_active: bool = True
     notes: Optional[str] = None
     gifts: list[PromotionGiftCreate] = []
+    shops: list[PromoShopCreate] = []
 
 class PromotionUpdate(BaseModel):
     promo_name: Optional[str] = None
     description: Optional[str] = None
+    product_filter: Optional[str] = None
+    multiplier: Optional[Decimal] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
     gifts: Optional[list[PromotionGiftCreate]] = None
+    shops: Optional[list[PromoShopCreate]] = None
 
 class PromotionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     promotion_id: int
     promo_name: str
     description: Optional[str]
+    product_filter: Optional[str]
+    multiplier: Optional[Decimal]
     start_date: Optional[date]
     end_date: Optional[date]
     is_active: bool
     notes: Optional[str]
     gifts: list[PromotionGiftOut] = []
+    shops: list[PromoShopOut] = []
 
 class OrderPromotionIn(BaseModel):
     promotion_id: int
@@ -454,10 +481,19 @@ class GiftDispatchCreate(BaseModel):
     region: Optional[str] = None
     notes: Optional[str] = None
 
+class DirectDispatchCreate(BaseModel):
+    """แจกของแจกโดยตรงจากโปรโมชัน → ร้าน → ของแจก (ไม่ผ่าน order)"""
+    promo_shop_id: int
+    gift_id: int
+    dispatch_date: date
+    qty_dispatched: Decimal
+    dispatched_by: Optional[str] = None
+    notes: Optional[str] = None
+
 class GiftDispatchOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     dispatch_id: int
-    op_id: int
+    op_id: Optional[int]
     dispatch_date: date
     qty_dispatched: Decimal
     dispatched_by: Optional[str]

@@ -327,6 +327,23 @@ CREATE TABLE IF NOT EXISTS promotion_gifts (
 );
 
 -- ============================================================
+-- 16b. PROMO SHOPS (ร้านค้าที่เข้าร่วมโปรโมชัน)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS promo_shops (
+    shop_id         SERIAL          PRIMARY KEY,
+    promotion_id    INT             NOT NULL REFERENCES promotions(promotion_id) ON DELETE CASCADE,
+    shop_name       VARCHAR(200)    NOT NULL,
+    region          VARCHAR(50),
+    qty_ton         NUMERIC(12,2)   NOT NULL DEFAULT 0,  -- ตันที่ซื้อ
+    qty_allocated   NUMERIC(12,2)   NOT NULL DEFAULT 0,  -- สิทธิ์รับของแจก = qty_ton × multiplier
+    qty_dispatched  NUMERIC(12,2)   NOT NULL DEFAULT 0,  -- แจกไปแล้ว (อัปเดตเมื่อ dispatch)
+    notes           TEXT,
+    created_at      TIMESTAMPTZ     NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_promo_shops_promo ON promo_shops(promotion_id);
+
+-- ============================================================
 -- 17. ORDER PROMOTIONS (โปรโมชันที่ใช้ใน Order + ตัด stock)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS order_promotions (

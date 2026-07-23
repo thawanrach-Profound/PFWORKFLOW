@@ -329,17 +329,37 @@ class RmSale(Base):
 # ── Promotions (รายการส่งเสริมการขาย) ───────────────────────
 class Promotion(Base):
     __tablename__ = "promotions"
-    promotion_id = Column(Integer, primary_key=True, autoincrement=True)
-    promo_name   = Column(String(200), nullable=False)
-    description  = Column(Text)
-    start_date   = Column(Date)
-    end_date     = Column(Date)
-    is_active    = Column(Boolean, default=True)
-    notes        = Column(Text)
-    created_at   = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at   = Column(DateTime(timezone=True), server_default=func.now())
+    promotion_id      = Column(Integer, primary_key=True, autoincrement=True)
+    promo_name        = Column(String(200), nullable=False)
+    description       = Column(Text)
+    product_filter    = Column(Text)            # สินค้าที่เข้าร่วม เช่น "ทุกสูตร ยกเว้น 30-0-0"
+    multiplier        = Column(Numeric(10, 2), default=0)  # ชิ้น/ตัน
+    start_date        = Column(Date)
+    end_date          = Column(Date)
+    is_active         = Column(Boolean, default=True)
+    notes             = Column(Text)
+    created_at        = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at        = Column(DateTime(timezone=True), server_default=func.now())
 
     gifts = relationship("PromotionGift", back_populates="promotion", cascade="all, delete-orphan")
+    shops = relationship("PromoShop", back_populates="promotion", cascade="all, delete-orphan")
+
+
+class PromoShop(Base):
+    """ร้านค้าที่เข้าร่วมโปรโมชัน พร้อมโควต้าของแจก"""
+    __tablename__ = "promo_shops"
+    shop_id        = Column(Integer, primary_key=True, autoincrement=True)
+    promotion_id   = Column(Integer, ForeignKey("promotions.promotion_id", ondelete="CASCADE"), nullable=False)
+    shop_name      = Column(String(200), nullable=False)
+    region         = Column(String(50))
+    qty_ton        = Column(Numeric(12, 2), default=0)       # ตันที่ซื้อ
+    qty_allocated  = Column(Numeric(12, 2), default=0)       # โควต้า = qty_ton × multiplier
+    qty_dispatched = Column(Numeric(12, 2), default=0)       # แจกแล้ว (running total)
+    notes          = Column(Text)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+
+    promotion  = relationship("Promotion", back_populates="shops")
+    dispatches = relationship("GiftDispatch", back_populates="promo_shop")
 
 
 class PromotionGift(Base):
@@ -378,7 +398,9 @@ class OrderPromotion(Base):
 class GiftDispatch(Base):
     __tablename__ = "gift_dispatches"
     dispatch_id    = Column(Integer, primary_key=True, autoincrement=True)
-    op_id          = Column(Integer, ForeignKey("order_promotions.op_id", ondelete="CASCADE"), nullable=False)
+    op_id          = Column(Integer, ForeignKey("order_promotions.op_id", ondelete="CASCADE"), nullable=True)
+    promo_shop_id  = Column(Integer, ForeignKey("promo_shops.shop_id", ondelete="SET NULL"), nullable=True)
+    gift_id        = Column(Integer, ForeignKey("promotion_gifts.gift_id", ondelete="SET NULL"), nullable=True)
     dispatch_date  = Column(Date, nullable=False, server_default=func.current_date())
     qty_dispatched = Column(Numeric(12, 2), nullable=False)
     dispatched_by  = Column(String(100))
@@ -388,3 +410,5 @@ class GiftDispatch(Base):
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     order_promotion = relationship("OrderPromotion", back_populates="dispatches")
+    promo_shop      = relationship("PromoShop", back_populates="dispatches")
+    gift            = relationship("PromotionGift")
