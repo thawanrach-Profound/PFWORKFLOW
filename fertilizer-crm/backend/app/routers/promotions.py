@@ -48,6 +48,9 @@ def create_promotion(payload: PromotionCreate, db: Session = Depends(get_db)):
             unit=g.unit,
             stock_qty=g.stock_qty,
             qty_per_ton=g.qty_per_ton,
+            dead_stock_qty=g.dead_stock_qty,
+            gift_image_url=g.gift_image_url,
+            team=g.team,
             notes=g.notes,
         ))
     for s in payload.shops:
@@ -212,6 +215,11 @@ def delete_gift(promo_id: int, gift_id: int, db: Session = Depends(get_db)):
     g = db.get(PromotionGift, gift_id)
     if not g or g.promotion_id != promo_id:
         raise HTTPException(404, "ไม่พบของแจก")
+    used = db.query(OrderPromotion).filter(OrderPromotion.gift_id == gift_id).count()
+    if used:
+        raise HTTPException(400, f"ลบของแจก '{g.gift_name}' ไม่ได้ — มี order ใช้อยู่ {used} รายการ")
+    db.query(GiftDispatch).filter(GiftDispatch.gift_id == gift_id)\
+        .update({"gift_id": None}, synchronize_session=False)
     db.delete(g); db.commit()
 
 
@@ -422,6 +430,9 @@ def delete_promo_shop(promo_id: int, shop_id: int, db: Session = Depends(get_db)
 @router.post("/dispatches/direct", response_model=GiftDispatchOut, status_code=201)
 def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)):
     """แจกของแจกโดยตรง: ตัดสต๊อก — promo_shop_id optional"""
+    if payload.qty_dispatched <= 0:
+        raise HTTPException(400, "จำนวนที่แจกต้องมากกว่า 0")
+
     gift = db.get(PromotionGift, payload.gift_id)
     if not gift:
         raise HTTPException(404, "ไม่พบของแจก")
@@ -436,13 +447,14 @@ def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)
     # ถ้ามี promo_shop_id → ตรวจ/ตัดโควต้าร้านด้วย
     if payload.promo_shop_id:
         shop = db.get(PromoShop, payload.promo_shop_id)
-        if shop:
-            remaining_quota = shop.qty_allocated - shop.qty_dispatched
-            if payload.qty_dispatched > remaining_quota:
-                raise HTTPException(400, f"แจกเกินสิทธิ์ร้าน (สิทธิ์คงเหลือ {remaining_quota} {gift.unit})")
-            shop.qty_dispatched += payload.qty_dispatched
-            shop_name = shop_name or shop.shop_name
-            region = region or shop.region
+        if not shop:
+            raise HTTPException(404, "ไม่พบร้านค้าในโปรโมชัน")
+        remaining_quota = shop.qty_allocated - shop.qty_dispatched
+        if payload.qty_dispatched > remaining_quota:
+            raise HTTPException(400, f"แจกเกินสิทธิ์ร้าน (สิทธิ์คงเหลือ {remaining_quota} {gift.unit})")
+        shop.qty_dispatched += payload.qty_dispatched
+        shop_name = shop_name or shop.shop_name
+        region = region or shop.region
 
     gift.stock_qty -= payload.qty_dispatched
 
