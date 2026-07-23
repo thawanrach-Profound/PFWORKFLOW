@@ -4018,27 +4018,6 @@ async function loadPromotions() {
       ${p.multiplier ? `<p class="text-xs text-purple-600 mb-1">⚖️ เงื่อนไข: ตัน × ${p.multiplier} = ของแจก</p>` : ''}
       ${p.description ? `<p class="text-xs text-gray-500 mb-2">${p.description}</p>` : ''}
 
-      <!-- ของแจก -->
-      <div class="border-t pt-3">
-        <div class="flex justify-between items-center mb-2">
-          <p class="text-xs font-semibold text-gray-600">🎁 ของแจก</p>
-        </div>
-        ${(p.gifts||[]).length === 0 ? '<p class="text-xs text-gray-300">ยังไม่มีของแจก</p>' :
-          `<table class="w-full text-xs">
-            <thead><tr class="text-gray-400"><th class="text-left pb-1">ของแจก</th><th class="text-center pb-1">หน่วย</th><th class="text-center pb-1">ชิ้น/ตัน</th><th class="pb-1"></th></tr></thead>
-            <tbody>${(p.gifts||[]).map(g=>`
-              <tr class="border-t">
-                <td class="py-1.5">${g.gift_name}</td>
-                <td class="py-1.5 text-center">${g.unit}</td>
-                <td class="py-1.5 text-center ${g.qty_per_ton>0?'text-blue-600 font-semibold':'text-gray-300'}">${g.qty_per_ton>0?g.qty_per_ton:'-'}</td>
-                <td class="py-1.5 text-right">
-                  <button onclick="deleteGift(${p.promotion_id},${g.gift_id})" class="text-xs text-red-400 hover:underline">ลบ</button>
-                </td>
-              </tr>`).join("")}
-            </tbody>
-          </table>`}
-      </div>
-
       <!-- ร้านค้า -->
       <div class="border-t pt-3 mt-2">
         <div class="flex justify-between items-center mb-2">
