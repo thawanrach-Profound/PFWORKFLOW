@@ -898,7 +898,8 @@
     <!-- Sub-tabs -->
     <div class="flex gap-1 bg-white rounded-xl shadow px-4 py-2">
       <button id="ptab-btn-promos" onclick="switchPromoTab('promos')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white">🎁 รายการโปรโมชัน</button>
-      <button id="ptab-btn-dispatch" onclick="switchPromoTab('dispatch')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📦 การแจกของแจก</button>
+      <button id="ptab-btn-dispatch" onclick="switchPromoTab('dispatch')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📤 แจกของแจก</button>
+      <button id="ptab-btn-gift-stock" onclick="switchPromoTab('gift-stock')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📦 สต๊อกของแจก</button>
       <button id="ptab-btn-region" onclick="switchPromoTab('region')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">🗺️ สรุปรายภาค</button>
       <button id="ptab-btn-shops" onclick="switchPromoTab('shops')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">🏪 ร้านค้า</button>
     </div>
@@ -912,43 +913,124 @@
       <p id="promo-empty" class="hidden text-center text-gray-300 py-10">ยังไม่มีรายการส่งเสริมการขาย</p>
     </div>
 
-    <!-- SUB-TAB: การแจกของแจก -->
+    <!-- SUB-TAB: แจกของแจก (Direct Dispatch) -->
     <div id="ptab-dispatch" class="hidden">
 
-      <!-- Filter + ปุ่มเพิ่ม -->
-      <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-end">
-        <input id="dispatch-filter-order" placeholder="ค้นหา Order ID..." class="border rounded-lg px-3 py-2 text-xs w-44"/>
-        <input id="dispatch-filter-gift" placeholder="ค้นหาของแจก..." class="border rounded-lg px-3 py-2 text-xs w-44"/>
-        <select id="dispatch-filter-region" class="border rounded-lg px-3 py-2 text-xs" onchange="renderDispatchTable()">
-          <option value="">ภาค: ทั้งหมด</option>
-          <option>อีสานตอนบน</option><option>อีสานตอนล่าง</option>
-          <option>ตะวันออก</option><option>กลาง</option><option>เหนือ</option><option>ใต้</option>
-        </select>
-        <button onclick="loadDispatchSummary()" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg">🔄 โหลด</button>
+      <!-- Step 1: เลือกโปรโมชัน -->
+      <div class="bg-white rounded-xl shadow px-4 py-4 space-y-4">
+        <h3 class="font-bold text-sm text-green-700">📤 บันทึกการแจกของแจก</h3>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="form-label">1. เลือกโปรโมชัน *</label>
+            <select id="dd-promo-select" class="form-input" onchange="onDdPromoChange()">
+              <option value="">-- เลือกโปรโมชัน --</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">2. เลือกร้านค้า *</label>
+            <select id="dd-shop-select" class="form-input" onchange="onDdShopChange()" disabled>
+              <option value="">-- เลือกร้านค้า --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Shop quota info -->
+        <div id="dd-shop-info" class="hidden bg-blue-50 rounded-lg p-3 text-xs">
+          <p class="text-blue-700 font-semibold" id="dd-shop-info-text"></p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div>
+            <label class="form-label">3. ของแจก *</label>
+            <select id="dd-gift-select" class="form-input" disabled>
+              <option value="">-- เลือกของแจก --</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">4. จำนวน *</label>
+            <input type="number" id="dd-qty" step="1" min="1" class="form-input text-right" placeholder="0" disabled/>
+          </div>
+          <div>
+            <label class="form-label">วันที่แจก *</label>
+            <input type="date" id="dd-date" class="form-input"/>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label">ผู้แจก</label>
+            <input id="dd-by" class="form-input" placeholder="ชื่อผู้แจก"/>
+          </div>
+          <div>
+            <label class="form-label">หมายเหตุ</label>
+            <input id="dd-notes" class="form-input" placeholder="เพิ่มเติม..."/>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button onclick="submitDirectDispatch()" class="flex-1 btn-primary">💾 บันทึกการแจก</button>
+          <button onclick="resetDirectDispatch()" class="btn-secondary">รีเซ็ต</button>
+        </div>
       </div>
 
-      <!-- Summary Cards -->
-      <div id="dispatch-summary-cards" class="grid grid-cols-2 gap-3 sm:grid-cols-4 mt-2"></div>
+      <!-- ประวัติการแจก -->
+      <div class="bg-white rounded-xl shadow px-4 py-3 mt-3">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-sm text-gray-700">📋 ประวัติการแจก</h3>
+          <div class="flex gap-2 items-center">
+            <select id="dd-history-promo" class="border rounded-lg px-3 py-1.5 text-xs" onchange="loadDirectHistory()">
+              <option value="">โปรโมชัน: ทั้งหมด</option>
+            </select>
+            <button onclick="loadDirectHistory()" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg">🔄</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="bg-gray-50 text-gray-500">
+              <tr>
+                <th class="px-3 py-2 text-left">ร้านค้า / ภาค</th>
+                <th class="px-3 py-2 text-left">ของแจก</th>
+                <th class="px-3 py-2 text-right">จำนวน</th>
+                <th class="px-3 py-2 text-left">วันที่</th>
+                <th class="px-3 py-2 text-left">ผู้แจก</th>
+                <th class="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody id="dd-history-tbody"></tbody>
+          </table>
+          <p id="dd-history-empty" class="text-center text-gray-300 py-6">ยังไม่มีประวัติการแจก</p>
+        </div>
+      </div>
 
-      <!-- Table -->
-      <div class="bg-white rounded-xl shadow overflow-x-auto mt-2">
+    </div>
+
+    <!-- SUB-TAB: สต๊อกของแจก -->
+    <div id="ptab-gift-stock" class="hidden">
+      <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-center mb-3">
+        <h3 class="font-bold text-sm text-indigo-700">📦 สต๊อกของแจกทั้งหมด</h3>
+        <select id="gs-filter-promo" class="border rounded-lg px-3 py-1.5 text-xs ml-auto" onchange="loadGiftStock()">
+          <option value="">โปรโมชัน: ทั้งหมด</option>
+        </select>
+        <button onclick="loadGiftStock()" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg">🔄 รีเฟรช</button>
+      </div>
+      <div class="bg-white rounded-xl shadow overflow-x-auto">
         <table class="w-full text-xs">
-          <thead class="bg-gray-50 text-gray-500">
+          <thead class="bg-indigo-50 text-indigo-700">
             <tr>
-              <th class="px-3 py-2 text-left">Order ID</th>
+              <th class="px-3 py-2 text-left">โปรโมชัน</th>
               <th class="px-3 py-2 text-left">ของแจก</th>
-              <th class="px-3 py-2 text-left">ร้านค้า / ภาค</th>
-              <th class="px-3 py-2 text-right">แผน</th>
-              <th class="px-3 py-2 text-right">แจกแล้ว</th>
-              <th class="px-3 py-2 text-right">คงค้าง</th>
+              <th class="px-3 py-2 text-center">หน่วย</th>
+              <th class="px-3 py-2 text-center">ชิ้น/ตัน</th>
+              <th class="px-3 py-2 text-right">Stock คงเหลือ</th>
               <th class="px-3 py-2 text-center">สถานะ</th>
               <th class="px-3 py-2"></th>
             </tr>
           </thead>
-          <tbody id="dispatch-table-body"></tbody>
+          <tbody id="gift-stock-tbody"></tbody>
         </table>
+        <p id="gift-stock-empty" class="hidden text-center text-gray-300 py-8">ยังไม่มีของแจก</p>
       </div>
-
     </div>
 
     <!-- SUB-TAB: สรุปรายภาค -->
@@ -1275,6 +1357,10 @@
         </div>
       </div>
       <div>
+        <label class="form-label">สินค้าที่เข้าร่วม</label>
+        <input id="promo-product-filter" class="form-input" placeholder="เช่น ทุกสูตร ยกเว้น 30-0-0"/>
+      </div>
+      <div>
         <label class="form-label">คำอธิบาย</label>
         <textarea id="promo-desc" rows="2" class="form-input" placeholder="รายละเอียดโปรโมชัน..."></textarea>
       </div>
@@ -1295,6 +1381,23 @@
         <div id="gift-rows" class="space-y-2"></div>
       </div>
 
+      <!-- ร้านค้าที่เข้าร่วม -->
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <div>
+            <label class="text-xs font-semibold text-gray-700">ร้านค้าที่เข้าร่วม</label>
+            <span class="text-xs text-gray-400 ml-2">เงื่อนไข: ตัน ×</span>
+            <input type="number" id="promo-multiplier" step="0.5" min="0" class="border rounded px-2 py-0.5 text-xs w-16 text-center ml-1" placeholder="0" title="ค่าคงที่ ชิ้น/ตัน"/>
+            <span class="text-xs text-gray-400 ml-1">= ของแจก</span>
+          </div>
+          <button type="button" onclick="addShopRow()" class="text-xs text-orange-600 font-semibold">+ เพิ่มร้าน</button>
+        </div>
+        <div class="grid text-xs text-gray-400 mb-1 px-1" style="grid-template-columns:1fr 100px 90px 90px 24px">
+          <span>ชื่อร้านค้า</span><span class="text-center">ภาค</span><span class="text-center">ตัน</span><span class="text-center">สิทธิ์รับ</span><span></span>
+        </div>
+        <div id="shop-rows" class="space-y-2"></div>
+      </div>
+
       <div class="flex gap-2 pt-1">
         <button onclick="submitPromoForm()" class="flex-1 btn-primary">💾 บันทึก</button>
         <button onclick="document.getElementById('modal-promo-form').classList.add('hidden')" class="btn-secondary">ยกเลิก</button>
@@ -1302,6 +1405,9 @@
     </div>
   </div>
 </div>
+
+<!-- datalist สำหรับ autocomplete ร้านค้าในฟอร์มโปรโมชัน -->
+<datalist id="shop-master-list"></datalist>
 
 <!-- ══════════════ MODAL: GIFT STOCK UPDATE ══════════════ -->
 <div id="modal-gift-stock" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-3">
@@ -3791,7 +3897,11 @@ async function loadPromotions() {
 
   if (!promoData.length) { list.innerHTML=""; empty.classList.remove("hidden"); return; }
   empty.classList.add("hidden");
-  list.innerHTML = promoData.map(p => `
+  list.innerHTML = promoData.map(p => {
+    const totalShops = (p.shops||[]).length;
+    const totalAlloc = (p.shops||[]).reduce((s,sh)=>s+parseFloat(sh.qty_allocated||0),0);
+    const totalDispatched = (p.shops||[]).reduce((s,sh)=>s+parseFloat(sh.qty_dispatched||0),0);
+    return `
     <div class="bg-white rounded-xl shadow p-4">
       <div class="flex flex-wrap gap-2 items-start justify-between mb-3">
         <div>
@@ -3804,11 +3914,14 @@ async function loadPromotions() {
           <button onclick="deletePromo(${p.promotion_id})" class="text-xs text-red-500 hover:underline">🗑️ ลบ</button>
         </div>
       </div>
-      ${p.description ? `<p class="text-xs text-gray-500 mb-3">${p.description}</p>` : ''}
+      ${p.product_filter ? `<p class="text-xs text-blue-600 mb-1">📋 สินค้าร่วม: ${p.product_filter}</p>` : ''}
+      ${p.multiplier ? `<p class="text-xs text-purple-600 mb-1">⚖️ เงื่อนไข: ตัน × ${p.multiplier} = ของแจก</p>` : ''}
+      ${p.description ? `<p class="text-xs text-gray-500 mb-2">${p.description}</p>` : ''}
+
+      <!-- ของแจก -->
       <div class="border-t pt-3">
         <div class="flex justify-between items-center mb-2">
           <p class="text-xs font-semibold text-gray-600">🎁 ของแจก</p>
-          <button onclick="showAddGiftModal(${p.promotion_id})" class="text-xs text-purple-600 hover:underline">+ เพิ่มของแจก</button>
         </div>
         ${(p.gifts||[]).length === 0 ? '<p class="text-xs text-gray-300">ยังไม่มีของแจก</p>' :
           `<table class="w-full text-xs">
@@ -3820,29 +3933,35 @@ async function loadPromotions() {
                 <td class="py-1.5 text-center ${g.qty_per_ton>0?'text-blue-600 font-semibold':'text-gray-300'}">${g.qty_per_ton>0?g.qty_per_ton:'-'}</td>
                 <td class="py-1.5 text-right font-semibold ${g.stock_qty<=0?'text-red-500':'text-green-700'}">${g.stock_qty}</td>
                 <td class="py-1.5 text-right">
-                  <button onclick="showGiftStock(${p.promotion_id},${g.gift_id},'${g.gift_name.replace(/'/g,"\\'")}',${g.stock_qty})" class="text-xs text-blue-500 hover:underline mr-2">📦 อัปเดต Stock</button>
+                  <button onclick="showGiftStock(${p.promotion_id},${g.gift_id},'${g.gift_name.replace(/'/g,"\\'")}',${g.stock_qty})" class="text-xs text-blue-500 hover:underline mr-2">📦 อัปเดต</button>
                   <button onclick="deleteGift(${p.promotion_id},${g.gift_id})" class="text-xs text-red-400 hover:underline">ลบ</button>
                 </td>
               </tr>`).join("")}
             </tbody>
           </table>`}
       </div>
-      <!-- ตารางแจกรายร้าน -->
+
+      <!-- ร้านค้า -->
       <div class="border-t pt-3 mt-2">
         <div class="flex justify-between items-center mb-2">
-          <p class="text-xs font-semibold text-gray-600">🏪 ตารางแจกรายร้าน (แยกตามภาค)</p>
+          <p class="text-xs font-semibold text-gray-600">🏪 ร้านค้า (${totalShops} ร้าน | สิทธิ์รวม: ${totalAlloc} | แจกแล้ว: ${totalDispatched})</p>
           <button onclick="toggleShopDispatch(${p.promotion_id})" id="shop-dispatch-toggle-${p.promotion_id}"
             class="text-xs text-orange-600 hover:underline font-semibold">▼ ดูตาราง</button>
         </div>
         <div id="shop-dispatch-${p.promotion_id}" class="hidden"></div>
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
+
+  // populate promo dropdowns in other tabs
+  populateDdPromoSelect();
 }
 
 function showPromoForm(promoId = null) {
   document.getElementById("promo-edit-id").value = promoId || "";
   document.getElementById("promo-form-title").textContent = promoId ? "✏️ แก้ไขโปรโมชัน" : "🎁 เพิ่มรายการส่งเสริมการขาย";
   document.getElementById("gift-rows").innerHTML = "";
+  document.getElementById("shop-rows").innerHTML = "";
 
   if (promoId) {
     const p = promoData.find(x=>x.promotion_id===promoId);
@@ -3851,17 +3970,60 @@ function showPromoForm(promoId = null) {
       document.getElementById("promo-start").value = p.start_date||"";
       document.getElementById("promo-end").value = p.end_date||"";
       document.getElementById("promo-desc").value = p.description||"";
+      document.getElementById("promo-product-filter").value = p.product_filter||"";
+      document.getElementById("promo-multiplier").value = p.multiplier||0;
       document.getElementById("promo-active").checked = p.is_active;
       (p.gifts||[]).forEach(g => addGiftRow(g));
+      (p.shops||[]).forEach(s => addShopRow(s));
     }
   } else {
     document.getElementById("promo-name-input").value = "";
     document.getElementById("promo-start").value = "";
     document.getElementById("promo-end").value = "";
     document.getElementById("promo-desc").value = "";
+    document.getElementById("promo-product-filter").value = "";
+    document.getElementById("promo-multiplier").value = 0;
     document.getElementById("promo-active").checked = true;
   }
   document.getElementById("modal-promo-form").classList.remove("hidden");
+}
+
+let _shopSeq = 0;
+function addShopRow(data={}) {
+  _shopSeq++;
+  const id = _shopSeq;
+  const multiplier = parseFloat(document.getElementById("promo-multiplier").value)||0;
+  const qtyTon = parseFloat(data.qty_ton)||0;
+  const qtyAlloc = data.qty_allocated != null ? parseFloat(data.qty_allocated) : (qtyTon * multiplier);
+  const div = document.createElement("div");
+  div.id = `shop-row-${id}`;
+  div.className = "flex gap-2 items-center";
+  div.innerHTML = `
+    <input class="form-input flex-1" list="shop-master-list" placeholder="ชื่อร้านค้า" value="${data.shop_name||''}" oninput="autoFillShopRegion(this, 'shop-row-region-${id}')"/>
+    <select id="shop-row-region-${id}" class="form-input w-28 text-xs">
+      <option value="">-- ภาค --</option>
+      <option ${data.region==='อีสานตอนบน'?'selected':''}>อีสานตอนบน</option>
+      <option ${data.region==='อีสานตอนล่าง'?'selected':''}>อีสานตอนล่าง</option>
+      <option ${data.region==='ตะวันออก'?'selected':''}>ตะวันออก</option>
+      <option ${data.region==='กลาง'?'selected':''}>กลาง</option>
+      <option ${data.region==='เหนือ'?'selected':''}>เหนือ</option>
+      <option ${data.region==='ใต้'?'selected':''}>ใต้</option>
+    </select>
+    <input type="number" step="0.5" min="0" class="form-input w-20 text-right" placeholder="ตัน" value="${qtyTon}" oninput="recalcShopAlloc(this, 'shop-row-alloc-${id}')"/>
+    <input type="number" id="shop-row-alloc-${id}" step="1" min="0" class="form-input w-20 text-right bg-gray-50" placeholder="สิทธิ์" value="${qtyAlloc}" readonly/>
+    <button type="button" onclick="document.getElementById('shop-row-${id}').remove()" class="text-red-400 hover:text-red-600 text-sm">✕</button>`;
+  document.getElementById("shop-rows").appendChild(div);
+}
+
+function recalcShopAlloc(tonInput, allocId) {
+  const multiplier = parseFloat(document.getElementById("promo-multiplier").value)||0;
+  const ton = parseFloat(tonInput.value)||0;
+  document.getElementById(allocId).value = (ton * multiplier).toFixed(0);
+}
+
+function autoFillShopRegion(nameInput, regionSelectId) {
+  const found = SHOP_MASTER.find(s => s.name === nameInput.value);
+  if (found) document.getElementById(regionSelectId).value = found.region;
 }
 
 let _giftSeq = 0;
@@ -3896,13 +4058,28 @@ async function submitPromoForm() {
     };
   }).filter(g=>g.gift_name);
 
+  const shopRowEls = document.querySelectorAll("[id^='shop-row-']:not([id*='-region-']):not([id*='-alloc-'])");
+  const shops = Array.from(shopRowEls).map(row => {
+    const inputs = row.querySelectorAll("input");
+    const sel = row.querySelector("select");
+    return {
+      shop_name: inputs[0].value.trim(),
+      region: sel?.value||"",
+      qty_ton: parseFloat(inputs[1].value)||0,
+      qty_allocated: parseFloat(inputs[2].value)||0,
+    };
+  }).filter(s=>s.shop_name);
+
   const body = {
     promo_name: name,
+    product_filter: document.getElementById("promo-product-filter").value||null,
+    multiplier: parseFloat(document.getElementById("promo-multiplier").value)||0,
     start_date: document.getElementById("promo-start").value||null,
     end_date: document.getElementById("promo-end").value||null,
     description: document.getElementById("promo-desc").value||null,
     is_active: document.getElementById("promo-active").checked,
     gifts,
+    shops,
   };
 
   try {
@@ -3927,7 +4104,7 @@ function showAddGiftModal(promoId) {
   setTimeout(()=>addGiftRow(), 100);
 }
 
-async function toggleShopDispatch(promoId) {
+function toggleShopDispatch(promoId) {
   const container = document.getElementById(`shop-dispatch-${promoId}`);
   const btn = document.getElementById(`shop-dispatch-toggle-${promoId}`);
   if (!container.classList.contains("hidden")) {
@@ -3937,74 +4114,69 @@ async function toggleShopDispatch(promoId) {
   }
   container.classList.remove("hidden");
   btn.textContent = "▲ ซ่อน";
-  container.innerHTML = `<p class="text-xs text-gray-400 text-center py-3">กำลังโหลด...</p>`;
-  try {
-    const data = await fetch(`${API}/api/promotions/${promoId}/shop-dispatch-status`).then(r=>r.json());
-    if (!data.length) {
-      container.innerHTML = `<p class="text-xs text-gray-300 text-center py-3">ยังไม่มีการเชื่อมโปรโมชันกับ Order ใด</p>`;
-      return;
-    }
-    // เพิ่ม region จาก SHOP_MASTER
-    data.forEach(row => {
-      if (!row.region) {
-        const found = SHOP_MASTER.find(s => s.name === row.shop_name);
-        row.region = found ? found.region : "ไม่ระบุ";
-      }
-    });
-    // จัดกลุ่มตามภาค
-    const REGION_ORDER = ["อีสานตอนบน","อีสานตอนล่าง","ตะวันออก","กลาง","เหนือ","ใต้","ไม่ระบุ"];
-    const regionMap = {};
-    data.forEach(r => {
-      const reg = r.region || "ไม่ระบุ";
-      if (!regionMap[reg]) regionMap[reg] = [];
-      regionMap[reg].push(r);
-    });
-    const regions = [...new Set([...REGION_ORDER,...Object.keys(regionMap)])].filter(k=>regionMap[k]);
-    const totalAll = {ton:0,given:0,dispatched:0,remaining:0};
-    let html = `
-      <div class="overflow-x-auto">
-      <table class="w-full text-xs border-collapse">
-        <thead class="bg-orange-50 text-orange-700 sticky top-0">
-          <tr>
-            <th class="px-3 py-2 text-left">ชื่อร้าน</th>
-            <th class="px-3 py-2 text-right">ตัน</th>
-            <th class="px-3 py-2 text-right">สิทธิ์รับ</th>
-            <th class="px-3 py-2 text-right">แจกแล้ว</th>
-            <th class="px-3 py-2 text-right">ค้างแจก</th>
-          </tr>
-        </thead><tbody>`;
-    regions.forEach(region => {
-      const rows = regionMap[region];
-      const regTotal = rows.reduce((s,r)=>({ton:s.ton+r.total_ton,given:s.given+r.qty_given,dispatched:s.dispatched+r.qty_dispatched,remaining:s.remaining+r.qty_remaining}),{ton:0,given:0,dispatched:0,remaining:0});
-      totalAll.ton+=regTotal.ton; totalAll.given+=regTotal.given; totalAll.dispatched+=regTotal.dispatched; totalAll.remaining+=regTotal.remaining;
-      html += `<tr class="bg-yellow-50 font-semibold border-t-2 border-yellow-200">
-        <td class="px-3 py-1.5 text-yellow-800">🗺️ ${region}</td>
-        <td class="px-3 py-1.5 text-right text-yellow-700">${regTotal.ton.toLocaleString()}</td>
-        <td class="px-3 py-1.5 text-right text-yellow-700">${regTotal.given.toLocaleString()}</td>
-        <td class="px-3 py-1.5 text-right text-green-700">${regTotal.dispatched.toLocaleString()}</td>
-        <td class="px-3 py-1.5 text-right ${regTotal.remaining>0?'text-red-600 font-bold':'text-gray-400'}">${regTotal.remaining.toLocaleString()}</td>
-      </tr>`;
-      rows.forEach(r => {
-        html += `<tr class="border-b hover:bg-gray-50">
-          <td class="px-3 py-1.5 pl-7 text-gray-700">${r.shop_name}</td>
-          <td class="px-3 py-1.5 text-right text-gray-500">${r.total_ton>0?r.total_ton:'-'}</td>
-          <td class="px-3 py-1.5 text-right">${r.qty_given}</td>
-          <td class="px-3 py-1.5 text-right text-green-700 font-semibold">${r.qty_dispatched}</td>
-          <td class="px-3 py-1.5 text-right ${r.qty_remaining>0?'text-red-500 font-semibold':'text-gray-300'}">${r.qty_remaining}</td>
-        </tr>`;
-      });
-    });
-    html += `<tr class="bg-gray-100 font-bold border-t-2">
-        <td class="px-3 py-2">รวมทั้งหมด</td>
-        <td class="px-3 py-2 text-right">${totalAll.ton.toLocaleString()}</td>
-        <td class="px-3 py-2 text-right">${totalAll.given.toLocaleString()}</td>
-        <td class="px-3 py-2 text-right text-green-700">${totalAll.dispatched.toLocaleString()}</td>
-        <td class="px-3 py-2 text-right text-red-600">${totalAll.remaining.toLocaleString()}</td>
-      </tr></tbody></table></div>`;
-    container.innerHTML = html;
-  } catch(e) {
-    container.innerHTML = `<p class="text-xs text-red-400 text-center py-3">โหลดไม่ได้: ${e.message}</p>`;
+
+  const promo = promoData.find(p=>p.promotion_id===promoId);
+  const shops = promo?.shops || [];
+  if (!shops.length) {
+    container.innerHTML = `<p class="text-xs text-gray-300 text-center py-3">ยังไม่มีร้านค้าในโปรโมชันนี้</p>`;
+    return;
   }
+
+  const REGION_ORDER = ["อีสานตอนบน","อีสานตอนล่าง","ตะวันออก","กลาง","เหนือ","ใต้","ไม่ระบุ"];
+  const regionMap = {};
+  shops.forEach(s => {
+    const reg = s.region || "ไม่ระบุ";
+    if (!regionMap[reg]) regionMap[reg] = [];
+    regionMap[reg].push(s);
+  });
+  const regions = [...new Set([...REGION_ORDER,...Object.keys(regionMap)])].filter(k=>regionMap[k]);
+  const totalAll = {ton:0,alloc:0,dispatched:0,remaining:0};
+  let html = `<div class="overflow-x-auto">
+    <table class="w-full text-xs border-collapse">
+      <thead class="bg-orange-50 text-orange-700">
+        <tr>
+          <th class="px-3 py-2 text-left">ชื่อร้าน</th>
+          <th class="px-3 py-2 text-right">ตัน</th>
+          <th class="px-3 py-2 text-right">สิทธิ์รับ</th>
+          <th class="px-3 py-2 text-right">แจกแล้ว</th>
+          <th class="px-3 py-2 text-right">ค้างแจก</th>
+        </tr>
+      </thead><tbody>`;
+  regions.forEach(region => {
+    const rows = regionMap[region];
+    const regT = rows.reduce((s,r)=>({
+      ton: s.ton+parseFloat(r.qty_ton||0),
+      alloc: s.alloc+parseFloat(r.qty_allocated||0),
+      dispatched: s.dispatched+parseFloat(r.qty_dispatched||0),
+      remaining: s.remaining+(parseFloat(r.qty_allocated||0)-parseFloat(r.qty_dispatched||0))
+    }),{ton:0,alloc:0,dispatched:0,remaining:0});
+    totalAll.ton+=regT.ton; totalAll.alloc+=regT.alloc; totalAll.dispatched+=regT.dispatched; totalAll.remaining+=regT.remaining;
+    html += `<tr class="bg-yellow-50 font-semibold border-t-2 border-yellow-200">
+      <td class="px-3 py-1.5 text-yellow-800">🗺️ ${region} (${rows.length} ร้าน)</td>
+      <td class="px-3 py-1.5 text-right text-yellow-700">${regT.ton.toLocaleString()}</td>
+      <td class="px-3 py-1.5 text-right text-yellow-700">${regT.alloc.toLocaleString()}</td>
+      <td class="px-3 py-1.5 text-right text-green-700">${regT.dispatched.toLocaleString()}</td>
+      <td class="px-3 py-1.5 text-right ${regT.remaining>0?'text-red-600 font-bold':'text-gray-400'}">${regT.remaining.toLocaleString()}</td>
+    </tr>`;
+    rows.forEach(r => {
+      const remaining = parseFloat(r.qty_allocated||0)-parseFloat(r.qty_dispatched||0);
+      html += `<tr class="border-b hover:bg-gray-50">
+        <td class="px-3 py-1.5 pl-7 text-gray-700">${r.shop_name}</td>
+        <td class="px-3 py-1.5 text-right text-gray-500">${parseFloat(r.qty_ton||0)||'-'}</td>
+        <td class="px-3 py-1.5 text-right">${parseFloat(r.qty_allocated||0)}</td>
+        <td class="px-3 py-1.5 text-right text-green-700 font-semibold">${parseFloat(r.qty_dispatched||0)}</td>
+        <td class="px-3 py-1.5 text-right ${remaining>0?'text-red-500 font-semibold':'text-gray-300'}">${remaining}</td>
+      </tr>`;
+    });
+  });
+  html += `<tr class="bg-gray-100 font-bold border-t-2">
+    <td class="px-3 py-2">รวมทั้งหมด</td>
+    <td class="px-3 py-2 text-right">${totalAll.ton.toLocaleString()}</td>
+    <td class="px-3 py-2 text-right">${totalAll.alloc.toLocaleString()}</td>
+    <td class="px-3 py-2 text-right text-green-700">${totalAll.dispatched.toLocaleString()}</td>
+    <td class="px-3 py-2 text-right text-red-600">${totalAll.remaining.toLocaleString()}</td>
+  </tr></tbody></table></div>`;
+  container.innerHTML = html;
 }
 
 function showGiftStock(promoId, giftId, giftName, stock) {
@@ -4042,9 +4214,11 @@ const SHOP_MASTER = [{"name":"ไพบูรณ์การเกษตร","re
 const GIFT_MASTER = [{"name":"เสื้อ 666-639","unit":"ตัว"},{"name":"เสื้อ 30-0-0","unit":"ตัว"},{"name":"เสื้อ 21-0-0","unit":"ตัว"},{"name":"เสื้อยิปซั่ม","unit":"ตัว"},{"name":"เสื้อคนเขียว","unit":"ตัว"},{"name":"ไวนิลคนเขียว","unit":"ผืน"},{"name":"ถุงใน+กระสอบ","unit":"ใบ"},{"name":"เสื้อ 15-10-30","unit":"ตัว"},{"name":"เสื้อลายสก็อต ไก่งวง","unit":"ตัว"},{"name":"เสื้อไก่งวง","unit":"ตัว"},{"name":"ไวนิลเซฟซอย","unit":"ผืน"},{"name":"ไวนิลไก่งวง","unit":"ผืน"},{"name":"เต็นท์คนเขียว","unit":"ชุด"},{"name":"หมวก","unit":"ใบ"},{"name":"PVC 666-639","unit":"แผ่น"},{"name":"PVC 30-0-0","unit":"แผ่น"},{"name":"เสื้อ 46-0-0","unit":"ตัว"},{"name":"เสื้อลายสก็อต คนเขียว","unit":"ตัว"},{"name":"เสื้อ0-0-60","unit":"ตัว"}];
 
 function initShopDatalist() {
-  const dl = document.getElementById('dispatch-shop-list');
-  if (!dl) return;
-  dl.innerHTML = SHOP_MASTER.map(s => `<option value="${s.name}">`).join('');
+  const opts = SHOP_MASTER.map(s => `<option value="${s.name}">`).join('');
+  const dl1 = document.getElementById('dispatch-shop-list');
+  if (dl1) dl1.innerHTML = opts;
+  const dl2 = document.getElementById('shop-master-list');
+  if (dl2) dl2.innerHTML = opts;
 }
 
 function autoFillRegion(shopName) {
@@ -4056,15 +4230,215 @@ function autoFillRegion(shopName) {
 }
 
 function switchPromoTab(name) {
-  ["promos","dispatch","region","shops"].forEach(t => {
+  ["promos","dispatch","gift-stock","region","shops"].forEach(t => {
     document.getElementById(`ptab-${t}`).classList.toggle("hidden", t !== name);
     const btn = document.getElementById(`ptab-btn-${t}`);
     if (t === name) { btn.classList.add("bg-green-600","text-white"); btn.classList.remove("text-gray-500","hover:bg-gray-100"); }
     else { btn.classList.remove("bg-green-600","text-white"); btn.classList.add("text-gray-500","hover:bg-gray-100"); }
   });
-  if (name === "dispatch") loadDispatchSummary();
+  if (name === "dispatch") { populateDdPromoSelect(); loadDirectHistory(); }
+  if (name === "gift-stock") loadGiftStock();
   if (name === "region") loadRegionSummary();
   if (name === "shops") renderShopTable();
+}
+
+// ─── DIRECT DISPATCH ──────────────────────────────────────────
+let _ddShops = [];
+
+function populateDdPromoSelect() {
+  // set today as default dispatch date
+  const ddDate = document.getElementById("dd-date");
+  if (ddDate && !ddDate.value) ddDate.value = new Date().toISOString().slice(0,10);
+
+  const sels = ["dd-promo-select","dd-history-promo","gs-filter-promo"];
+  sels.forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">-- ${id==="dd-promo-select"?"เลือกโปรโมชัน":"โปรโมชัน: ทั้งหมด"} --</option>`;
+    promoData.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.promotion_id;
+      opt.textContent = p.promo_name;
+      sel.appendChild(opt);
+    });
+    if (cur) sel.value = cur;
+  });
+}
+
+async function onDdPromoChange() {
+  const promoId = document.getElementById("dd-promo-select").value;
+  const shopSel = document.getElementById("dd-shop-select");
+  const giftSel = document.getElementById("dd-gift-select");
+  const qtyInput = document.getElementById("dd-qty");
+  shopSel.innerHTML = '<option value="">-- เลือกร้านค้า --</option>';
+  giftSel.innerHTML = '<option value="">-- เลือกของแจก --</option>';
+  shopSel.disabled = true; giftSel.disabled = true; qtyInput.disabled = true;
+  document.getElementById("dd-shop-info").classList.add("hidden");
+  if (!promoId) return;
+
+  // โหลด shops ของโปรโมชันนี้
+  _ddShops = await fetch(`${API}/api/promotions/${promoId}/shops`).then(r=>r.json()).catch(()=>[]);
+  if (!_ddShops.length) {
+    shopSel.innerHTML = '<option value="">ยังไม่มีร้านค้าในโปรโมชันนี้</option>';
+    return;
+  }
+  _ddShops.forEach(s => {
+    const remaining = parseFloat(s.qty_allocated) - parseFloat(s.qty_dispatched);
+    const opt = document.createElement("option");
+    opt.value = s.shop_id;
+    opt.textContent = `${s.shop_name} (${s.region||'-'}) [สิทธิ์คงเหลือ: ${remaining}]`;
+    shopSel.appendChild(opt);
+  });
+  shopSel.disabled = false;
+
+  // โหลด gifts ของโปรโมชันนี้
+  const promo = promoData.find(p=>p.promotion_id===parseInt(promoId));
+  giftSel.innerHTML = '<option value="">-- เลือกของแจก --</option>';
+  (promo?.gifts||[]).forEach(g => {
+    const opt = document.createElement("option");
+    opt.value = g.gift_id;
+    opt.textContent = `${g.gift_name} (${g.unit}) [Stock: ${g.stock_qty}]`;
+    giftSel.appendChild(opt);
+  });
+  giftSel.disabled = false;
+  qtyInput.disabled = false;
+}
+
+function onDdShopChange() {
+  const shopId = parseInt(document.getElementById("dd-shop-select").value);
+  const shop = _ddShops.find(s=>s.shop_id===shopId);
+  const infoBox = document.getElementById("dd-shop-info");
+  const infoText = document.getElementById("dd-shop-info-text");
+  if (!shop) { infoBox.classList.add("hidden"); return; }
+  const remaining = parseFloat(shop.qty_allocated) - parseFloat(shop.qty_dispatched);
+  infoText.textContent = `🏪 ${shop.shop_name} | ภาค: ${shop.region||'-'} | ตัน: ${shop.qty_ton} | สิทธิ์รับ: ${shop.qty_allocated} | แจกแล้ว: ${shop.qty_dispatched} | คงเหลือ: ${remaining}`;
+  infoBox.classList.remove("hidden");
+}
+
+async function submitDirectDispatch() {
+  const promoShopId = parseInt(document.getElementById("dd-shop-select").value);
+  const giftId = parseInt(document.getElementById("dd-gift-select").value);
+  const qty = parseFloat(document.getElementById("dd-qty").value);
+  const date = document.getElementById("dd-date").value;
+  if (!promoShopId) { alert("กรุณาเลือกร้านค้า"); return; }
+  if (!giftId) { alert("กรุณาเลือกของแจก"); return; }
+  if (!qty || qty <= 0) { alert("กรุณาระบุจำนวน"); return; }
+  if (!date) { alert("กรุณาระบุวันที่แจก"); return; }
+
+  const body = {
+    promo_shop_id: promoShopId,
+    gift_id: giftId,
+    dispatch_date: date,
+    qty_dispatched: qty,
+    dispatched_by: document.getElementById("dd-by").value||null,
+    notes: document.getElementById("dd-notes").value||null,
+  };
+
+  try {
+    const res = await fetch(`${API}/api/promotions/dispatches/direct`, {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
+    });
+    if (!res.ok) { const err=await res.json(); throw new Error(err.detail||"เกิดข้อผิดพลาด"); }
+    alert("✅ บันทึกการแจกเรียบร้อย");
+    resetDirectDispatch();
+    loadPromotions();
+    loadDirectHistory();
+  } catch(err) { alert("❌ "+err.message); }
+}
+
+function resetDirectDispatch() {
+  document.getElementById("dd-promo-select").value = "";
+  document.getElementById("dd-shop-select").innerHTML = '<option value="">-- เลือกร้านค้า --</option>';
+  document.getElementById("dd-shop-select").disabled = true;
+  document.getElementById("dd-gift-select").innerHTML = '<option value="">-- เลือกของแจก --</option>';
+  document.getElementById("dd-gift-select").disabled = true;
+  document.getElementById("dd-qty").value = "";
+  document.getElementById("dd-qty").disabled = true;
+  document.getElementById("dd-by").value = "";
+  document.getElementById("dd-notes").value = "";
+  document.getElementById("dd-shop-info").classList.add("hidden");
+  _ddShops = [];
+}
+
+async function loadDirectHistory() {
+  const promoId = document.getElementById("dd-history-promo")?.value || "";
+  const url = promoId ? `${API}/api/promotions/dispatches/direct?promo_id=${promoId}` : `${API}/api/promotions/dispatches/direct`;
+  const data = await fetch(url).then(r=>r.json()).catch(()=>[]);
+  const tbody = document.getElementById("dd-history-tbody");
+  const empty = document.getElementById("dd-history-empty");
+  if (!data.length) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  tbody.innerHTML = data.map(d => `
+    <tr class="border-b hover:bg-gray-50">
+      <td class="px-3 py-2"><span class="font-semibold">${d.shop_name||'-'}</span><br><span class="text-gray-400">${d.region||'-'}</span></td>
+      <td class="px-3 py-2">${d.gift_name||'-'} <span class="text-gray-400">(${d.gift_unit||''})</span></td>
+      <td class="px-3 py-2 text-right font-semibold text-green-700">${d.qty_dispatched}</td>
+      <td class="px-3 py-2 text-gray-500">${fmtDate(d.dispatch_date)}</td>
+      <td class="px-3 py-2 text-gray-500">${d.dispatched_by||'-'}</td>
+      <td class="px-3 py-2 text-right">
+        <button onclick="deleteDirectDispatch(${d.dispatch_id})" class="text-xs text-red-400 hover:underline">ลบ</button>
+      </td>
+    </tr>`).join("");
+}
+
+async function deleteDirectDispatch(id) {
+  if (!confirm("ลบบันทึกการแจกนี้? (Stock และสิทธิ์จะถูกคืน)")) return;
+  const res = await fetch(`${API}/api/promotions/dispatches/direct/${id}`, {method:"DELETE"});
+  if (res.ok) { loadDirectHistory(); loadPromotions(); }
+  else alert("❌ ลบไม่ได้");
+}
+
+// ─── GIFT STOCK TAB ───────────────────────────────────────────
+async function loadGiftStock() {
+  const promoId = document.getElementById("gs-filter-promo")?.value || "";
+
+  // populate promo filter dropdown
+  const filterSel = document.getElementById("gs-filter-promo");
+  if (filterSel && filterSel.options.length <= 1) {
+    promoData.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.promotion_id;
+      opt.textContent = p.promo_name;
+      filterSel.appendChild(opt);
+    });
+    if (promoId) filterSel.value = promoId;
+  }
+
+  const url = promoId
+    ? `${API}/api/promotions/${promoId}/gift-stock`
+    : `${API}/api/promotions/gifts/all-stock`;
+  const data = await fetch(url).then(r=>r.json()).catch(()=>[]);
+  const tbody = document.getElementById("gift-stock-tbody");
+  const empty = document.getElementById("gift-stock-empty");
+  if (!data.length) {
+    tbody.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+  empty.classList.add("hidden");
+  tbody.innerHTML = data.map(g => {
+    const pName = g.promo_name || (promoData.find(p=>p.promotion_id===g.promotion_id)?.promo_name||'');
+    return `<tr class="border-b hover:bg-gray-50">
+      <td class="px-3 py-2 text-gray-500 text-xs">${pName}</td>
+      <td class="px-3 py-2 font-semibold">${g.gift_name}</td>
+      <td class="px-3 py-2 text-center text-gray-500">${g.unit}</td>
+      <td class="px-3 py-2 text-center ${g.qty_per_ton>0?'text-blue-600':'text-gray-300'}">${g.qty_per_ton>0?g.qty_per_ton:'-'}</td>
+      <td class="px-3 py-2 text-right font-bold ${g.stock_qty<=0?'text-red-500':'text-green-700'}">${g.stock_qty}</td>
+      <td class="px-3 py-2 text-center">
+        ${g.stock_qty<=0?'<span class="badge bg-red-100 text-red-600">หมด</span>':
+          g.stock_qty<10?'<span class="badge bg-yellow-100 text-yellow-700">ใกล้หมด</span>':
+          '<span class="badge bg-green-100 text-green-700">พร้อม</span>'}
+      </td>
+      <td class="px-3 py-2 text-right">
+        <button onclick="showGiftStock(${g.promotion_id||''},${g.gift_id},'${(g.gift_name||'').replace(/'/g,"\\'")}',${g.stock_qty})" class="text-xs text-blue-500 hover:underline">📦 อัปเดต</button>
+      </td>
+    </tr>`;
+  }).join("");
 }
 
 // ─── GIFT DISPATCH ─────────────────────────────────────────────
