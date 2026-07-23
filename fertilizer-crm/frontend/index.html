@@ -992,7 +992,10 @@
       <div class="bg-white rounded-xl shadow px-4 py-3 mt-3">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-bold text-sm text-gray-700">📋 ประวัติการแจก</h3>
-          <div class="flex gap-2 items-center">
+          <div class="flex gap-2 items-center flex-wrap">
+            <select id="dd-history-gift" class="border rounded-lg px-3 py-1.5 text-xs" onchange="loadDirectHistory()">
+              <option value="">ของแจก: ทั้งหมด</option>
+            </select>
             <select id="dd-history-promo" class="border rounded-lg px-3 py-1.5 text-xs" onchange="loadDirectHistory()">
               <option value="">โปรโมชัน: ทั้งหมด</option>
             </select>
@@ -4543,8 +4546,22 @@ function resetDirectDispatch() {
 }
 
 async function loadDirectHistory() {
+  // populate gift filter if empty
+  const giftFilterSel = document.getElementById("dd-history-gift");
+  if (giftFilterSel && giftFilterSel.options.length <= 1 && _allGiftStock.length) {
+    _allGiftStock.forEach(g => {
+      const opt = document.createElement("option");
+      opt.value = g.gift_id;
+      opt.textContent = g.gift_name;
+      giftFilterSel.appendChild(opt);
+    });
+  }
+
   const promoId = document.getElementById("dd-history-promo")?.value || "";
-  const url = promoId ? `${API}/api/promotions/dispatches/direct?promo_id=${promoId}` : `${API}/api/promotions/dispatches/direct`;
+  const giftId = document.getElementById("dd-history-gift")?.value || "";
+  let url = `${API}/api/promotions/dispatches/direct?limit=100`;
+  if (promoId) url += `&promo_id=${promoId}`;
+  if (giftId) url += `&gift_id=${giftId}`;
   const data = await fetch(url).then(r=>r.json()).catch(()=>[]);
   const tbody = document.getElementById("dd-history-tbody");
   const empty = document.getElementById("dd-history-empty");

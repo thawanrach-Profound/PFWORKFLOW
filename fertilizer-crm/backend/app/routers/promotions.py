@@ -398,13 +398,15 @@ def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)
 
 
 @router.get("/dispatches/direct", response_model=list[dict])
-def list_direct_dispatches(promo_id: int = None, db: Session = Depends(get_db)):
+def list_direct_dispatches(promo_id: int = None, gift_id: int = None, limit: int = 100, db: Session = Depends(get_db)):
     """รายการแจกของแจกโดยตรง (ทั้งผ่าน promo_shop และตรงจากสต๊อก)"""
     q = db.query(GiftDispatch).filter(GiftDispatch.gift_id.isnot(None))
     if promo_id:
         q = q.join(PromoShop, GiftDispatch.promo_shop_id == PromoShop.shop_id)\
              .filter(PromoShop.promotion_id == promo_id)
-    rows = q.order_by(GiftDispatch.dispatch_date.desc()).all()
+    if gift_id:
+        q = q.filter(GiftDispatch.gift_id == gift_id)
+    rows = q.order_by(GiftDispatch.dispatch_date.desc(), GiftDispatch.dispatch_id.desc()).limit(limit).all()
     return [
         {
             "dispatch_id": d.dispatch_id,
