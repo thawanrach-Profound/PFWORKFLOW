@@ -920,40 +920,34 @@
       <div class="bg-white rounded-xl shadow px-4 py-4 space-y-4">
         <h3 class="font-bold text-sm text-green-700">📤 บันทึกการแจกของแจก</h3>
 
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label class="form-label">1. เลือกโปรโมชัน *</label>
-            <select id="dd-promo-select" class="form-input" onchange="onDdPromoChange()">
-              <option value="">-- เลือกโปรโมชัน --</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label">2. เลือกร้านค้า *</label>
-            <select id="dd-shop-select" class="form-input" onchange="onDdShopChange()" disabled>
-              <option value="">-- เลือกร้านค้า --</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Shop quota info -->
-        <div id="dd-shop-info" class="hidden bg-blue-50 rounded-lg p-3 text-xs">
-          <p class="text-blue-700 font-semibold" id="dd-shop-info-text"></p>
-        </div>
-
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
-            <label class="form-label">3. ของแจก *</label>
-            <select id="dd-gift-select" class="form-input" disabled>
+            <label class="form-label">1. ของแจก * <span id="dd-gift-stock-badge" class="ml-1 text-xs font-semibold"></span></label>
+            <select id="dd-gift-select" class="form-input" onchange="onDdGiftChange()">
               <option value="">-- เลือกของแจก --</option>
             </select>
           </div>
           <div>
-            <label class="form-label">4. จำนวน *</label>
-            <input type="number" id="dd-qty" step="1" min="1" class="form-input text-right" placeholder="0" disabled/>
+            <label class="form-label">2. จำนวน *</label>
+            <input type="number" id="dd-qty" step="1" min="1" class="form-input text-right" placeholder="0"/>
           </div>
           <div>
-            <label class="form-label">วันที่แจก *</label>
+            <label class="form-label">3. วันที่แจก *</label>
             <input type="date" id="dd-date" class="form-input"/>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label class="form-label">4. ร้านค้า / ผู้รับ</label>
+            <input id="dd-shop-input" class="form-input" list="dd-shop-datalist" placeholder="พิมพ์ชื่อร้านค้า..."/>
+            <datalist id="dd-shop-datalist"></datalist>
+          </div>
+          <div>
+            <label class="form-label">5. โปรโมชัน (ถ้ามี)</label>
+            <select id="dd-promo-select" class="form-input">
+              <option value="">-- ไม่ระบุโปรโมชัน --</option>
+            </select>
           </div>
         </div>
 
@@ -961,7 +955,7 @@
           <label class="form-label">ประเภทกิจกรรม</label>
           <div class="flex gap-4 mt-1">
             <label class="flex items-center gap-1.5 text-xs cursor-pointer">
-              <input type="radio" name="dd-type" value="dispatch" checked class="accent-green-600"/>
+              <input type="radio" name="dd-type" value="dispatch" checked class="accent-green-600" onchange="toggleSalespersonField()"/>
               <span class="text-green-700 font-semibold">🎁 แจกให้ร้านค้า</span>
             </label>
             <label class="flex items-center gap-1.5 text-xs cursor-pointer">
@@ -4368,7 +4362,7 @@ function switchPromoTab(name) {
     if (t === name) { btn.classList.add("bg-green-600","text-white"); btn.classList.remove("text-gray-500","hover:bg-gray-100"); }
     else { btn.classList.remove("bg-green-600","text-white"); btn.classList.add("text-gray-500","hover:bg-gray-100"); }
   });
-  if (name === "dispatch") { populateDdPromoSelect(); loadDirectHistory(); }
+  if (name === "dispatch") { populateDdPromoSelect(); loadAllGiftsForDispatch(); loadDirectHistory(); populateDdShopDatalist(); }
   if (name === "gift-stock") loadGiftStock();
   if (name === "region") loadRegionSummary();
   if (name === "shops") loadShopMaster();
@@ -4376,6 +4370,17 @@ function switchPromoTab(name) {
 
 // ─── DIRECT DISPATCH ──────────────────────────────────────────
 let _ddShops = [];
+
+function populateDdShopDatalist() {
+  const dl = document.getElementById("dd-shop-datalist");
+  if (!dl) return;
+  dl.innerHTML = "";
+  (shopMasterData || []).forEach(s => {
+    const opt = document.createElement("option");
+    opt.value = s.shop_name;
+    dl.appendChild(opt);
+  });
+}
 
 function populateDdPromoSelect() {
   // set today as default dispatch date
@@ -4387,7 +4392,7 @@ function populateDdPromoSelect() {
     const sel = document.getElementById(id);
     if (!sel) return;
     const cur = sel.value;
-    sel.innerHTML = `<option value="">-- ${id==="dd-promo-select"?"เลือกโปรโมชัน":"โปรโมชัน: ทั้งหมด"} --</option>`;
+    sel.innerHTML = `<option value="">-- ${id==="dd-promo-select"?"ไม่ระบุโปรโมชัน":"โปรโมชัน: ทั้งหมด"} --</option>`;
     promoData.forEach(p => {
       const opt = document.createElement("option");
       opt.value = p.promotion_id;
@@ -4398,62 +4403,51 @@ function populateDdPromoSelect() {
   });
 }
 
-async function onDdPromoChange() {
-  const promoId = document.getElementById("dd-promo-select").value;
-  const shopSel = document.getElementById("dd-shop-select");
+// โหลดของแจกทั้งหมดจาก all-stock ใส่ dropdown
+let _allGiftStock = [];
+async function loadAllGiftsForDispatch() {
   const giftSel = document.getElementById("dd-gift-select");
-  const qtyInput = document.getElementById("dd-qty");
-  shopSel.innerHTML = '<option value="">-- เลือกร้านค้า --</option>';
+  if (!giftSel) return;
+  _allGiftStock = await fetch(`${API}/api/promotions/gifts/all-stock`).then(r=>r.json()).catch(()=>[]);
+  const cur = giftSel.value;
   giftSel.innerHTML = '<option value="">-- เลือกของแจก --</option>';
-  shopSel.disabled = true; giftSel.disabled = true; qtyInput.disabled = true;
-  document.getElementById("dd-shop-info").classList.add("hidden");
-  if (!promoId) return;
-
-  // โหลด shops ของโปรโมชันนี้
-  _ddShops = await fetch(`${API}/api/promotions/${promoId}/shops`).then(r=>r.json()).catch(()=>[]);
-  if (!_ddShops.length) {
-    shopSel.innerHTML = '<option value="">ยังไม่มีร้านค้าในโปรโมชันนี้</option>';
-    return;
-  }
-  _ddShops.forEach(s => {
-    const remaining = parseFloat(s.qty_allocated) - parseFloat(s.qty_dispatched);
-    const opt = document.createElement("option");
-    opt.value = s.shop_id;
-    opt.textContent = `${s.shop_name} (${s.region||'-'}) [สิทธิ์คงเหลือ: ${remaining}]`;
-    shopSel.appendChild(opt);
-  });
-  shopSel.disabled = false;
-
-  // โหลด gifts ของโปรโมชันนี้
-  const promo = promoData.find(p=>p.promotion_id===parseInt(promoId));
-  giftSel.innerHTML = '<option value="">-- เลือกของแจก --</option>';
-  (promo?.gifts||[]).forEach(g => {
+  _allGiftStock.forEach(g => {
     const opt = document.createElement("option");
     opt.value = g.gift_id;
-    opt.textContent = `${g.gift_name} (${g.unit}) [Stock: ${g.stock_qty}]`;
+    const stockLabel = parseFloat(g.stock_qty) <= 0 ? "⛔หมด" : `Stock: ${g.stock_qty}`;
+    opt.textContent = `${g.gift_name} (${g.unit}) [${stockLabel}]`;
+    if (parseFloat(g.stock_qty) <= 0) opt.style.color = "#aaa";
     giftSel.appendChild(opt);
   });
-  giftSel.disabled = false;
-  qtyInput.disabled = false;
+  if (cur) giftSel.value = cur;
 }
 
-function onDdShopChange() {
-  const shopId = parseInt(document.getElementById("dd-shop-select").value);
-  const shop = _ddShops.find(s=>s.shop_id===shopId);
-  const infoBox = document.getElementById("dd-shop-info");
-  const infoText = document.getElementById("dd-shop-info-text");
-  if (!shop) { infoBox.classList.add("hidden"); return; }
-  const remaining = parseFloat(shop.qty_allocated) - parseFloat(shop.qty_dispatched);
-  infoText.textContent = `🏪 ${shop.shop_name} | ภาค: ${shop.region||'-'} | ตัน: ${shop.qty_ton} | สิทธิ์รับ: ${shop.qty_allocated} | แจกแล้ว: ${shop.qty_dispatched} | คงเหลือ: ${remaining}`;
-  infoBox.classList.remove("hidden");
+function onDdGiftChange() {
+  const giftId = parseInt(document.getElementById("dd-gift-select").value);
+  const badge = document.getElementById("dd-gift-stock-badge");
+  if (!badge) return;
+  const g = _allGiftStock.find(x => x.gift_id === giftId);
+  if (!g) { badge.textContent = ""; return; }
+  const stock = parseFloat(g.stock_qty);
+  if (stock <= 0) {
+    badge.textContent = "⛔ หมดสต๊อก";
+    badge.className = "ml-1 text-xs font-semibold text-red-600";
+  } else if (stock <= parseFloat(g.dead_stock_qty || 0)) {
+    badge.textContent = `⚠️ เหลือ ${stock} ${g.unit}`;
+    badge.className = "ml-1 text-xs font-semibold text-orange-500";
+  } else {
+    badge.textContent = `✅ เหลือ ${stock} ${g.unit}`;
+    badge.className = "ml-1 text-xs font-semibold text-green-600";
+  }
 }
+
+function onDdPromoChange() { /* promo is now optional — no cascade needed */ }
+function onDdShopChange() {}
 
 async function submitDirectDispatch() {
-  const promoShopId = parseInt(document.getElementById("dd-shop-select").value);
   const giftId = parseInt(document.getElementById("dd-gift-select").value);
   const qty = parseFloat(document.getElementById("dd-qty").value);
   const date = document.getElementById("dd-date").value;
-  if (!promoShopId) { alert("กรุณาเลือกร้านค้า"); return; }
   if (!giftId) { alert("กรุณาเลือกของแจก"); return; }
   if (!qty || qty <= 0) { alert("กรุณาระบุจำนวน"); return; }
   if (!date) { alert("กรุณาระบุวันที่แจก"); return; }
@@ -4462,9 +4456,11 @@ async function submitDirectDispatch() {
   const salesperson = document.getElementById("dd-salesperson").value||null;
   if (dispatchType === "trip_withdrawal" && !salesperson) { alert("กรุณาระบุชื่อเซล/ผู้เบิก"); return; }
 
+  const shopName = document.getElementById("dd-shop-input")?.value?.trim() || null;
+
   const body = {
-    promo_shop_id: promoShopId,
     gift_id: giftId,
+    shop_name: shopName,
     dispatch_date: date,
     qty_dispatched: qty,
     dispatch_type: dispatchType,
@@ -4480,17 +4476,16 @@ async function submitDirectDispatch() {
     if (!res.ok) { const err=await res.json(); throw new Error(err.detail||"เกิดข้อผิดพลาด"); }
     alert("✅ บันทึกการแจกเรียบร้อย");
     resetDirectDispatch();
-    loadPromotions();
+    loadAllGiftsForDispatch();
     loadDirectHistory();
   } catch(err) { alert("❌ "+err.message); }
 }
 
 function resetDirectDispatch() {
   document.getElementById("dd-promo-select").value = "";
-  document.getElementById("dd-shop-select").innerHTML = '<option value="">-- เลือกร้านค้า --</option>';
-  document.getElementById("dd-shop-select").disabled = true;
-  document.getElementById("dd-gift-select").innerHTML = '<option value="">-- เลือกของแจก --</option>';
-  document.getElementById("dd-gift-select").disabled = true;
+  document.getElementById("dd-shop-input").value = "";
+  document.getElementById("dd-gift-select").value = "";
+  document.getElementById("dd-gift-stock-badge").textContent = "";
   document.getElementById("dd-qty").value = "";
   document.getElementById("dd-qty").disabled = true;
   document.getElementById("dd-by").value = "";

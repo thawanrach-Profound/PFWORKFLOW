@@ -516,9 +516,11 @@ class GiftDispatchCreate(BaseModel):
     notes: Optional[str] = None
 
 class DirectDispatchCreate(BaseModel):
-    """แจกของแจกโดยตรงจากโปรโมชัน → ร้าน → ของแจก (ไม่ผ่าน order)"""
-    promo_shop_id: int
+    """แจกของแจกโดยตรง — promo_shop_id optional (ถ้าไม่มีให้ส่ง shop_name แทน)"""
+    promo_shop_id: Optional[int] = None
     gift_id: int
+    shop_name: Optional[str] = None          # ใช้เมื่อไม่มี promo_shop_id
+    region: Optional[str] = None
     dispatch_date: date
     qty_dispatched: Decimal
     dispatch_type: str = "dispatch"           # 'dispatch' | 'trip_withdrawal'

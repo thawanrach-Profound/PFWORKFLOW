@@ -355,27 +355,30 @@ def delete_promo_shop(promo_id: int, shop_id: int, db: Session = Depends(get_db)
 
 @router.post("/dispatches/direct", response_model=GiftDispatchOut, status_code=201)
 def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)):
-    """แจกของแจกโดยตรง: ตรวจสต๊อก + ตัดสต๊อก + อัปเดต promo_shop.qty_dispatched"""
-    shop = db.get(PromoShop, payload.promo_shop_id)
-    if not shop:
-        raise HTTPException(404, "ไม่พบร้านค้าในโปรโมชัน")
-
+    """แจกของแจกโดยตรง: ตัดสต๊อก — promo_shop_id optional"""
     gift = db.get(PromotionGift, payload.gift_id)
     if not gift:
         raise HTTPException(404, "ไม่พบของแจก")
-
-    # ตรวจสิทธิ์ร้าน
-    remaining_quota = shop.qty_allocated - shop.qty_dispatched
-    if payload.qty_dispatched > remaining_quota:
-        raise HTTPException(400, f"แจกเกินสิทธิ์ร้าน (สิทธิ์คงเหลือ {remaining_quota} {gift.unit})")
 
     # ตรวจ stock ของแจก
     if gift.stock_qty < payload.qty_dispatched:
         raise HTTPException(400, f"Stock ของแจก '{gift.gift_name}' ไม่พอ (คงเหลือ {gift.stock_qty} {gift.unit})")
 
-    # ตัด stock
+    shop_name = payload.shop_name
+    region = payload.region
+
+    # ถ้ามี promo_shop_id → ตรวจ/ตัดโควต้าร้านด้วย
+    if payload.promo_shop_id:
+        shop = db.get(PromoShop, payload.promo_shop_id)
+        if shop:
+            remaining_quota = shop.qty_allocated - shop.qty_dispatched
+            if payload.qty_dispatched > remaining_quota:
+                raise HTTPException(400, f"แจกเกินสิทธิ์ร้าน (สิทธิ์คงเหลือ {remaining_quota} {gift.unit})")
+            shop.qty_dispatched += payload.qty_dispatched
+            shop_name = shop_name or shop.shop_name
+            region = region or shop.region
+
     gift.stock_qty -= payload.qty_dispatched
-    shop.qty_dispatched += payload.qty_dispatched
 
     d = GiftDispatch(
         op_id=None,
@@ -386,8 +389,8 @@ def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)
         dispatch_type=payload.dispatch_type,
         dispatched_by=payload.dispatched_by,
         salesperson_name=payload.salesperson_name,
-        shop_name=shop.shop_name,
-        region=shop.region,
+        shop_name=shop_name,
+        region=region,
         notes=payload.notes,
     )
     db.add(d); db.commit(); db.refresh(d)
@@ -396,8 +399,8 @@ def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)
 
 @router.get("/dispatches/direct", response_model=list[dict])
 def list_direct_dispatches(promo_id: int = None, db: Session = Depends(get_db)):
-    """รายการแจกของแจกโดยตรง (ผ่าน promo_shop)"""
-    q = db.query(GiftDispatch).filter(GiftDispatch.promo_shop_id.isnot(None))
+    """รายการแจกของแจกโดยตรง (ทั้งผ่าน promo_shop และตรงจากสต๊อก)"""
+    q = db.query(GiftDispatch).filter(GiftDispatch.gift_id.isnot(None))
     if promo_id:
         q = q.join(PromoShop, GiftDispatch.promo_shop_id == PromoShop.shop_id)\
              .filter(PromoShop.promotion_id == promo_id)
@@ -426,7 +429,7 @@ def list_direct_dispatches(promo_id: int = None, db: Session = Depends(get_db)):
 def delete_direct_dispatch(dispatch_id: int, db: Session = Depends(get_db)):
     """ลบบันทึกการแจกตรง — คืน stock และ quota"""
     d = db.get(GiftDispatch, dispatch_id)
-    if not d or d.promo_shop_id is None:
+    if not d or d.gift_id is None:
         raise HTTPException(404, "ไม่พบบันทึกการแจก")
     if d.gift:
         d.gift.stock_qty += d.qty_dispatched
