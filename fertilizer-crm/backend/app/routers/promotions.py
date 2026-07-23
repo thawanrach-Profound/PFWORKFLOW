@@ -574,10 +574,10 @@ def import_history(payload: ImportHistoryPayload, db: Session = Depends(get_db))
     - ตั้ง stock_qty = current_stock ที่ส่งมา
     """
     # find or create history promotion
-    promo = db.query(Promotion).filter(Promotion.name == payload.promo_name).first()
+    promo = db.query(Promotion).filter(Promotion.promo_name == payload.promo_name).first()
     if not promo:
         promo = Promotion(
-            name=payload.promo_name,
+            promo_name=payload.promo_name,
             is_active=False,
             notes="นำเข้าจาก Excel ประวัติการแจกของแถม",
         )
