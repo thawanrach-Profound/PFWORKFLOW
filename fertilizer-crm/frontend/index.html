@@ -4198,8 +4198,17 @@ async function submitPromoForm() {
 
 async function deletePromo(id) {
   if (!confirm("ลบโปรโมชันนี้?")) return;
-  await fetch(`${API}/api/promotions/${id}`, {method:"DELETE"});
-  loadPromotions();
+  try {
+    const res = await fetch(`${API}/api/promotions/${id}`, {method:"DELETE"});
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      alert("❌ " + (err.detail || `ลบไม่สำเร็จ (HTTP ${res.status})`));
+      return;
+    }
+    loadPromotions();
+  } catch(e) {
+    alert("❌ เชื่อมต่อ server ไม่ได้: " + e.message);
+  }
 }
 
 function showAddGiftModal(promoId) {

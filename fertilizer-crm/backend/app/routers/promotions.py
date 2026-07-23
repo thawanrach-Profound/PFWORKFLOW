@@ -132,7 +132,27 @@ def delete_promotion(promo_id: int, db: Session = Depends(get_db)):
     p = db.get(Promotion, promo_id)
     if not p:
         raise HTTPException(404, "ไม่พบรายการส่งเสริมการขาย")
-    db.delete(p); db.commit()
+
+    used = db.query(OrderPromotion).filter(OrderPromotion.promotion_id == promo_id).count()
+    if used:
+        raise HTTPException(400, f"ลบไม่ได้ — มี order ใช้โปรโมชันนี้อยู่ {used} รายการ")
+
+    gift_ids = [g.gift_id for g in p.gifts]
+    shop_ids = [s.shop_id for s in p.shops]
+    # ปลด FK จากประวัติการแจกก่อนลบ (เก็บประวัติไว้ แต่ตัดลิงก์)
+    if gift_ids:
+        db.query(GiftDispatch).filter(GiftDispatch.gift_id.in_(gift_ids))\
+            .update({"gift_id": None}, synchronize_session=False)
+    if shop_ids:
+        db.query(GiftDispatch).filter(GiftDispatch.promo_shop_id.in_(shop_ids))\
+            .update({"promo_shop_id": None}, synchronize_session=False)
+
+    try:
+        db.delete(p)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(400, f"ลบไม่สำเร็จ: {str(e)[:300]}")
 
 
 # ── Gifts CRUD ────────────────────────────────────────────────
