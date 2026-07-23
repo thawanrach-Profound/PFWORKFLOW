@@ -24,12 +24,34 @@ def init_db():
     logger.info("DB schema initialized")
 
 
+MIGRATIONS = [
+    # 2026-07: add shop_name and region to gift_dispatches
+    "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS shop_name VARCHAR(200)",
+    "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS region VARCHAR(50)",
+]
+
+def run_migrations():
+    """Run incremental ALTER TABLE migrations — safe to run multiple times."""
+    with engine.connect() as conn:
+        for sql in MIGRATIONS:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+                logger.info(f"Migration OK: {sql[:60]}")
+            except Exception as e:
+                logger.warning(f"Migration skip: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
         init_db()
     except Exception as e:
         logger.error(f"DB init failed: {e}")
+    try:
+        run_migrations()
+    except Exception as e:
+        logger.error(f"Migrations failed: {e}")
     yield
 
 
@@ -75,5 +97,14 @@ def run_init_db():
     try:
         init_db()
         return {"status": "ok", "message": "DB schema initialized"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/run-migrations")
+def trigger_migrations():
+    try:
+        run_migrations()
+        return {"status": "ok", "message": "Migrations applied"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
