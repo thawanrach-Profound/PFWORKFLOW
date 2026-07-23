@@ -299,6 +299,24 @@ CREATE TABLE IF NOT EXISTS rm_sales (
 );
 
 -- ============================================================
+-- 14b. SHOP MASTER (ร้านค้า master data — แทน SHOP_MASTER constant)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS shop_master (
+    shop_id       SERIAL          PRIMARY KEY,
+    shop_name     VARCHAR(200)    NOT NULL,
+    region        VARCHAR(50),                    -- ภาค
+    zone          VARCHAR(50),                    -- เขต
+    employee_name VARCHAR(100),                   -- พนักงานผู้รับผิดชอบ
+    phone         VARCHAR(20),
+    is_active     BOOLEAN         NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMPTZ     NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ     NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_shop_master_region ON shop_master(region);
+CREATE TRIGGER trg_shop_master_upd BEFORE UPDATE ON shop_master FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- ============================================================
 -- 15. PROMOTIONS (รายการส่งเสริมการขาย)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS promotions (

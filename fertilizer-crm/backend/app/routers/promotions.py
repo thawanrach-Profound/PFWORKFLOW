@@ -375,7 +375,9 @@ def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)
         gift_id=payload.gift_id,
         dispatch_date=payload.dispatch_date,
         qty_dispatched=payload.qty_dispatched,
+        dispatch_type=payload.dispatch_type,
         dispatched_by=payload.dispatched_by,
+        salesperson_name=payload.salesperson_name,
         shop_name=shop.shop_name,
         region=shop.region,
         notes=payload.notes,
@@ -403,7 +405,9 @@ def list_direct_dispatches(promo_id: int = None, db: Session = Depends(get_db)):
             "region": d.region,
             "dispatch_date": str(d.dispatch_date),
             "qty_dispatched": float(d.qty_dispatched),
+            "dispatch_type": d.dispatch_type or "dispatch",
             "dispatched_by": d.dispatched_by,
+            "salesperson_name": d.salesperson_name,
             "notes": d.notes,
         }
         for d in rows

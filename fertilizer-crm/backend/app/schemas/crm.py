@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Optional
 from pydantic import BaseModel, ConfigDict
-from app.models.crm import CreditTerm, OrderStatus, ProductionStatus, PaymentStatus, RmEntryTypeEnum, PoStatusEnum, RmSale, Promotion, PromotionGift, OrderPromotion
+from app.models.crm import CreditTerm, OrderStatus, ProductionStatus, PaymentStatus, RmEntryTypeEnum, PoStatusEnum, RmSale, Promotion, PromotionGift, OrderPromotion, ShopMaster
 
 
 # ── Customer ──────────────────────────────────────────────────
@@ -391,12 +391,42 @@ class RmSaleOut(BaseModel):
     created_at: Optional[datetime]
 
 
+# ── Shop Master ───────────────────────────────────────────────
+class ShopMasterCreate(BaseModel):
+    shop_name: str
+    region: Optional[str] = None
+    zone: Optional[str] = None
+    employee_name: Optional[str] = None
+    phone: Optional[str] = None
+    is_active: bool = True
+
+class ShopMasterUpdate(BaseModel):
+    shop_name: Optional[str] = None
+    region: Optional[str] = None
+    zone: Optional[str] = None
+    employee_name: Optional[str] = None
+    phone: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class ShopMasterOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    shop_id: int
+    shop_name: str
+    region: Optional[str]
+    zone: Optional[str]
+    employee_name: Optional[str]
+    phone: Optional[str]
+    is_active: bool
+
+
 # ── Promotions (รายการส่งเสริมการขาย) ───────────────────────
 class PromotionGiftCreate(BaseModel):
     gift_name: str
     unit: str = "ชิ้น"
     stock_qty: Decimal = Decimal("0")
     qty_per_ton: Decimal = Decimal("0")
+    dead_stock_qty: Decimal = Decimal("0")
+    gift_image_url: Optional[str] = None
     notes: Optional[str] = None
 
 class PromotionGiftOut(BaseModel):
@@ -406,6 +436,8 @@ class PromotionGiftOut(BaseModel):
     unit: str
     stock_qty: Decimal
     qty_per_ton: Decimal
+    dead_stock_qty: Decimal
+    gift_image_url: Optional[str]
     notes: Optional[str]
 
 class PromotionGiftStockUpdate(BaseModel):
@@ -487,7 +519,9 @@ class DirectDispatchCreate(BaseModel):
     gift_id: int
     dispatch_date: date
     qty_dispatched: Decimal
+    dispatch_type: str = "dispatch"           # 'dispatch' | 'trip_withdrawal'
     dispatched_by: Optional[str] = None
+    salesperson_name: Optional[str] = None   # สำหรับ trip_withdrawal
     notes: Optional[str] = None
 
 class GiftDispatchOut(BaseModel):

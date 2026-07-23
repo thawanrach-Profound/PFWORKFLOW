@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.core.database import engine
-from app.routers import customers, formulas, orders, production, inventory, reports, imports, employees, bag_stock, rm_stock, promotions
+from app.routers import customers, formulas, orders, production, inventory, reports, imports, employees, bag_stock, rm_stock, promotions, shops
 
 logger = logging.getLogger("crm.startup")
 
@@ -51,6 +51,25 @@ MIGRATIONS = [
     "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS gift_id INT REFERENCES promotion_gifts(gift_id) ON DELETE SET NULL",
     # 2026-07: make op_id nullable in gift_dispatches
     "ALTER TABLE gift_dispatches ALTER COLUMN op_id DROP NOT NULL",
+    # 2026-07: shop_master table
+    """CREATE TABLE IF NOT EXISTS shop_master (
+        shop_id       SERIAL          PRIMARY KEY,
+        shop_name     VARCHAR(200)    NOT NULL,
+        region        VARCHAR(50),
+        zone          VARCHAR(50),
+        employee_name VARCHAR(100),
+        phone         VARCHAR(20),
+        is_active     BOOLEAN         NOT NULL DEFAULT TRUE,
+        created_at    TIMESTAMPTZ     NOT NULL DEFAULT now(),
+        updated_at    TIMESTAMPTZ     NOT NULL DEFAULT now()
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_shop_master_region ON shop_master(region)",
+    # 2026-07: gift dead stock + image
+    "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS dead_stock_qty NUMERIC(12,2) DEFAULT 0",
+    "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS gift_image_url TEXT",
+    # 2026-07: dispatch type for trip withdrawal
+    "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS dispatch_type VARCHAR(30) DEFAULT 'dispatch'",
+    "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS salesperson_name VARCHAR(100)",
 ]
 
 def run_migrations():
@@ -103,6 +122,7 @@ app.include_router(employees.router)
 app.include_router(bag_stock.router)
 app.include_router(rm_stock.router)
 app.include_router(promotions.router)
+app.include_router(shops.router)
 
 
 @app.get("/")

@@ -326,6 +326,20 @@ class RmSale(Base):
     session = relationship("RmStockSession", back_populates="rm_sales")
 
 
+# ── Shop Master (ร้านค้า master data) ────────────────────────
+class ShopMaster(Base):
+    __tablename__ = "shop_master"
+    shop_id       = Column(Integer, primary_key=True, autoincrement=True)
+    shop_name     = Column(String(200), nullable=False)
+    region        = Column(String(50))
+    zone          = Column(String(50))
+    employee_name = Column(String(100))
+    phone         = Column(String(20))
+    is_active     = Column(Boolean, default=True)
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at    = Column(DateTime(timezone=True), server_default=func.now())
+
+
 # ── Promotions (รายการส่งเสริมการขาย) ───────────────────────
 class Promotion(Base):
     __tablename__ = "promotions"
@@ -366,12 +380,14 @@ class PromotionGift(Base):
     __tablename__ = "promotion_gifts"
     gift_id      = Column(Integer, primary_key=True, autoincrement=True)
     promotion_id = Column(Integer, ForeignKey("promotions.promotion_id", ondelete="CASCADE"), nullable=False)
-    gift_name    = Column(String(200), nullable=False)
-    unit         = Column(String(30), default="ชิ้น")
-    stock_qty    = Column(Numeric(12, 2), default=0)
-    qty_per_ton  = Column(Numeric(10, 2), default=0)  # จำนวนของแจก/ตัน
-    notes        = Column(Text)
-    created_at   = Column(DateTime(timezone=True), server_default=func.now())
+    gift_name      = Column(String(200), nullable=False)
+    unit           = Column(String(30), default="ชิ้น")
+    stock_qty      = Column(Numeric(12, 2), default=0)
+    qty_per_ton    = Column(Numeric(10, 2), default=0)
+    dead_stock_qty = Column(Numeric(12, 2), default=0)  # เกณฑ์แจ้งเตือนใกล้หมด
+    gift_image_url = Column(Text)                        # URL รูปของแจก
+    notes          = Column(Text)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     promotion = relationship("Promotion", back_populates="gifts")
     order_uses = relationship("OrderPromotion", back_populates="gift")
@@ -401,13 +417,15 @@ class GiftDispatch(Base):
     op_id          = Column(Integer, ForeignKey("order_promotions.op_id", ondelete="CASCADE"), nullable=True)
     promo_shop_id  = Column(Integer, ForeignKey("promo_shops.shop_id", ondelete="SET NULL"), nullable=True)
     gift_id        = Column(Integer, ForeignKey("promotion_gifts.gift_id", ondelete="SET NULL"), nullable=True)
-    dispatch_date  = Column(Date, nullable=False, server_default=func.current_date())
-    qty_dispatched = Column(Numeric(12, 2), nullable=False)
-    dispatched_by  = Column(String(100))
-    shop_name      = Column(String(200))
-    region         = Column(String(50))
-    notes          = Column(Text)
-    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+    dispatch_date     = Column(Date, nullable=False, server_default=func.current_date())
+    qty_dispatched    = Column(Numeric(12, 2), nullable=False)
+    dispatched_by     = Column(String(100))
+    shop_name         = Column(String(200))
+    region            = Column(String(50))
+    dispatch_type     = Column(String(30), default="dispatch")  # 'dispatch' | 'trip_withdrawal'
+    salesperson_name  = Column(String(100))                     # สำหรับ trip_withdrawal
+    notes             = Column(Text)
+    created_at        = Column(DateTime(timezone=True), server_default=func.now())
 
     order_promotion = relationship("OrderPromotion", back_populates="dispatches")
     promo_shop      = relationship("PromoShop", back_populates="dispatches")
