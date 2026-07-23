@@ -1,5 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from decimal import Decimal
+from datetime import date
+from typing import Optional
 
 from app.core.database import get_db
 from app.models.crm import Promotion, PromotionGift, PromoShop, OrderPromotion, GiftDispatch, Sales, Customer, OrderItem
@@ -538,3 +542,97 @@ def shop_dispatch_status(promo_id: int, db: Session = Depends(get_db)):
     REGION_ORDER = {"อีสานตอนบน":1,"อีสานตอนล่าง":2,"ตะวันออก":3,"กลาง":4,"เหนือ":5,"ใต้":6}
     result.sort(key=lambda x: (REGION_ORDER.get(x["region"], 99), x["shop_name"]))
     return result
+
+
+# ---------------------------------------------------------------------------
+# Import historical dispatch records from Excel
+# ---------------------------------------------------------------------------
+
+class HistoricalDispatch(BaseModel):
+    dispatch_date: Optional[date] = None
+    shop_name: Optional[str] = None
+    qty_dispatched: Decimal
+    remark: Optional[str] = None
+    dispatch_type: str = "dispatch"
+    salesperson_name: Optional[str] = None
+
+class HistoricalGift(BaseModel):
+    gift_name: str
+    current_stock: Decimal = Decimal("0")
+    dispatches: list[HistoricalDispatch] = []
+
+class ImportHistoryPayload(BaseModel):
+    gifts: list[HistoricalGift]
+    promo_name: str = "ประวัติของแจก ปี 2568-2569"
+
+@router.post("/import-history", status_code=201)
+def import_history(payload: ImportHistoryPayload, db: Session = Depends(get_db)):
+    """
+    นำเข้าประวัติการแจกของแจกจาก Excel
+    - สร้างโปรโมชัน "ประวัติของแจก" ถ้ายังไม่มี
+    - สร้าง promotion_gifts + gift_dispatches
+    - ตั้ง stock_qty = current_stock ที่ส่งมา
+    """
+    # find or create history promotion
+    promo = db.query(Promotion).filter(Promotion.name == payload.promo_name).first()
+    if not promo:
+        promo = Promotion(
+            name=payload.promo_name,
+            is_active=False,
+            notes="นำเข้าจาก Excel ประวัติการแจกของแถม",
+        )
+        db.add(promo)
+        db.flush()
+
+    gifts_created = 0
+    dispatches_created = 0
+    skipped_gifts = []
+
+    for g in payload.gifts:
+        # check if gift already exists under this promo
+        existing = db.query(PromotionGift).filter(
+            PromotionGift.promotion_id == promo.promotion_id,
+            PromotionGift.gift_name == g.gift_name,
+        ).first()
+
+        if existing:
+            # update stock only
+            existing.stock_qty = g.current_stock
+            gift_obj = existing
+            skipped_gifts.append(g.gift_name)
+        else:
+            gift_obj = PromotionGift(
+                promotion_id=promo.promotion_id,
+                gift_name=g.gift_name,
+                unit="ชิ้น",
+                stock_qty=g.current_stock,
+                qty_per_ton=Decimal("0"),
+                dead_stock_qty=Decimal("0"),
+            )
+            db.add(gift_obj)
+            db.flush()
+            gifts_created += 1
+
+        for d in g.dispatches:
+            disp = GiftDispatch(
+                gift_id=gift_obj.gift_id,
+                op_id=None,
+                dispatch_date=d.dispatch_date or date.today(),
+                qty_dispatched=d.qty_dispatched,
+                shop_name=d.shop_name,
+                dispatch_type=d.dispatch_type,
+                salesperson_name=d.salesperson_name,
+                notes=d.remark,
+                dispatched_by="นำเข้าจาก Excel",
+            )
+            db.add(disp)
+            dispatches_created += 1
+
+    db.commit()
+    return {
+        "status": "ok",
+        "promotion_id": promo.promotion_id,
+        "gifts_created": gifts_created,
+        "gifts_updated": len(skipped_gifts),
+        "dispatches_created": dispatches_created,
+    }
