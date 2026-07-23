@@ -1000,6 +1000,7 @@
               <option value="">ประเภท: ทั้งหมด</option>
               <option value="dispatch">🎁 แจกให้ร้านค้า</option>
               <option value="trip_withdrawal">🚗 เซลเบิกออกทริป</option>
+              <option value="receive">📥 รับเข้าสต๊อก</option>
             </select>
             <input id="dd-history-shop" class="border rounded-lg px-3 py-1.5 text-xs w-36" placeholder="🔍 ค้นหาร้านค้า..." oninput="clearTimeout(window._ddShopT); window._ddShopT=setTimeout(loadDirectHistory,400)"/>
             <input type="date" id="dd-history-from" class="border rounded-lg px-2 py-1.5 text-xs" onchange="loadDirectHistory()" title="ตั้งแต่วันที่"/>
@@ -1050,6 +1051,7 @@
             <tr>
               <th class="px-3 py-2 text-left">โปรโมชัน</th>
               <th class="px-3 py-2 text-left">ของแจก</th>
+              <th class="px-3 py-2 text-center">ทีมรับผิดชอบ</th>
               <th class="px-3 py-2 text-center">หน่วย</th>
               <th class="px-3 py-2 text-center">ชิ้น/ตัน</th>
               <th class="px-3 py-2 text-right">Stock คงเหลือ</th>
@@ -1415,8 +1417,8 @@
           <label class="text-xs font-semibold text-gray-700">ของแจกในโปรโมชัน</label>
           <button type="button" onclick="addGiftRow()" class="text-xs text-purple-600 font-semibold">+ เพิ่มของแจก</button>
         </div>
-        <div class="grid text-xs text-gray-400 mb-1 px-1" style="grid-template-columns:1fr 72px 84px 72px 72px 24px">
-          <span>ชื่อของแจก</span><span class="text-center">หน่วย</span><span class="text-center">ชิ้น/ตัน</span><span class="text-center">Stock</span><span class="text-center">Dead Stock</span><span></span>
+        <div class="grid text-xs text-gray-400 mb-1 px-1" style="grid-template-columns:1fr 72px 84px 72px 72px 90px 24px">
+          <span>ชื่อของแจก</span><span class="text-center">หน่วย</span><span class="text-center">ชิ้น/ตัน</span><span class="text-center">Stock</span><span class="text-center">Dead Stock</span><span class="text-center">ทีม</span><span></span>
         </div>
         <div id="gift-rows" class="space-y-2"></div>
       </div>
@@ -1525,6 +1527,35 @@
       <div>
         <label class="form-label">Dead Stock (เกณฑ์แจ้งเตือน)</label>
         <input type="number" id="gs-dead-stock-qty" step="1" min="0" class="form-input text-right" placeholder="0"/>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">ทีมรับผิดชอบ</label>
+      <input id="gs-team" class="form-input" list="gs-team-datalist" placeholder="เช่น ทีมขาย, ทีมสื่อ"/>
+      <datalist id="gs-team-datalist">
+        <option value="ทีมขาย"></option>
+        <option value="ทีมสื่อ"></option>
+        <option value="ทีมการตลาด"></option>
+      </datalist>
+    </div>
+
+    <!-- รับเข้าสต๊อก -->
+    <div class="border-t pt-3 mb-3">
+      <p class="text-xs font-semibold text-green-700 mb-2">📥 รับเข้าสต๊อก (ถ้ามี)</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">จำนวนรับเข้า</label>
+          <input type="number" id="gs-receive-qty" step="1" min="0" class="form-input text-right" placeholder="0"/>
+        </div>
+        <div>
+          <label class="form-label">วันที่รับเข้า</label>
+          <input type="date" id="gs-receive-date" class="form-input"/>
+        </div>
+      </div>
+      <div class="mt-2">
+        <label class="form-label">ผู้รับเข้า</label>
+        <input id="gs-received-by" class="form-input" placeholder="ชื่อผู้รับเข้าสต๊อก"/>
       </div>
     </div>
 
@@ -4125,6 +4156,7 @@ function addGiftRow(data={}) {
     <input type="number" step="0.5" min="0" class="form-input w-[84px] text-right" placeholder="ชิ้น/ตัน" title="จำนวนของแจกต่อตัน" value="${data.qty_per_ton||0}"/>
     <input type="number" step="1" min="0" class="form-input w-[72px] text-right" placeholder="Stock" value="${data.stock_qty||0}"/>
     <input type="number" step="1" min="0" class="form-input w-[72px] text-right" placeholder="Dead" title="Dead Stock — แจ้งเตือนเมื่อ Stock ต่ำกว่าเกณฑ์นี้" value="${data.dead_stock_qty||0}"/>
+    <input class="form-input w-[90px]" placeholder="ทีม" title="ทีมรับผิดชอบ เช่น ทีมขาย ทีมสื่อ" list="gs-team-datalist" value="${data.team||''}"/>
     <button type="button" onclick="document.getElementById('gift-row-${id}').remove()" class="text-red-400 hover:text-red-600 text-sm">✕</button>`;
   document.getElementById("gift-rows").appendChild(div);
 }
@@ -4143,6 +4175,7 @@ async function submitPromoForm() {
       qty_per_ton: parseFloat(inputs[2].value)||0,
       stock_qty: parseFloat(inputs[3].value)||0,
       dead_stock_qty: parseFloat(inputs[4]?.value)||0,
+      team: inputs[5]?.value?.trim()||null,
     };
   }).filter(g=>g.gift_name);
 
@@ -4286,13 +4319,19 @@ function showGiftStock(promoId, giftId, giftName, stock) {
   document.getElementById("gs-gift-id").value = giftId;
   document.getElementById("gs-gift-name").textContent = giftName;
   document.getElementById("gs-stock-qty").value = stock;
-  // โหลดค่า dead_stock + image จาก promoData
+  // โหลดค่า dead_stock + image + team จาก promoData หรือ all-stock
   const promo = promoData.find(p=>p.promotion_id===parseInt(promoId));
-  const gift = promo?.gifts?.find(g=>g.gift_id===parseInt(giftId));
+  let gift = promo?.gifts?.find(g=>g.gift_id===parseInt(giftId));
+  if (!gift) gift = _allGiftStock.find(g=>g.gift_id===parseInt(giftId));
   document.getElementById("gs-dead-stock-qty").value = gift?.dead_stock_qty||0;
+  document.getElementById("gs-team").value = gift?.team||"";
   const imgUrl = gift?.gift_image_url||"";
   document.getElementById("gs-image-url").value = imgUrl;
   previewGiftImage(imgUrl);
+  // เคลียร์ช่องรับเข้า
+  document.getElementById("gs-receive-qty").value = "";
+  document.getElementById("gs-receive-date").value = new Date().toISOString().slice(0,10);
+  document.getElementById("gs-received-by").value = "";
   document.getElementById("modal-gift-stock").classList.remove("hidden");
 }
 
@@ -4309,11 +4348,18 @@ function previewGiftImage(url) {
 async function submitGiftStock() {
   const promoId = document.getElementById("gs-promo-id").value;
   const giftId  = document.getElementById("gs-gift-id").value;
+  const receiveQty = parseFloat(document.getElementById("gs-receive-qty").value)||0;
   const body = {
     stock_qty: parseFloat(document.getElementById("gs-stock-qty").value)||0,
     dead_stock_qty: parseFloat(document.getElementById("gs-dead-stock-qty").value)||0,
     gift_image_url: document.getElementById("gs-image-url").value||null,
+    team: document.getElementById("gs-team").value||null,
   };
+  if (receiveQty > 0) {
+    body.receive_qty = receiveQty;
+    body.receive_date = document.getElementById("gs-receive-date").value||null;
+    body.received_by = document.getElementById("gs-received-by").value||null;
+  }
   try {
     const res = await fetch(`${API}/api/promotions/${promoId}/gifts/${giftId}/stock`, {
       method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
@@ -4597,20 +4643,21 @@ async function loadDirectHistory() {
   empty.classList.add("hidden");
   tbody.innerHTML = data.map(d => {
     const isTrip = d.dispatch_type === "trip_withdrawal";
-    const typeBadge = isTrip
-      ? '<span class="badge bg-orange-100 text-orange-700">🚗 ทริป</span>'
-      : '<span class="badge bg-green-100 text-green-700">🎁 แจก</span>';
+    const isReceive = d.dispatch_type === "receive";
+    let typeBadge = '<span class="badge bg-green-100 text-green-700">🎁 แจก</span>';
+    if (isTrip) typeBadge = '<span class="badge bg-orange-100 text-orange-700">🚗 ทริป</span>';
+    else if (isReceive) typeBadge = '<span class="badge bg-blue-100 text-blue-700">📥 รับเข้า</span>';
     const who = isTrip
       ? (d.salesperson_name || d.dispatched_by || '-')
       : (d.dispatched_by || '-');
-    return `<tr class="border-b hover:bg-gray-50 ${isTrip?'bg-orange-50':''}">
+    return `<tr class="border-b hover:bg-gray-50 ${isTrip?'bg-orange-50':isReceive?'bg-blue-50':''}">
       <td class="px-3 py-2">
         ${typeBadge}
         <span class="font-semibold ml-1">${d.shop_name||'-'}</span>
         <br><span class="text-gray-400 text-xs">${d.region||'-'}</span>
       </td>
       <td class="px-3 py-2">${d.gift_name||'-'} <span class="text-gray-400">(${d.gift_unit||''})</span></td>
-      <td class="px-3 py-2 text-right font-semibold ${isTrip?'text-orange-600':'text-green-700'}">${d.qty_dispatched}</td>
+      <td class="px-3 py-2 text-right font-semibold ${isTrip?'text-orange-600':isReceive?'text-blue-600':'text-green-700'}">${isReceive?'+':''}${d.qty_dispatched}</td>
       <td class="px-3 py-2 text-gray-500">${fmtDate(d.dispatch_date)}</td>
       <td class="px-3 py-2 text-gray-500">${who}</td>
       <td class="px-3 py-2 text-right">
@@ -4664,6 +4711,7 @@ async function loadGiftStock() {
     ? `${API}/api/promotions/${promoId}/gift-stock`
     : `${API}/api/promotions/gifts/all-stock`;
   const data = await fetch(url).then(r=>r.json()).catch(()=>[]);
+  if (!promoId) _allGiftStock = data;
   const tbody = document.getElementById("gift-stock-tbody");
   const empty = document.getElementById("gift-stock-empty");
   if (!data.length) {
@@ -4694,6 +4742,7 @@ async function loadGiftStock() {
           <span class="font-semibold">${g.gift_name}</span>
         </div>
       </td>
+      <td class="px-3 py-2 text-center">${g.team ? `<span class="badge bg-blue-50 text-blue-600">${g.team}</span>` : '<span class="text-gray-300">-</span>'}</td>
       <td class="px-3 py-2 text-center text-gray-500">${g.unit}</td>
       <td class="px-3 py-2 text-center ${g.qty_per_ton>0?'text-blue-600':'text-gray-300'}">${g.qty_per_ton>0?g.qty_per_ton:'-'}</td>
       <td class="px-3 py-2 text-right font-bold ${isOut?'text-red-500':isDead?'text-orange-600':'text-green-700'}">${stock}</td>

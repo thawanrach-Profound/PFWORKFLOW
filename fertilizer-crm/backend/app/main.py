@@ -70,6 +70,8 @@ MIGRATIONS = [
     # 2026-07: dispatch type for trip withdrawal
     "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS dispatch_type VARCHAR(30) DEFAULT 'dispatch'",
     "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS salesperson_name VARCHAR(100)",
+    # 2026-07: team responsible for each gift
+    "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS team VARCHAR(100)",
 ]
 
 def run_migrations():

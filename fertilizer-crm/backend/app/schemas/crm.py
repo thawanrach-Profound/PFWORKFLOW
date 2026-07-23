@@ -427,6 +427,7 @@ class PromotionGiftCreate(BaseModel):
     qty_per_ton: Decimal = Decimal("0")
     dead_stock_qty: Decimal = Decimal("0")
     gift_image_url: Optional[str] = None
+    team: Optional[str] = None
     notes: Optional[str] = None
 
 class PromotionGiftOut(BaseModel):
@@ -438,12 +439,17 @@ class PromotionGiftOut(BaseModel):
     qty_per_ton: Decimal
     dead_stock_qty: Decimal
     gift_image_url: Optional[str]
+    team: Optional[str]
     notes: Optional[str]
 
 class PromotionGiftStockUpdate(BaseModel):
-    stock_qty: Decimal
+    stock_qty: Optional[Decimal] = None
     dead_stock_qty: Optional[Decimal] = None
     gift_image_url: Optional[str] = None
+    team: Optional[str] = None
+    receive_qty: Optional[Decimal] = None     # รับเข้าสต๊อก (บวกเพิ่ม)
+    receive_date: Optional[date] = None
+    received_by: Optional[str] = None
 
 class PromoShopCreate(BaseModel):
     shop_name: str

@@ -182,11 +182,27 @@ def set_gift_stock(promo_id: int, gift_id: int, payload: PromotionGiftStockUpdat
     g = db.get(PromotionGift, gift_id)
     if not g or g.promotion_id != promo_id:
         raise HTTPException(404, "ไม่พบของแจก")
-    g.stock_qty = payload.stock_qty
+    if payload.stock_qty is not None:
+        g.stock_qty = payload.stock_qty
     if payload.dead_stock_qty is not None:
         g.dead_stock_qty = payload.dead_stock_qty
     if payload.gift_image_url is not None:
         g.gift_image_url = payload.gift_image_url or None
+    if payload.team is not None:
+        g.team = payload.team or None
+    # รับเข้าสต๊อก — บวกเพิ่มและบันทึกประวัติ
+    if payload.receive_qty and payload.receive_qty > 0:
+        g.stock_qty = (g.stock_qty or 0) + payload.receive_qty
+        db.add(GiftDispatch(
+            op_id=None,
+            gift_id=g.gift_id,
+            dispatch_date=payload.receive_date or date.today(),
+            qty_dispatched=payload.receive_qty,
+            dispatch_type="receive",
+            dispatched_by=payload.received_by,
+            shop_name="รับเข้าสต๊อก",
+            notes=f"รับเข้าสต๊อก {payload.receive_qty} {g.unit}" + (f" โดย {payload.received_by}" if payload.received_by else ""),
+        ))
     db.commit(); db.refresh(g)
     return g
 
@@ -496,13 +512,16 @@ def list_direct_dispatches(
 
 @router.delete("/dispatches/direct/{dispatch_id}", status_code=204)
 def delete_direct_dispatch(dispatch_id: int, db: Session = Depends(get_db)):
-    """ลบบันทึกการแจกตรง — คืน stock และ quota"""
+    """ลบบันทึกการแจกตรง — คืน stock และ quota (รายการรับเข้า: หัก stock กลับ)"""
     d = db.get(GiftDispatch, dispatch_id)
     if not d or d.gift_id is None:
         raise HTTPException(404, "ไม่พบบันทึกการแจก")
     if d.gift:
-        d.gift.stock_qty += d.qty_dispatched
-    if d.promo_shop:
+        if d.dispatch_type == "receive":
+            d.gift.stock_qty -= d.qty_dispatched
+        else:
+            d.gift.stock_qty += d.qty_dispatched
+    if d.promo_shop and d.dispatch_type != "receive":
         d.promo_shop.qty_dispatched -= d.qty_dispatched
     db.delete(d); db.commit()
 
@@ -523,6 +542,7 @@ def get_gift_stock(promo_id: int, db: Session = Depends(get_db)):
             "qty_per_ton": float(g.qty_per_ton),
             "dead_stock_qty": float(g.dead_stock_qty or 0),
             "gift_image_url": g.gift_image_url,
+            "team": g.team,
         }
         for g in gifts
     ]
@@ -544,6 +564,7 @@ def all_gift_stock(db: Session = Depends(get_db)):
             "qty_per_ton": float(g.qty_per_ton),
             "dead_stock_qty": float(g.dead_stock_qty or 0),
             "gift_image_url": g.gift_image_url,
+            "team": g.team,
         }
         for g in gifts
     ]
