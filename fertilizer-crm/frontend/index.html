@@ -4518,20 +4518,28 @@ async function submitDirectDispatch() {
 }
 
 function resetDirectDispatch() {
-  document.getElementById("dd-promo-select").value = "";
-  document.getElementById("dd-shop-input").value = "";
-  document.getElementById("dd-gift-select").value = "";
-  document.getElementById("dd-gift-stock-badge").textContent = "";
-  document.getElementById("dd-qty").value = "";
-  document.getElementById("dd-qty").disabled = true;
-  document.getElementById("dd-by").value = "";
-  document.getElementById("dd-notes").value = "";
-  document.getElementById("dd-salesperson").value = "";
-  document.getElementById("dd-salesperson-row").classList.add("hidden");
+  const promoSel = document.getElementById("dd-promo-select");
+  const shopSel = document.getElementById("dd-shop-input");
+  const giftSel = document.getElementById("dd-gift-select");
+  if (promoSel) promoSel.value = "";
+  if (shopSel) shopSel.selectedIndex = 0;
+  if (giftSel) giftSel.value = "";
+  const badge = document.getElementById("dd-gift-stock-badge");
+  if (badge) badge.textContent = "";
+  const qty = document.getElementById("dd-qty");
+  if (qty) { qty.value = ""; qty.disabled = false; }
+  const byEl = document.getElementById("dd-by");
+  if (byEl) byEl.value = "";
+  const notesEl = document.getElementById("dd-notes");
+  if (notesEl) notesEl.value = "";
+  const salesperson = document.getElementById("dd-salesperson");
+  if (salesperson) salesperson.value = "";
+  const spRow = document.getElementById("dd-salesperson-row");
+  if (spRow) spRow.classList.add("hidden");
   const firstRadio = document.querySelector('input[name="dd-type"][value="dispatch"]');
   if (firstRadio) firstRadio.checked = true;
-  document.getElementById("dd-shop-info").classList.add("hidden");
-  _ddShops = [];
+  // reset shop dropdown to default
+  onDdPromoChange();
 }
 
 async function loadDirectHistory() {
