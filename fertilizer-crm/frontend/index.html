@@ -4441,7 +4441,35 @@ function onDdGiftChange() {
   }
 }
 
-function onDdPromoChange() { /* promo is now optional — no cascade needed */ }
+async function onDdPromoChange() {
+  const promoId = document.getElementById("dd-promo-select").value;
+  const dl = document.getElementById("dd-shop-datalist");
+  const shopInput = document.getElementById("dd-shop-input");
+  if (!dl) return;
+  dl.innerHTML = "";
+  shopInput.value = "";
+  if (promoId) {
+    // โหลดร้านค้าที่เข้าร่วมโปรโมชันนี้
+    const shops = await fetch(`${API}/api/promotions/${promoId}/shops`).then(r=>r.json()).catch(()=>[]);
+    if (shops.length) {
+      shops.forEach(s => {
+        const opt = document.createElement("option");
+        const remaining = parseFloat(s.qty_allocated) - parseFloat(s.qty_dispatched);
+        opt.value = s.shop_name;
+        opt.dataset.shopId = s.shop_id;
+        opt.label = `${s.shop_name} (${s.region||'-'}) [สิทธิ์: ${remaining}]`;
+        dl.appendChild(opt);
+      });
+      shopInput.placeholder = `เลือกร้านค้าในโปรโมชัน (${shops.length} ร้าน)`;
+    } else {
+      shopInput.placeholder = "โปรโมชันนี้ยังไม่มีร้านค้า";
+    }
+  } else {
+    // ไม่เลือกโปรโมชัน → แสดงร้านทั้งหมดจาก shop_master
+    populateDdShopDatalist();
+    shopInput.placeholder = "พิมพ์ชื่อร้านค้า...";
+  }
+}
 function onDdShopChange() {}
 
 async function submitDirectDispatch() {
