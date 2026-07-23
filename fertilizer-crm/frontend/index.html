@@ -940,8 +940,9 @@
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label class="form-label">4. ร้านค้า / ผู้รับ</label>
-            <input id="dd-shop-input" class="form-input" list="dd-shop-datalist" placeholder="พิมพ์ชื่อร้านค้า..."/>
-            <datalist id="dd-shop-datalist"></datalist>
+            <select id="dd-shop-input" class="form-input">
+              <option value="">-- เลือกร้านค้า (เลือกโปรโมชันก่อน) --</option>
+            </select>
           </div>
           <div>
             <label class="form-label">5. โปรโมชัน (ถ้ามี)</label>
@@ -4443,31 +4444,38 @@ function onDdGiftChange() {
 
 async function onDdPromoChange() {
   const promoId = document.getElementById("dd-promo-select").value;
-  const dl = document.getElementById("dd-shop-datalist");
-  const shopInput = document.getElementById("dd-shop-input");
-  if (!dl) return;
-  dl.innerHTML = "";
-  shopInput.value = "";
+  const shopSel = document.getElementById("dd-shop-input");
+  if (!shopSel) return;
+  shopSel.innerHTML = "";
   if (promoId) {
-    // โหลดร้านค้าที่เข้าร่วมโปรโมชันนี้
     const shops = await fetch(`${API}/api/promotions/${promoId}/shops`).then(r=>r.json()).catch(()=>[]);
     if (shops.length) {
+      const def = document.createElement("option");
+      def.value = ""; def.textContent = `-- เลือกร้านค้า (${shops.length} ร้าน) --`;
+      shopSel.appendChild(def);
       shops.forEach(s => {
-        const opt = document.createElement("option");
         const remaining = parseFloat(s.qty_allocated) - parseFloat(s.qty_dispatched);
+        const opt = document.createElement("option");
         opt.value = s.shop_name;
-        opt.dataset.shopId = s.shop_id;
-        opt.label = `${s.shop_name} (${s.region||'-'}) [สิทธิ์: ${remaining}]`;
-        dl.appendChild(opt);
+        opt.textContent = `${s.shop_name}${s.region ? " ("+s.region+")" : ""} [สิทธิ์: ${remaining}]`;
+        shopSel.appendChild(opt);
       });
-      shopInput.placeholder = `เลือกร้านค้าในโปรโมชัน (${shops.length} ร้าน)`;
     } else {
-      shopInput.placeholder = "โปรโมชันนี้ยังไม่มีร้านค้า";
+      const opt = document.createElement("option");
+      opt.value = ""; opt.textContent = "โปรโมชันนี้ยังไม่มีร้านค้า";
+      shopSel.appendChild(opt);
     }
   } else {
-    // ไม่เลือกโปรโมชัน → แสดงร้านทั้งหมดจาก shop_master
-    populateDdShopDatalist();
-    shopInput.placeholder = "พิมพ์ชื่อร้านค้า...";
+    // ไม่เลือกโปรโมชัน → แสดงร้านจาก shop_master
+    const def = document.createElement("option");
+    def.value = ""; def.textContent = "-- เลือกร้านค้า --";
+    shopSel.appendChild(def);
+    (shopMasterData || []).forEach(s => {
+      const opt = document.createElement("option");
+      opt.value = s.shop_name;
+      opt.textContent = s.shop_name + (s.region ? " ("+s.region+")" : "");
+      shopSel.appendChild(opt);
+    });
   }
 }
 function onDdShopChange() {}
