@@ -396,6 +396,7 @@ class PromotionGiftCreate(BaseModel):
     gift_name: str
     unit: str = "ชิ้น"
     stock_qty: Decimal = Decimal("0")
+    qty_per_ton: Decimal = Decimal("0")
     notes: Optional[str] = None
 
 class PromotionGiftOut(BaseModel):
@@ -404,6 +405,7 @@ class PromotionGiftOut(BaseModel):
     gift_name: str
     unit: str
     stock_qty: Decimal
+    qty_per_ton: Decimal
     notes: Optional[str]
 
 class PromotionGiftStockUpdate(BaseModel):

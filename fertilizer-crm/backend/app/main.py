@@ -28,6 +28,8 @@ MIGRATIONS = [
     # 2026-07: add shop_name and region to gift_dispatches
     "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS shop_name VARCHAR(200)",
     "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS region VARCHAR(50)",
+    # 2026-07: add qty_per_ton to promotion_gifts
+    "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS qty_per_ton NUMERIC(10,2) DEFAULT 0",
 ]
 
 def run_migrations():

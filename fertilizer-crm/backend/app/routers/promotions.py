@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.crm import Promotion, PromotionGift, OrderPromotion, GiftDispatch, Sales
+from app.models.crm import Promotion, PromotionGift, OrderPromotion, GiftDispatch, Sales, Customer, OrderItem
 from app.schemas.crm import (
     PromotionCreate, PromotionUpdate, PromotionOut,
     PromotionGiftCreate, PromotionGiftOut, PromotionGiftStockUpdate,
@@ -284,3 +284,70 @@ def shop_summary(db: Session = Depends(get_db)):
         .all()
     )
     return [{"shop_name": r.shop_name, "region": r.region, "gift_name": r.gift_name, "total_qty": float(r.total_qty)} for r in rows]
+
+
+@router.get("/{promo_id}/shop-dispatch-status", response_model=list[dict])
+def shop_dispatch_status(promo_id: int, db: Session = Depends(get_db)):
+    """
+    สรุปการแจกของแจกรายร้าน สำหรับโปรโมชันนี้
+    - ดึง OrderPromotion ทั้งหมดของโปรโมชันนี้
+    - รวม qty_given และ qty_dispatched ต่อ shop (customer)
+    - รวม quantity_ton จาก SalesItem เพื่อคำนวณสิทธิ์
+    """
+    from sqlalchemy import func as sqlfunc
+
+    promo = db.get(Promotion, promo_id)
+    if not promo:
+        raise HTTPException(404, "ไม่พบรายการส่งเสริมการขาย")
+
+    # รวม op_id, order_id, gift_name, qty_given ต่อ order
+    ops = (
+        db.query(OrderPromotion)
+        .filter(OrderPromotion.promotion_id == promo_id)
+        .all()
+    )
+
+    if not ops:
+        return []
+
+    # Build per-shop summary
+    shop_map = {}
+    for op in ops:
+        order = db.get(Sales, op.order_id)
+        if not order:
+            continue
+        customer = db.get(Customer, order.customer_id)
+        shop_name = customer.company_name if customer else op.order_id
+        region = ""  # frontend maps region from SHOP_MASTER
+
+        # sum tons from order items
+        total_ton = db.query(sqlfunc.sum(OrderItem.quantity_ton)).filter(
+            OrderItem.order_id == op.order_id
+        ).scalar() or 0
+
+        qty_dispatched = sum(float(d.qty_dispatched) for d in op.dispatches)
+
+        key = shop_name
+        if key not in shop_map:
+            shop_map[key] = {
+                "shop_name": shop_name,
+                "region": region,
+                "total_ton": 0.0,
+                "qty_given": 0.0,
+                "qty_dispatched": 0.0,
+                "orders": [],
+            }
+        shop_map[key]["total_ton"] += float(total_ton)
+        shop_map[key]["qty_given"] += float(op.qty_given)
+        shop_map[key]["qty_dispatched"] += qty_dispatched
+        shop_map[key]["orders"].append(op.order_id)
+
+    result = []
+    for s in shop_map.values():
+        s["qty_remaining"] = s["qty_given"] - s["qty_dispatched"]
+        result.append(s)
+
+    # sort by region then shop_name
+    REGION_ORDER = {"อีสานตอนบน":1,"อีสานตอนล่าง":2,"ตะวันออก":3,"กลาง":4,"เหนือ":5,"ใต้":6}
+    result.sort(key=lambda x: (REGION_ORDER.get(x["region"], 99), x["shop_name"]))
+    return result

@@ -349,6 +349,7 @@ class PromotionGift(Base):
     gift_name    = Column(String(200), nullable=False)
     unit         = Column(String(30), default="ชิ้น")
     stock_qty    = Column(Numeric(12, 2), default=0)
+    qty_per_ton  = Column(Numeric(10, 2), default=0)  # จำนวนของแจก/ตัน
     notes        = Column(Text)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
