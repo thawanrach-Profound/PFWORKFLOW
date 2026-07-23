@@ -82,26 +82,48 @@ def update_promotion(promo_id: int, payload: PromotionUpdate, db: Session = Depe
     for k, v in data.items():
         setattr(p, k, v)
     if gifts_payload is not None:
-        # null-out gift_id on dispatches first to avoid FK constraint
-        existing_gift_ids = [g.gift_id for g in p.gifts]
-        if existing_gift_ids:
-            db.query(GiftDispatch).filter(
-                GiftDispatch.gift_id.in_(existing_gift_ids)
-            ).update({"gift_id": None}, synchronize_session=False)
-        db.query(PromotionGift).filter(
-            PromotionGift.promotion_id == promo_id
-        ).delete(synchronize_session=False)
-        db.flush()
+        # upsert ตามชื่อของแจก — คง gift_id เดิมไว้เพื่อไม่ให้ FK จาก order/dispatch พัง
+        existing = {g.gift_name: g for g in p.gifts}
+        payload_names = set()
         for g in gifts_payload:
-            db.add(PromotionGift(promotion_id=promo_id, **g))
+            payload_names.add(g["gift_name"])
+            if g["gift_name"] in existing:
+                for k, v in g.items():
+                    setattr(existing[g["gift_name"]], k, v)
+            else:
+                db.add(PromotionGift(promotion_id=promo_id, **g))
+        for name, gift in existing.items():
+            if name not in payload_names:
+                used = db.query(OrderPromotion).filter(OrderPromotion.gift_id == gift.gift_id).count()
+                if used:
+                    raise HTTPException(400, f"ลบของแจก '{name}' ไม่ได้ — มี order ใช้อยู่ {used} รายการ")
+                db.query(GiftDispatch).filter(GiftDispatch.gift_id == gift.gift_id)\
+                    .update({"gift_id": None}, synchronize_session=False)
+                db.delete(gift)
     if shops_payload is not None:
-        db.query(PromoShop).filter(
-            PromoShop.promotion_id == promo_id
-        ).delete(synchronize_session=False)
-        db.flush()
+        # upsert ตามชื่อร้าน — คง shop_id และ qty_dispatched เดิมไว้
+        existing_shops = {s.shop_name: s for s in p.shops}
+        payload_shop_names = set()
         for s in shops_payload:
-            db.add(PromoShop(promotion_id=promo_id, **s))
-    db.commit(); db.refresh(p)
+            payload_shop_names.add(s["shop_name"])
+            if s["shop_name"] in existing_shops:
+                cur = existing_shops[s["shop_name"]]
+                for k, v in s.items():
+                    if k != "qty_dispatched":
+                        setattr(cur, k, v)
+            else:
+                db.add(PromoShop(promotion_id=promo_id, **s))
+        for name, shop in existing_shops.items():
+            if name not in payload_shop_names:
+                db.query(GiftDispatch).filter(GiftDispatch.promo_shop_id == shop.shop_id)\
+                    .update({"promo_shop_id": None}, synchronize_session=False)
+                db.delete(shop)
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(400, f"บันทึกไม่สำเร็จ: {str(e)[:300]}")
+    db.refresh(p)
     return p
 
 
