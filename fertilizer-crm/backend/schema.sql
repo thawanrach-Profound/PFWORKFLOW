@@ -350,9 +350,21 @@ CREATE TABLE IF NOT EXISTS gift_dispatches (
     dispatch_date   DATE            NOT NULL DEFAULT CURRENT_DATE,
     qty_dispatched  NUMERIC(12,2)   NOT NULL CHECK (qty_dispatched > 0),
     dispatched_by   VARCHAR(100),   -- ชื่อผู้แจก
+    shop_name       VARCHAR(200),   -- ชื่อร้านค้า
+    region          VARCHAR(50),    -- ภาค
     notes           TEXT,
     created_at      TIMESTAMPTZ     NOT NULL DEFAULT now()
 );
+
+-- migration: add shop_name/region if not exists
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='gift_dispatches' AND column_name='shop_name') THEN
+    ALTER TABLE gift_dispatches ADD COLUMN shop_name VARCHAR(200);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='gift_dispatches' AND column_name='region') THEN
+    ALTER TABLE gift_dispatches ADD COLUMN region VARCHAR(50);
+  END IF;
+END $$;
 
 CREATE INDEX idx_gift_dispatches_op    ON gift_dispatches(op_id);
 CREATE INDEX idx_gift_dispatches_date  ON gift_dispatches(dispatch_date DESC);
