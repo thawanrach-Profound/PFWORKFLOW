@@ -4025,15 +4025,13 @@ async function loadPromotions() {
         </div>
         ${(p.gifts||[]).length === 0 ? '<p class="text-xs text-gray-300">ยังไม่มีของแจก</p>' :
           `<table class="w-full text-xs">
-            <thead><tr class="text-gray-400"><th class="text-left pb-1">ของแจก</th><th class="text-center pb-1">หน่วย</th><th class="text-center pb-1">ชิ้น/ตัน</th><th class="text-right pb-1">Stock คงเหลือ</th><th class="pb-1"></th></tr></thead>
+            <thead><tr class="text-gray-400"><th class="text-left pb-1">ของแจก</th><th class="text-center pb-1">หน่วย</th><th class="text-center pb-1">ชิ้น/ตัน</th><th class="pb-1"></th></tr></thead>
             <tbody>${(p.gifts||[]).map(g=>`
               <tr class="border-t">
                 <td class="py-1.5">${g.gift_name}</td>
                 <td class="py-1.5 text-center">${g.unit}</td>
                 <td class="py-1.5 text-center ${g.qty_per_ton>0?'text-blue-600 font-semibold':'text-gray-300'}">${g.qty_per_ton>0?g.qty_per_ton:'-'}</td>
-                <td class="py-1.5 text-right font-semibold ${g.stock_qty<=0?'text-red-500':'text-green-700'}">${g.stock_qty}</td>
                 <td class="py-1.5 text-right">
-                  <button onclick="showGiftStock(${p.promotion_id},${g.gift_id},'${g.gift_name.replace(/'/g,"\\'")}',${g.stock_qty})" class="text-xs text-blue-500 hover:underline mr-2">📦 อัปเดต</button>
                   <button onclick="deleteGift(${p.promotion_id},${g.gift_id})" class="text-xs text-red-400 hover:underline">ลบ</button>
                 </td>
               </tr>`).join("")}
