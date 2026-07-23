@@ -3987,17 +3987,20 @@ async function loadPromotions() {
   const empty = document.getElementById("promo-empty");
   const summary = document.getElementById("promo-summary");
 
-  const total = promoData.length;
-  const active = promoData.filter(p=>p.is_active).length;
-  const totalGifts = promoData.reduce((s,p)=>s+(p.gifts?.length||0),0);
+  // ซ่อนโปรโมชันประวัติที่นำเข้าจาก Excel ออกจากรายการ
+  const visiblePromos = promoData.filter(p => !p.promo_name.startsWith("ประวัติของแจก"));
+
+  const total = visiblePromos.length;
+  const active = visiblePromos.filter(p=>p.is_active).length;
+  const totalGifts = visiblePromos.reduce((s,p)=>s+(p.gifts?.length||0),0);
   summary.innerHTML = `
     <div class="bg-white rounded-xl shadow p-4"><p class="text-gray-400 text-xs mb-1">โปรโมชันทั้งหมด</p><p class="text-2xl font-bold text-gray-800">${total}</p></div>
     <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-400"><p class="text-gray-400 text-xs mb-1">เปิดใช้งาน</p><p class="text-2xl font-bold text-green-600">${active}</p></div>
     <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-400"><p class="text-gray-400 text-xs mb-1">รายการของแจก</p><p class="text-2xl font-bold text-purple-600">${totalGifts}</p></div>`;
 
-  if (!promoData.length) { list.innerHTML=""; empty.classList.remove("hidden"); return; }
+  if (!visiblePromos.length) { list.innerHTML=""; empty.classList.remove("hidden"); return; }
   empty.classList.add("hidden");
-  list.innerHTML = promoData.map(p => {
+  list.innerHTML = visiblePromos.map(p => {
     const totalShops = (p.shops||[]).length;
     const totalAlloc = (p.shops||[]).reduce((s,sh)=>s+parseFloat(sh.qty_allocated||0),0);
     const totalDispatched = (p.shops||[]).reduce((s,sh)=>s+parseFloat(sh.qty_dispatched||0),0);
