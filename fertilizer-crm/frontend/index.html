@@ -4181,10 +4181,15 @@ async function submitPromoForm() {
   };
 
   try {
-    if (promoId) {
-      await fetch(`${API}/api/promotions/${promoId}`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
-    } else {
-      await fetch(`${API}/api/promotions`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    const url = promoId ? `${API}/api/promotions/${promoId}` : `${API}/api/promotions`;
+    const res = await fetch(url, {
+      method: promoId ? "PUT" : "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.detail || `บันทึกไม่สำเร็จ (HTTP ${res.status})`);
     }
     document.getElementById("modal-promo-form").classList.add("hidden");
     loadPromotions();
