@@ -4256,8 +4256,32 @@ function toggleShopDispatch(promoId) {
     container.innerHTML = `<p class="text-xs text-gray-300 text-center py-3">ยังไม่มีร้านค้าในโปรโมชันนี้</p>`;
     return;
   }
+  renderShopDispatchTable(promoId, "");
+}
+
+function renderShopDispatchTable(promoId, regionFilter) {
+  const container = document.getElementById(`shop-dispatch-${promoId}`);
+  const promo = promoData.find(p=>p.promotion_id===promoId);
+  const allShops = promo?.shops || [];
+  const shops = regionFilter ? allShops.filter(s => (s.region||"ไม่ระบุ") === regionFilter) : allShops;
 
   const REGION_ORDER = ["อีสานตอนบน","อีสานตอนล่าง","ตะวันออก","กลาง","เหนือ","ใต้","ไม่ระบุ"];
+  const availableRegions = [...new Set([...REGION_ORDER, ...allShops.map(s=>s.region||"ไม่ระบุ")])]
+    .filter(r => allShops.some(s => (s.region||"ไม่ระบุ") === r));
+  const filterHtml = `<div class="flex items-center gap-2 mb-2">
+    <label class="text-xs text-gray-500">🗺️ ภาค:</label>
+    <select onchange="renderShopDispatchTable(${promoId}, this.value)" class="border rounded-lg px-2 py-1 text-xs">
+      <option value="">ทุกภาค</option>
+      ${availableRegions.map(r=>`<option value="${r}" ${r===regionFilter?'selected':''}>${r}</option>`).join('')}
+    </select>
+    ${regionFilter ? `<span class="text-xs text-gray-400">(${shops.length} ร้าน)</span>` : ''}
+  </div>`;
+
+  if (!shops.length) {
+    container.innerHTML = filterHtml + `<p class="text-xs text-gray-300 text-center py-3">ไม่มีร้านค้าในภาคนี้</p>`;
+    return;
+  }
+
   const regionMap = {};
   shops.forEach(s => {
     const reg = s.region || "ไม่ระบุ";
@@ -4266,7 +4290,7 @@ function toggleShopDispatch(promoId) {
   });
   const regions = [...new Set([...REGION_ORDER,...Object.keys(regionMap)])].filter(k=>regionMap[k]);
   const totalAll = {ton:0,alloc:0,dispatched:0,remaining:0};
-  let html = `<div class="overflow-x-auto">
+  let html = filterHtml + `<div class="overflow-x-auto">
     <table class="w-full text-xs border-collapse">
       <thead class="bg-orange-50 text-orange-700">
         <tr>
