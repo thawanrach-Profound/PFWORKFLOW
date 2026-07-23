@@ -4467,16 +4467,17 @@ async function onDdPromoChange() {
   const shopSel = document.getElementById("dd-shop-input");
   if (!shopSel) return;
   shopSel.innerHTML = "";
+  _ddShops = [];
   if (promoId) {
-    const shops = await fetch(`${API}/api/promotions/${promoId}/shops`).then(r=>r.json()).catch(()=>[]);
-    if (shops.length) {
+    _ddShops = await fetch(`${API}/api/promotions/${promoId}/shops`).then(r=>r.json()).catch(()=>[]);
+    if (_ddShops.length) {
       const def = document.createElement("option");
-      def.value = ""; def.textContent = `-- เลือกร้านค้า (${shops.length} ร้าน) --`;
+      def.value = ""; def.textContent = `-- เลือกร้านค้า (${_ddShops.length} ร้าน) --`;
       shopSel.appendChild(def);
-      shops.forEach(s => {
+      _ddShops.forEach(s => {
         const remaining = parseFloat(s.qty_allocated) - parseFloat(s.qty_dispatched);
         const opt = document.createElement("option");
-        opt.value = s.shop_name;
+        opt.value = "ps:" + s.shop_id;
         opt.textContent = `${s.shop_name}${s.region ? " ("+s.region+")" : ""} [สิทธิ์: ${remaining}]`;
         shopSel.appendChild(opt);
       });
@@ -4512,10 +4513,17 @@ async function submitDirectDispatch() {
   const salesperson = document.getElementById("dd-salesperson").value||null;
   if (dispatchType === "trip_withdrawal" && !salesperson) { alert("กรุณาระบุชื่อเซล/ผู้เบิก"); return; }
 
-  const shopName = document.getElementById("dd-shop-input")?.value?.trim() || null;
+  const shopVal = document.getElementById("dd-shop-input")?.value?.trim() || "";
+  let promoShopId = null, shopName = shopVal || null;
+  if (shopVal.startsWith("ps:")) {
+    promoShopId = parseInt(shopVal.slice(3));
+    const ps = _ddShops.find(s => s.shop_id === promoShopId);
+    shopName = ps ? ps.shop_name : null;
+  }
 
   const body = {
     gift_id: giftId,
+    promo_shop_id: promoShopId,
     shop_name: shopName,
     dispatch_date: date,
     qty_dispatched: qty,
@@ -4534,6 +4542,7 @@ async function submitDirectDispatch() {
     resetDirectDispatch();
     loadAllGiftsForDispatch();
     loadDirectHistory();
+    loadPromotions();
   } catch(err) { alert("❌ "+err.message); }
 }
 
