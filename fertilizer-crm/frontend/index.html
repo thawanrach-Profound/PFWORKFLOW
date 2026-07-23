@@ -957,10 +957,29 @@
           </div>
         </div>
 
+        <div>
+          <label class="form-label">ประเภทกิจกรรม</label>
+          <div class="flex gap-4 mt-1">
+            <label class="flex items-center gap-1.5 text-xs cursor-pointer">
+              <input type="radio" name="dd-type" value="dispatch" checked class="accent-green-600"/>
+              <span class="text-green-700 font-semibold">🎁 แจกให้ร้านค้า</span>
+            </label>
+            <label class="flex items-center gap-1.5 text-xs cursor-pointer">
+              <input type="radio" name="dd-type" value="trip_withdrawal" class="accent-orange-500" onchange="toggleSalespersonField()"/>
+              <span class="text-orange-700 font-semibold">🚗 เซลเบิกออกทริป</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="dd-salesperson-row" class="hidden">
+          <label class="form-label">ชื่อเซล / ผู้เบิก *</label>
+          <input id="dd-salesperson" class="form-input" placeholder="ชื่อพนักงานขายที่เบิกของไปทริป"/>
+        </div>
+
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="form-label">ผู้แจก</label>
-            <input id="dd-by" class="form-input" placeholder="ชื่อผู้แจก"/>
+            <label class="form-label">บันทึกโดย</label>
+            <input id="dd-by" class="form-input" placeholder="ชื่อผู้บันทึก"/>
           </div>
           <div>
             <label class="form-label">หมายเหตุ</label>
@@ -989,11 +1008,11 @@
           <table class="w-full text-xs">
             <thead class="bg-gray-50 text-gray-500">
               <tr>
-                <th class="px-3 py-2 text-left">ร้านค้า / ภาค</th>
+                <th class="px-3 py-2 text-left">ประเภท / ร้านค้า</th>
                 <th class="px-3 py-2 text-left">ของแจก</th>
                 <th class="px-3 py-2 text-right">จำนวน</th>
                 <th class="px-3 py-2 text-left">วันที่</th>
-                <th class="px-3 py-2 text-left">ผู้แจก</th>
+                <th class="px-3 py-2 text-left">ผู้แจก / เซล</th>
                 <th class="px-3 py-2"></th>
               </tr>
             </thead>
@@ -1023,6 +1042,7 @@
               <th class="px-3 py-2 text-center">หน่วย</th>
               <th class="px-3 py-2 text-center">ชิ้น/ตัน</th>
               <th class="px-3 py-2 text-right">Stock คงเหลือ</th>
+              <th class="px-3 py-2 text-center">Dead Stock</th>
               <th class="px-3 py-2 text-center">สถานะ</th>
               <th class="px-3 py-2"></th>
             </tr>
@@ -1051,14 +1071,17 @@
     <!-- SUB-TAB: ร้านค้า -->
     <div id="ptab-shops" class="hidden">
       <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-center mb-3">
-        <h3 class="font-bold text-sm">🏪 Master ร้านค้า (153 ร้าน)</h3>
-        <input id="shop-search" type="text" placeholder="🔍 ค้นหาร้าน..." oninput="renderShopTable()"
-          class="border rounded-lg px-3 py-1.5 text-xs w-52 ml-auto"/>
+        <h3 class="font-bold text-sm">🏪 Master ร้านค้า</h3>
+        <span id="shop-count-badge" class="text-xs text-gray-400"></span>
+        <input id="shop-search" type="text" placeholder="🔍 ค้นหาร้าน / พนักงาน / เขต..." oninput="renderShopTable()"
+          class="border rounded-lg px-3 py-1.5 text-xs w-56 ml-auto"/>
         <select id="shop-filter-region" class="border rounded-lg px-3 py-1.5 text-xs" onchange="renderShopTable()">
           <option value="">ภาค: ทั้งหมด</option>
           <option>อีสานตอนบน</option><option>อีสานตอนล่าง</option>
           <option>ตะวันออก</option><option>กลาง</option><option>เหนือ</option><option>ใต้</option>
         </select>
+        <button onclick="showShopForm()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">+ เพิ่มร้านค้า</button>
+        <button onclick="seedShops()" id="btn-seed-shops" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg" title="นำเข้า 153 ร้านค้าจาก master list">📥 นำเข้า 153 ร้าน</button>
       </div>
       <div class="bg-white rounded-xl shadow overflow-x-auto">
         <table class="w-full text-xs">
@@ -1067,10 +1090,16 @@
               <th class="px-3 py-2 text-left">#</th>
               <th class="px-3 py-2 text-left">ชื่อร้านค้า</th>
               <th class="px-3 py-2 text-left">ภาค</th>
+              <th class="px-3 py-2 text-left">เขต</th>
+              <th class="px-3 py-2 text-left">พนักงานผู้รับผิดชอบ</th>
+              <th class="px-3 py-2 text-left">โทรศัพท์</th>
+              <th class="px-3 py-2 text-center">สถานะ</th>
+              <th class="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody id="shop-table-body"></tbody>
         </table>
+        <p id="shop-table-empty" class="hidden text-center text-gray-300 py-8">ยังไม่มีข้อมูลร้านค้า — กดปุ่ม "นำเข้า 153 ร้าน" เพื่อเริ่มต้น</p>
       </div>
     </div>
 
@@ -1375,8 +1404,8 @@
           <label class="text-xs font-semibold text-gray-700">ของแจกในโปรโมชัน</label>
           <button type="button" onclick="addGiftRow()" class="text-xs text-purple-600 font-semibold">+ เพิ่มของแจก</button>
         </div>
-        <div class="grid text-xs text-gray-400 mb-1 px-1" style="grid-template-columns:1fr 80px 96px 80px 24px">
-          <span>ชื่อของแจก</span><span class="text-center">หน่วย</span><span class="text-center">ชิ้น/ตัน</span><span class="text-center">Stock</span><span></span>
+        <div class="grid text-xs text-gray-400 mb-1 px-1" style="grid-template-columns:1fr 72px 84px 72px 72px 24px">
+          <span>ชื่อของแจก</span><span class="text-center">หน่วย</span><span class="text-center">ชิ้น/ตัน</span><span class="text-center">Stock</span><span class="text-center">Dead Stock</span><span></span>
         </div>
         <div id="gift-rows" class="space-y-2"></div>
       </div>
@@ -1409,17 +1438,87 @@
 <!-- datalist สำหรับ autocomplete ร้านค้าในฟอร์มโปรโมชัน -->
 <datalist id="shop-master-list"></datalist>
 
+<!-- ══════════════ MODAL: SHOP FORM ══════════════ -->
+<div id="modal-shop-form" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-3">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="font-bold text-base" id="shop-form-title">🏪 เพิ่มร้านค้า</h2>
+      <button onclick="document.getElementById('modal-shop-form').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+    <div class="space-y-3">
+      <input type="hidden" id="shop-edit-id"/>
+      <div>
+        <label class="form-label">ชื่อร้านค้า *</label>
+        <input id="sf-name" class="form-input" placeholder="เช่น ไพบูรณ์การเกษตร"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">ภาค</label>
+          <select id="sf-region" class="form-input">
+            <option value="">-- เลือกภาค --</option>
+            <option>อีสานตอนบน</option><option>อีสานตอนล่าง</option>
+            <option>ตะวันออก</option><option>กลาง</option><option>เหนือ</option><option>ใต้</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">เขต</label>
+          <input id="sf-zone" class="form-input" placeholder="เช่น เขต 1, โซน A"/>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="form-label">พนักงานผู้รับผิดชอบ</label>
+          <input id="sf-employee" class="form-input" placeholder="ชื่อพนักงาน"/>
+        </div>
+        <div>
+          <label class="form-label">โทรศัพท์</label>
+          <input id="sf-phone" class="form-input" placeholder="0xx-xxx-xxxx"/>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" id="sf-active" checked class="accent-green-600"/>
+        <label class="text-xs text-gray-600">เปิดใช้งาน</label>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="submitShopForm()" class="flex-1 btn-primary">💾 บันทึก</button>
+        <button onclick="document.getElementById('modal-shop-form').classList.add('hidden')" class="btn-secondary">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════════ MODAL: GIFT STOCK UPDATE ══════════════ -->
 <div id="modal-gift-stock" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-3">
-  <div class="bg-white rounded-2xl shadow-xl w-full max-w-xs p-5">
-    <h2 class="font-bold mb-3">📦 อัปเดต Stock ของแจก</h2>
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="font-bold">📦 อัปเดตของแจก</h2>
+      <button onclick="document.getElementById('modal-gift-stock').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
     <input type="hidden" id="gs-promo-id"/>
     <input type="hidden" id="gs-gift-id"/>
-    <p class="text-xs text-gray-500 mb-2" id="gs-gift-name"></p>
-    <label class="form-label">จำนวนคงเหลือ</label>
-    <input type="number" id="gs-stock-qty" step="1" min="0" class="form-input mb-3"/>
+    <p class="text-sm font-semibold text-gray-700 mb-3" id="gs-gift-name"></p>
+
+    <!-- รูปภาพ preview -->
+    <div class="mb-3">
+      <img id="gs-img-preview" src="" class="hidden w-24 h-24 rounded-lg object-cover border mb-2"/>
+      <label class="form-label">URL รูปของแจก</label>
+      <input id="gs-image-url" class="form-input text-xs" placeholder="https://... หรือว่างถ้าไม่มีรูป"
+        oninput="previewGiftImage(this.value)"/>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="form-label">Stock คงเหลือ</label>
+        <input type="number" id="gs-stock-qty" step="1" min="0" class="form-input text-right"/>
+      </div>
+      <div>
+        <label class="form-label">Dead Stock (เกณฑ์แจ้งเตือน)</label>
+        <input type="number" id="gs-dead-stock-qty" step="1" min="0" class="form-input text-right" placeholder="0"/>
+      </div>
+    </div>
+
     <div class="flex gap-2">
-      <button onclick="submitGiftStock()" class="flex-1 btn-primary">บันทึก</button>
+      <button onclick="submitGiftStock()" class="flex-1 btn-primary">💾 บันทึก</button>
       <button onclick="document.getElementById('modal-gift-stock').classList.add('hidden')" class="btn-secondary">ยกเลิก</button>
     </div>
   </div>
@@ -4021,10 +4120,6 @@ function recalcShopAlloc(tonInput, allocId) {
   document.getElementById(allocId).value = (ton * multiplier).toFixed(0);
 }
 
-function autoFillShopRegion(nameInput, regionSelectId) {
-  const found = SHOP_MASTER.find(s => s.name === nameInput.value);
-  if (found) document.getElementById(regionSelectId).value = found.region;
-}
 
 let _giftSeq = 0;
 function addGiftRow(data={}) {
@@ -4035,9 +4130,10 @@ function addGiftRow(data={}) {
   div.className = "flex gap-2 items-center";
   div.innerHTML = `
     <input class="form-input flex-1" placeholder="ชื่อของแจก เช่น เสื้อ" value="${data.gift_name||''}"/>
-    <input class="form-input w-20 text-center" placeholder="หน่วย" value="${data.unit||'ชิ้น'}"/>
-    <input type="number" step="0.5" min="0" class="form-input w-24 text-right" placeholder="ชิ้น/ตัน" title="จำนวนของแจกต่อตัน" value="${data.qty_per_ton||0}"/>
-    <input type="number" step="1" min="0" class="form-input w-20 text-right" placeholder="Stock" value="${data.stock_qty||0}"/>
+    <input class="form-input w-[72px] text-center" placeholder="หน่วย" value="${data.unit||'ชิ้น'}"/>
+    <input type="number" step="0.5" min="0" class="form-input w-[84px] text-right" placeholder="ชิ้น/ตัน" title="จำนวนของแจกต่อตัน" value="${data.qty_per_ton||0}"/>
+    <input type="number" step="1" min="0" class="form-input w-[72px] text-right" placeholder="Stock" value="${data.stock_qty||0}"/>
+    <input type="number" step="1" min="0" class="form-input w-[72px] text-right" placeholder="Dead" title="Dead Stock — แจ้งเตือนเมื่อ Stock ต่ำกว่าเกณฑ์นี้" value="${data.dead_stock_qty||0}"/>
     <button type="button" onclick="document.getElementById('gift-row-${id}').remove()" class="text-red-400 hover:text-red-600 text-sm">✕</button>`;
   document.getElementById("gift-rows").appendChild(div);
 }
@@ -4055,6 +4151,7 @@ async function submitPromoForm() {
       unit: inputs[1].value||"ชิ้น",
       qty_per_ton: parseFloat(inputs[2].value)||0,
       stock_qty: parseFloat(inputs[3].value)||0,
+      dead_stock_qty: parseFloat(inputs[4]?.value)||0,
     };
   }).filter(g=>g.gift_name);
 
@@ -4184,20 +4281,42 @@ function showGiftStock(promoId, giftId, giftName, stock) {
   document.getElementById("gs-gift-id").value = giftId;
   document.getElementById("gs-gift-name").textContent = giftName;
   document.getElementById("gs-stock-qty").value = stock;
+  // โหลดค่า dead_stock + image จาก promoData
+  const promo = promoData.find(p=>p.promotion_id===parseInt(promoId));
+  const gift = promo?.gifts?.find(g=>g.gift_id===parseInt(giftId));
+  document.getElementById("gs-dead-stock-qty").value = gift?.dead_stock_qty||0;
+  const imgUrl = gift?.gift_image_url||"";
+  document.getElementById("gs-image-url").value = imgUrl;
+  previewGiftImage(imgUrl);
   document.getElementById("modal-gift-stock").classList.remove("hidden");
+}
+
+function previewGiftImage(url) {
+  const img = document.getElementById("gs-img-preview");
+  if (url && url.startsWith("http")) {
+    img.src = url;
+    img.classList.remove("hidden");
+  } else {
+    img.classList.add("hidden");
+  }
 }
 
 async function submitGiftStock() {
   const promoId = document.getElementById("gs-promo-id").value;
   const giftId  = document.getElementById("gs-gift-id").value;
-  const qty     = parseFloat(document.getElementById("gs-stock-qty").value) || 0;
+  const body = {
+    stock_qty: parseFloat(document.getElementById("gs-stock-qty").value)||0,
+    dead_stock_qty: parseFloat(document.getElementById("gs-dead-stock-qty").value)||0,
+    gift_image_url: document.getElementById("gs-image-url").value||null,
+  };
   try {
     const res = await fetch(`${API}/api/promotions/${promoId}/gifts/${giftId}/stock`, {
-      method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({stock_qty:qty})
+      method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
     });
     if (!res.ok) throw new Error((await res.json()).detail);
     document.getElementById("modal-gift-stock").classList.add("hidden");
     loadPromotions();
+    loadGiftStock();
   } catch(err) { alert("❌ "+err.message); }
 }
 
@@ -4213,20 +4332,33 @@ const SHOP_MASTER = [{"name":"ไพบูรณ์การเกษตร","re
 
 const GIFT_MASTER = [{"name":"เสื้อ 666-639","unit":"ตัว"},{"name":"เสื้อ 30-0-0","unit":"ตัว"},{"name":"เสื้อ 21-0-0","unit":"ตัว"},{"name":"เสื้อยิปซั่ม","unit":"ตัว"},{"name":"เสื้อคนเขียว","unit":"ตัว"},{"name":"ไวนิลคนเขียว","unit":"ผืน"},{"name":"ถุงใน+กระสอบ","unit":"ใบ"},{"name":"เสื้อ 15-10-30","unit":"ตัว"},{"name":"เสื้อลายสก็อต ไก่งวง","unit":"ตัว"},{"name":"เสื้อไก่งวง","unit":"ตัว"},{"name":"ไวนิลเซฟซอย","unit":"ผืน"},{"name":"ไวนิลไก่งวง","unit":"ผืน"},{"name":"เต็นท์คนเขียว","unit":"ชุด"},{"name":"หมวก","unit":"ใบ"},{"name":"PVC 666-639","unit":"แผ่น"},{"name":"PVC 30-0-0","unit":"แผ่น"},{"name":"เสื้อ 46-0-0","unit":"ตัว"},{"name":"เสื้อลายสก็อต คนเขียว","unit":"ตัว"},{"name":"เสื้อ0-0-60","unit":"ตัว"}];
 
-function initShopDatalist() {
-  const opts = SHOP_MASTER.map(s => `<option value="${s.name}">`).join('');
-  const dl1 = document.getElementById('dispatch-shop-list');
-  if (dl1) dl1.innerHTML = opts;
-  const dl2 = document.getElementById('shop-master-list');
-  if (dl2) dl2.innerHTML = opts;
+async function initShopDatalist() {
+  // โหลดจาก API ถ้ายังไม่มี
+  if (!shopMasterData.length) {
+    shopMasterData = await fetch(`${API}/api/shops`).then(r=>r.json()).catch(()=>[]);
+  }
+  // fallback ใช้ SHOP_MASTER ถ้า DB ยังว่าง
+  const source = shopMasterData.length ? shopMasterData.map(s=>({name:s.shop_name,region:s.region})) : SHOP_MASTER;
+  const opts = source.map(s => `<option value="${s.name}">`).join('');
+  ['dispatch-shop-list','shop-master-list'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
 }
 
 function autoFillRegion(shopName) {
-  const found = SHOP_MASTER.find(s => s.name === shopName);
+  const source = shopMasterData.length ? shopMasterData.map(s=>({name:s.shop_name,region:s.region})) : SHOP_MASTER;
+  const found = source.find(s => s.name === shopName);
   if (found) {
     const sel = document.getElementById('dispatch-region');
-    if (sel) sel.value = found.region;
+    if (sel) sel.value = found.region||"";
   }
+}
+
+function autoFillShopRegion(nameInput, regionSelectId) {
+  const source = shopMasterData.length ? shopMasterData.map(s=>({name:s.shop_name,region:s.region})) : SHOP_MASTER;
+  const found = source.find(s => s.name === nameInput.value);
+  if (found) document.getElementById(regionSelectId).value = found.region||"";
 }
 
 function switchPromoTab(name) {
@@ -4239,7 +4371,7 @@ function switchPromoTab(name) {
   if (name === "dispatch") { populateDdPromoSelect(); loadDirectHistory(); }
   if (name === "gift-stock") loadGiftStock();
   if (name === "region") loadRegionSummary();
-  if (name === "shops") renderShopTable();
+  if (name === "shops") loadShopMaster();
 }
 
 // ─── DIRECT DISPATCH ──────────────────────────────────────────
@@ -4326,12 +4458,18 @@ async function submitDirectDispatch() {
   if (!qty || qty <= 0) { alert("กรุณาระบุจำนวน"); return; }
   if (!date) { alert("กรุณาระบุวันที่แจก"); return; }
 
+  const dispatchType = document.querySelector('input[name="dd-type"]:checked')?.value || "dispatch";
+  const salesperson = document.getElementById("dd-salesperson").value||null;
+  if (dispatchType === "trip_withdrawal" && !salesperson) { alert("กรุณาระบุชื่อเซล/ผู้เบิก"); return; }
+
   const body = {
     promo_shop_id: promoShopId,
     gift_id: giftId,
     dispatch_date: date,
     qty_dispatched: qty,
+    dispatch_type: dispatchType,
     dispatched_by: document.getElementById("dd-by").value||null,
+    salesperson_name: salesperson,
     notes: document.getElementById("dd-notes").value||null,
   };
 
@@ -4357,6 +4495,10 @@ function resetDirectDispatch() {
   document.getElementById("dd-qty").disabled = true;
   document.getElementById("dd-by").value = "";
   document.getElementById("dd-notes").value = "";
+  document.getElementById("dd-salesperson").value = "";
+  document.getElementById("dd-salesperson-row").classList.add("hidden");
+  const firstRadio = document.querySelector('input[name="dd-type"][value="dispatch"]');
+  if (firstRadio) firstRadio.checked = true;
   document.getElementById("dd-shop-info").classList.add("hidden");
   _ddShops = [];
 }
@@ -4373,17 +4515,29 @@ async function loadDirectHistory() {
     return;
   }
   empty.classList.add("hidden");
-  tbody.innerHTML = data.map(d => `
-    <tr class="border-b hover:bg-gray-50">
-      <td class="px-3 py-2"><span class="font-semibold">${d.shop_name||'-'}</span><br><span class="text-gray-400">${d.region||'-'}</span></td>
+  tbody.innerHTML = data.map(d => {
+    const isTrip = d.dispatch_type === "trip_withdrawal";
+    const typeBadge = isTrip
+      ? '<span class="badge bg-orange-100 text-orange-700">🚗 ทริป</span>'
+      : '<span class="badge bg-green-100 text-green-700">🎁 แจก</span>';
+    const who = isTrip
+      ? (d.salesperson_name || d.dispatched_by || '-')
+      : (d.dispatched_by || '-');
+    return `<tr class="border-b hover:bg-gray-50 ${isTrip?'bg-orange-50':''}">
+      <td class="px-3 py-2">
+        ${typeBadge}
+        <span class="font-semibold ml-1">${d.shop_name||'-'}</span>
+        <br><span class="text-gray-400 text-xs">${d.region||'-'}</span>
+      </td>
       <td class="px-3 py-2">${d.gift_name||'-'} <span class="text-gray-400">(${d.gift_unit||''})</span></td>
-      <td class="px-3 py-2 text-right font-semibold text-green-700">${d.qty_dispatched}</td>
+      <td class="px-3 py-2 text-right font-semibold ${isTrip?'text-orange-600':'text-green-700'}">${d.qty_dispatched}</td>
       <td class="px-3 py-2 text-gray-500">${fmtDate(d.dispatch_date)}</td>
-      <td class="px-3 py-2 text-gray-500">${d.dispatched_by||'-'}</td>
+      <td class="px-3 py-2 text-gray-500">${who}</td>
       <td class="px-3 py-2 text-right">
         <button onclick="deleteDirectDispatch(${d.dispatch_id})" class="text-xs text-red-400 hover:underline">ลบ</button>
       </td>
-    </tr>`).join("");
+    </tr>`;
+  }).join("");
 }
 
 async function deleteDirectDispatch(id) {
@@ -4423,19 +4577,33 @@ async function loadGiftStock() {
   empty.classList.add("hidden");
   tbody.innerHTML = data.map(g => {
     const pName = g.promo_name || (promoData.find(p=>p.promotion_id===g.promotion_id)?.promo_name||'');
-    return `<tr class="border-b hover:bg-gray-50">
+    const stock = parseFloat(g.stock_qty||0);
+    const dead = parseFloat(g.dead_stock_qty||0);
+    const isOut = stock <= 0;
+    const isDead = dead > 0 && stock <= dead;
+    const isLow = !isOut && !isDead && stock < 10;
+    let statusBadge = '<span class="badge bg-green-100 text-green-700">พร้อม</span>';
+    if (isOut) statusBadge = '<span class="badge bg-red-100 text-red-600">⛔ หมด</span>';
+    else if (isDead) statusBadge = `<span class="badge bg-orange-100 text-orange-700">⚠️ Dead Stock (≤${dead})</span>`;
+    else if (isLow) statusBadge = '<span class="badge bg-yellow-100 text-yellow-700">🔶 ใกล้หมด</span>';
+    const imgHtml = g.gift_image_url
+      ? `<img src="${g.gift_image_url}" class="w-8 h-8 rounded object-cover border" onerror="this.style.display='none'"/>`
+      : '<span class="text-gray-200 text-lg">🎁</span>';
+    return `<tr class="border-b hover:bg-gray-50 ${isOut?'bg-red-50':isDead?'bg-orange-50':''}">
       <td class="px-3 py-2 text-gray-500 text-xs">${pName}</td>
-      <td class="px-3 py-2 font-semibold">${g.gift_name}</td>
+      <td class="px-3 py-2">
+        <div class="flex items-center gap-2">
+          ${imgHtml}
+          <span class="font-semibold">${g.gift_name}</span>
+        </div>
+      </td>
       <td class="px-3 py-2 text-center text-gray-500">${g.unit}</td>
       <td class="px-3 py-2 text-center ${g.qty_per_ton>0?'text-blue-600':'text-gray-300'}">${g.qty_per_ton>0?g.qty_per_ton:'-'}</td>
-      <td class="px-3 py-2 text-right font-bold ${g.stock_qty<=0?'text-red-500':'text-green-700'}">${g.stock_qty}</td>
-      <td class="px-3 py-2 text-center">
-        ${g.stock_qty<=0?'<span class="badge bg-red-100 text-red-600">หมด</span>':
-          g.stock_qty<10?'<span class="badge bg-yellow-100 text-yellow-700">ใกล้หมด</span>':
-          '<span class="badge bg-green-100 text-green-700">พร้อม</span>'}
-      </td>
+      <td class="px-3 py-2 text-right font-bold ${isOut?'text-red-500':isDead?'text-orange-600':'text-green-700'}">${stock}</td>
+      <td class="px-3 py-2 text-center text-gray-400 text-xs">${dead>0?dead:'-'}</td>
+      <td class="px-3 py-2 text-center">${statusBadge}</td>
       <td class="px-3 py-2 text-right">
-        <button onclick="showGiftStock(${g.promotion_id||''},${g.gift_id},'${(g.gift_name||'').replace(/'/g,"\\'")}',${g.stock_qty})" class="text-xs text-blue-500 hover:underline">📦 อัปเดต</button>
+        <button onclick="showGiftStock(${g.promotion_id||''},${g.gift_id},'${(g.gift_name||'').replace(/'/g,"\\'")}',${stock})" class="text-xs text-blue-500 hover:underline">📦 อัปเดต</button>
       </td>
     </tr>`;
   }).join("");
@@ -4628,26 +4796,125 @@ async function loadRegionSummary() {
   } catch { tbody.innerHTML = `<tr><td colspan="3" class="text-center text-red-300 py-4">โหลดไม่ได้</td></tr>`; }
 }
 
-let shopTableData = null;
+let shopMasterData = [];
+
+async function loadShopMaster() {
+  shopMasterData = await fetch(`${API}/api/shops`).then(r=>r.json()).catch(()=>[]);
+  renderShopTable();
+  // อัปเดต datalist
+  const opts = shopMasterData.map(s=>`<option value="${s.shop_name}">`).join('');
+  ['dispatch-shop-list','shop-master-list'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+  const badge = document.getElementById("shop-count-badge");
+  if (badge) badge.textContent = `(${shopMasterData.length} ร้าน)`;
+}
+
 function renderShopTable() {
   const tbody = document.getElementById("shop-table-body");
+  const empty = document.getElementById("shop-table-empty");
   if (!tbody) return;
   const search = (document.getElementById("shop-search")?.value || "").toLowerCase();
   const filterRegion = document.getElementById("shop-filter-region")?.value || "";
-  const rows = SHOP_MASTER.filter(s =>
-    s.name.toLowerCase().includes(search) &&
+  const rows = shopMasterData.filter(s =>
+    (s.shop_name.toLowerCase().includes(search) ||
+     (s.employee_name||"").toLowerCase().includes(search) ||
+     (s.zone||"").toLowerCase().includes(search)) &&
     (!filterRegion || s.region === filterRegion)
   );
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-gray-300 py-6">ไม่พบร้านค้า</td></tr>`;
+    tbody.innerHTML = "";
+    if (empty) empty.classList.remove("hidden");
     return;
   }
+  if (empty) empty.classList.add("hidden");
   tbody.innerHTML = rows.map((s,i) => `
-    <tr class="border-b hover:bg-gray-50">
-      <td class="px-4 py-2 text-gray-400 text-xs">${i+1}</td>
-      <td class="px-4 py-2 font-medium">${s.name}</td>
-      <td class="px-4 py-2"><span class="badge bg-blue-100 text-blue-700">${s.region}</span></td>
+    <tr class="border-b hover:bg-gray-50 ${s.is_active?'':'opacity-50'}">
+      <td class="px-3 py-2 text-gray-400 text-xs">${i+1}</td>
+      <td class="px-3 py-2 font-medium">${s.shop_name}</td>
+      <td class="px-3 py-2"><span class="badge bg-blue-100 text-blue-700">${s.region||'-'}</span></td>
+      <td class="px-3 py-2 text-gray-500">${s.zone||'-'}</td>
+      <td class="px-3 py-2 text-gray-600">${s.employee_name||'-'}</td>
+      <td class="px-3 py-2 text-gray-500">${s.phone||'-'}</td>
+      <td class="px-3 py-2 text-center">
+        ${s.is_active ? '<span class="badge bg-green-100 text-green-700">เปิด</span>' : '<span class="badge bg-gray-100 text-gray-400">ปิด</span>'}
+      </td>
+      <td class="px-3 py-2 text-right whitespace-nowrap">
+        <button onclick="showShopForm(${s.shop_id})" class="text-xs text-blue-500 hover:underline mr-2">✏️</button>
+        <button onclick="deleteShop(${s.shop_id},'${s.shop_name.replace(/'/g,"\\'")}')" class="text-xs text-red-400 hover:underline">🗑️</button>
+      </td>
     </tr>`).join("");
+}
+
+function showShopForm(shopId=null) {
+  document.getElementById("shop-edit-id").value = shopId||"";
+  document.getElementById("shop-form-title").textContent = shopId ? "✏️ แก้ไขร้านค้า" : "🏪 เพิ่มร้านค้า";
+  if (shopId) {
+    const s = shopMasterData.find(x=>x.shop_id===shopId);
+    if (s) {
+      document.getElementById("sf-name").value = s.shop_name;
+      document.getElementById("sf-region").value = s.region||"";
+      document.getElementById("sf-zone").value = s.zone||"";
+      document.getElementById("sf-employee").value = s.employee_name||"";
+      document.getElementById("sf-phone").value = s.phone||"";
+      document.getElementById("sf-active").checked = s.is_active;
+    }
+  } else {
+    ["sf-name","sf-zone","sf-employee","sf-phone"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+    document.getElementById("sf-region").value = "";
+    document.getElementById("sf-active").checked = true;
+  }
+  document.getElementById("modal-shop-form").classList.remove("hidden");
+}
+
+async function submitShopForm() {
+  const name = document.getElementById("sf-name").value.trim();
+  if (!name) { alert("กรุณาระบุชื่อร้านค้า"); return; }
+  const shopId = document.getElementById("shop-edit-id").value;
+  const body = {
+    shop_name: name,
+    region: document.getElementById("sf-region").value||null,
+    zone: document.getElementById("sf-zone").value||null,
+    employee_name: document.getElementById("sf-employee").value||null,
+    phone: document.getElementById("sf-phone").value||null,
+    is_active: document.getElementById("sf-active").checked,
+  };
+  try {
+    const url = shopId ? `${API}/api/shops/${shopId}` : `${API}/api/shops`;
+    const method = shopId ? "PUT" : "POST";
+    const res = await fetch(url, {method, headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+    if (!res.ok) throw new Error((await res.json()).detail||"เกิดข้อผิดพลาด");
+    document.getElementById("modal-shop-form").classList.add("hidden");
+    loadShopMaster();
+  } catch(err) { alert("❌ "+err.message); }
+}
+
+async function deleteShop(shopId, shopName) {
+  if (!confirm(`ลบ "${shopName}" ?`)) return;
+  const res = await fetch(`${API}/api/shops/${shopId}`, {method:"DELETE"});
+  if (res.ok) loadShopMaster();
+  else alert("❌ ลบไม่ได้");
+}
+
+async function seedShops() {
+  const btn = document.getElementById("btn-seed-shops");
+  btn.disabled = true; btn.textContent = "กำลังนำเข้า...";
+  try {
+    const res = await fetch(`${API}/api/shops/seed`, {method:"POST"});
+    const data = await res.json();
+    alert(`✅ ${data.message||"นำเข้าเรียบร้อย"}`);
+    loadShopMaster();
+  } catch { alert("❌ นำเข้าไม่ได้"); }
+  finally { btn.disabled=false; btn.textContent="📥 นำเข้า 153 ร้าน"; }
+}
+
+function toggleSalespersonField() {
+  const type = document.querySelector('input[name="dd-type"]:checked')?.value;
+  const row = document.getElementById("dd-salesperson-row");
+  if (row) row.classList.toggle("hidden", type !== "trip_withdrawal");
+  // reset dispatch radio to fire both ways
+  document.querySelectorAll('input[name="dd-type"]').forEach(r => r.onchange = toggleSalespersonField);
 }
 
 // ─── ORDER PROMOTIONS (ใน Order form) ────────────────────────

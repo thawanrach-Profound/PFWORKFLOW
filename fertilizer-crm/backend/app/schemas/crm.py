@@ -442,6 +442,8 @@ class PromotionGiftOut(BaseModel):
 
 class PromotionGiftStockUpdate(BaseModel):
     stock_qty: Decimal
+    dead_stock_qty: Optional[Decimal] = None
+    gift_image_url: Optional[str] = None
 
 class PromoShopCreate(BaseModel):
     shop_name: str

@@ -129,6 +129,10 @@ def set_gift_stock(promo_id: int, gift_id: int, payload: PromotionGiftStockUpdat
     if not g or g.promotion_id != promo_id:
         raise HTTPException(404, "ไม่พบของแจก")
     g.stock_qty = payload.stock_qty
+    if payload.dead_stock_qty is not None:
+        g.dead_stock_qty = payload.dead_stock_qty
+    if payload.gift_image_url is not None:
+        g.gift_image_url = payload.gift_image_url or None
     db.commit(); db.refresh(g)
     return g
 
@@ -436,10 +440,13 @@ def get_gift_stock(promo_id: int, db: Session = Depends(get_db)):
     return [
         {
             "gift_id": g.gift_id,
+            "promotion_id": g.promotion_id,
             "gift_name": g.gift_name,
             "unit": g.unit,
             "stock_qty": float(g.stock_qty),
             "qty_per_ton": float(g.qty_per_ton),
+            "dead_stock_qty": float(g.dead_stock_qty or 0),
+            "gift_image_url": g.gift_image_url,
         }
         for g in gifts
     ]
@@ -459,6 +466,8 @@ def all_gift_stock(db: Session = Depends(get_db)):
             "unit": g.unit,
             "stock_qty": float(g.stock_qty),
             "qty_per_ton": float(g.qty_per_ton),
+            "dead_stock_qty": float(g.dead_stock_qty or 0),
+            "gift_image_url": g.gift_image_url,
         }
         for g in gifts
     ]
