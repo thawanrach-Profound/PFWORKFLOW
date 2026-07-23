@@ -911,6 +911,14 @@
     <div id="ptab-promos">
       <!-- Summary Cards -->
       <div id="promo-summary" class="grid grid-cols-2 gap-3 sm:grid-cols-3"></div>
+      <div class="flex items-center gap-2 mt-3">
+        <label class="text-xs text-gray-500">สถานะ:</label>
+        <select id="promo-status-filter" class="border rounded-lg px-3 py-1.5 text-xs" onchange="loadPromotions()">
+          <option value="">ทั้งหมด</option>
+          <option value="active">✅ เปิดใช้งาน</option>
+          <option value="inactive">⏸ ปิดใช้งาน</option>
+        </select>
+      </div>
       <!-- Promotions List -->
       <div id="promo-list" class="space-y-3 mt-2"></div>
       <p id="promo-empty" class="hidden text-center text-gray-300 py-10">ยังไม่มีรายการส่งเสริมการขาย</p>
@@ -4029,11 +4037,15 @@ async function loadPromotions() {
   const summary = document.getElementById("promo-summary");
 
   // ซ่อนโปรโมชันประวัติที่นำเข้าจาก Excel ออกจากรายการ
-  const visiblePromos = promoData.filter(p => !p.promo_name.startsWith("ประวัติของแจก"));
+  const allPromos = promoData.filter(p => !p.promo_name.startsWith("ประวัติของแจก"));
+  const statusFilter = document.getElementById("promo-status-filter")?.value || "";
+  let visiblePromos = allPromos;
+  if (statusFilter === "active") visiblePromos = allPromos.filter(p => p.is_active);
+  else if (statusFilter === "inactive") visiblePromos = allPromos.filter(p => !p.is_active);
 
-  const total = visiblePromos.length;
-  const active = visiblePromos.filter(p=>p.is_active).length;
-  const totalGifts = visiblePromos.reduce((s,p)=>s+(p.gifts?.length||0),0);
+  const total = allPromos.length;
+  const active = allPromos.filter(p=>p.is_active).length;
+  const totalGifts = allPromos.reduce((s,p)=>s+(p.gifts?.length||0),0);
   summary.innerHTML = `
     <div class="bg-white rounded-xl shadow p-4"><p class="text-gray-400 text-xs mb-1">โปรโมชันทั้งหมด</p><p class="text-2xl font-bold text-gray-800">${total}</p></div>
     <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-400"><p class="text-gray-400 text-xs mb-1">เปิดใช้งาน</p><p class="text-2xl font-bold text-green-600">${active}</p></div>
