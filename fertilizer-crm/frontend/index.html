@@ -4600,10 +4600,19 @@ async function loadDirectHistory() {
 }
 
 async function deleteDirectDispatch(id) {
-  if (!confirm("ลบบันทึกการแจกนี้? (Stock และสิทธิ์จะถูกคืน)")) return;
-  const res = await fetch(`${API}/api/promotions/dispatches/direct/${id}`, {method:"DELETE"});
-  if (res.ok) { loadDirectHistory(); loadPromotions(); }
-  else alert("❌ ลบไม่ได้");
+  if (!confirm("ลบบันทึกการแจกนี้? (Stock จะถูกคืน)")) return;
+  try {
+    const res = await fetch(`${API}/api/promotions/dispatches/direct/${id}`, {method:"DELETE"});
+    if (res.ok) {
+      loadDirectHistory();
+      loadAllGiftsForDispatch();
+    } else {
+      const err = await res.json().catch(()=>({}));
+      alert("❌ " + (err.detail || "ลบไม่ได้"));
+    }
+  } catch(e) {
+    alert("❌ เชื่อมต่อ server ไม่ได้: " + e.message);
+  }
 }
 
 // ─── GIFT STOCK TAB ───────────────────────────────────────────
