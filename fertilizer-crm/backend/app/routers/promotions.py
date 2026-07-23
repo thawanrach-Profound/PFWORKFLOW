@@ -82,14 +82,22 @@ def update_promotion(promo_id: int, payload: PromotionUpdate, db: Session = Depe
     for k, v in data.items():
         setattr(p, k, v)
     if gifts_payload is not None:
-        for g in list(p.gifts):
-            db.delete(g)
+        # null-out gift_id on dispatches first to avoid FK constraint
+        existing_gift_ids = [g.gift_id for g in p.gifts]
+        if existing_gift_ids:
+            db.query(GiftDispatch).filter(
+                GiftDispatch.gift_id.in_(existing_gift_ids)
+            ).update({"gift_id": None}, synchronize_session=False)
+        db.query(PromotionGift).filter(
+            PromotionGift.promotion_id == promo_id
+        ).delete(synchronize_session=False)
         db.flush()
         for g in gifts_payload:
             db.add(PromotionGift(promotion_id=promo_id, **g))
     if shops_payload is not None:
-        for s in list(p.shops):
-            db.delete(s)
+        db.query(PromoShop).filter(
+            PromoShop.promotion_id == promo_id
+        ).delete(synchronize_session=False)
         db.flush()
         for s in shops_payload:
             db.add(PromoShop(promotion_id=promo_id, **s))
