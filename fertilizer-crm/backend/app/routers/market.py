@@ -43,6 +43,7 @@ SYMBOLS = {
     "urea_cn": ("ยูเรีย จีน (SunSirs)", "CNY/ตัน"),
     "dap_cn": ("DAP จีน (SunSirs)", "CNY/ตัน"),
     "amsul_cn": ("แอมโมเนียมซัลเฟต จีน (100ppi)", "CNY/ตัน"),
+    "kcl_cn": ("โพแทสเซียมคลอไรด์ จีน (SunSirs)", "CNY/ตัน"),
     "urea_manual": ("ยูเรีย (ซัพพลายเออร์)", "USD/ตัน"),
 }
 
@@ -114,6 +115,7 @@ CN_FERT_SOURCES = {
     "urea_cn": ("https://www.sunsirs.com/uk/prodetail-89.html", _parse_sunsirs, "sunsirs.com"),
     "dap_cn": ("https://www.sunsirs.com/uk/prodetail-99.html", _parse_sunsirs, "sunsirs.com"),
     "amsul_cn": ("https://www.100ppi.com/vane/detail-741.html", _parse_100ppi, "100ppi.com"),
+    "kcl_cn": ("https://www.sunsirs.com/uk/prodetail-759.html", _parse_sunsirs, "sunsirs.com"),
 }
 
 
