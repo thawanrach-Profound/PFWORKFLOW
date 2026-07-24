@@ -257,6 +257,68 @@ def price_history(symbol: str, months: int = 24, db: Session = Depends(get_db)):
     return [{"date": r[0].isoformat(), "price": float(r[1])} for r in reversed(rows)]
 
 
+@router.get("/forecast")
+def price_forecast(symbol: str, horizon: int = 6, db: Session = Depends(get_db)):
+    """พยากรณ์แนวโน้มรายเดือนด้วย Holt's linear trend + ช่วงความเชื่อมั่น 95%
+
+    ข้อมูลรายวันถูกยุบเป็นค่าเฉลี่ยรายเดือนก่อน แล้วพยากรณ์ต่อ horizon เดือน
+    เป็นการประมาณแนวโน้มทางสถิติ ไม่ใช่ราคาที่รับประกัน
+    """
+    if symbol not in SYMBOLS:
+        raise HTTPException(400, "symbol ไม่ถูกต้อง")
+    horizon = max(1, min(horizon, 12))
+    rows = db.execute(text("""
+        SELECT date_trunc('month', price_date)::date AS m, AVG(price) AS p
+        FROM market_prices WHERE symbol = :s
+        GROUP BY 1 ORDER BY 1
+    """), {"s": symbol}).fetchall()
+    if len(rows) < 4:
+        raise HTTPException(400, "ข้อมูลย้อนหลังไม่พอสำหรับพยากรณ์ (ต้องมีอย่างน้อย 4 เดือน)")
+
+    dates = [r[0] for r in rows]
+    vals = [float(r[1]) for r in rows]
+
+    # Holt's linear trend (double exponential smoothing)
+    alpha, beta = 0.5, 0.3
+    level, trend = vals[0], vals[1] - vals[0]
+    residuals = []
+    for v in vals[1:]:
+        pred = level + trend
+        residuals.append(v - pred)
+        new_level = alpha * v + (1 - alpha) * (level + trend)
+        trend = beta * (new_level - level) + (1 - beta) * trend
+        level = new_level
+    sigma = (sum(r * r for r in residuals) / len(residuals)) ** 0.5
+
+    def add_months(d: date, n: int) -> date:
+        y, m = d.year + (d.month - 1 + n) // 12, (d.month - 1 + n) % 12 + 1
+        return date(y, m, 1)
+
+    forecast = []
+    for h in range(1, horizon + 1):
+        point = level + h * trend
+        ci = 1.96 * sigma * (h ** 0.5)
+        forecast.append({
+            "date": add_months(dates[-1], h).isoformat(),
+            "price": round(point, 2),
+            "lower": round(point - ci, 2),
+            "upper": round(point + ci, 2),
+        })
+
+    pct_per_month = (trend / level * 100) if level else 0
+    direction = "up" if pct_per_month > 0.5 else ("down" if pct_per_month < -0.5 else "flat")
+    name_th, unit = SYMBOLS[symbol]
+    return {
+        "symbol": symbol,
+        "name_th": name_th,
+        "unit": unit,
+        "history": [{"date": d.isoformat(), "price": round(v, 2)} for d, v in zip(dates, vals)],
+        "forecast": forecast,
+        "trend_pct_per_month": round(pct_per_month, 2),
+        "direction": direction,
+    }
+
+
 class ManualPrice(BaseModel):
     symbol: str = "urea_manual"
     price_date: date

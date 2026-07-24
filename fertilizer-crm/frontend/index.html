@@ -5211,6 +5211,8 @@ async function loadMarketPrices() {
             <p class="text-2xl font-bold text-gray-800">${Number(p.price).toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
             <p class="text-[10px] text-gray-400">${p.unit} · ${p.price_date} ${changeHtml}</p>
           </div>
+          <button onclick="showMarketForecast('${p.symbol}')" title="พยากรณ์แนวโน้ม"
+            class="text-lg hover:scale-125 transition-transform">🔮</button>
         </div>
         <svg id="mk-spark-${p.symbol}" viewBox="0 0 200 40" class="w-full h-10 mt-2"></svg>
       </div>`;
@@ -5254,6 +5256,54 @@ async function drawMarketSpark(symbol) {
     const color = (MARKET_CARD_STYLE[symbol] || {}).chart || "#6b7280";
     svg.innerHTML = `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
   } catch (e) { /* sparkline เป็นของเสริม ไม่ต้อง error */ }
+}
+
+let _mkForecastChart = null;
+async function showMarketForecast(symbol) {
+  const modal = document.getElementById("modal-mk-forecast");
+  const errEl = document.getElementById("mk-fc-error");
+  const canvas = document.getElementById("mk-fc-chart");
+  modal.classList.remove("hidden");
+  errEl.classList.add("hidden"); canvas.parentElement.classList.remove("hidden");
+  document.getElementById("mk-fc-title").textContent = "🔮 กำลังคำนวณ...";
+  document.getElementById("mk-fc-summary").textContent = "";
+  try {
+    const res = await fetch(`${API}/api/market/forecast?symbol=${symbol}&horizon=6`);
+    if (!res.ok) throw new Error((await res.json()).detail || "HTTP " + res.status);
+    const d = await res.json();
+    document.getElementById("mk-fc-title").textContent = `🔮 พยากรณ์แนวโน้ม: ${d.name_th}`;
+    const dirText = { up: "📈 แนวโน้มขึ้น", down: "📉 แนวโน้มลง", flat: "➡️ ทรงตัว" }[d.direction];
+    document.getElementById("mk-fc-summary").textContent =
+      `${dirText} ประมาณ ${Math.abs(d.trend_pct_per_month)}% ต่อเดือน (${d.unit}) · พยากรณ์ 6 เดือนข้างหน้าจากข้อมูลเฉลี่ยรายเดือน ${d.history.length} เดือน`;
+
+    const labels = [...d.history.map(h => h.date.slice(0, 7)), ...d.forecast.map(f => f.date.slice(0, 7))];
+    const nH = d.history.length;
+    const pad = arr => [...Array(nH - 1).fill(null), d.history[nH - 1].price, ...arr];
+    if (_mkForecastChart) _mkForecastChart.destroy();
+    _mkForecastChart = new Chart(canvas, {
+      type: "line",
+      data: { labels, datasets: [
+        { label: "ราคาจริง", data: [...d.history.map(h => h.price), ...Array(d.forecast.length).fill(null)],
+          borderColor: "#16a34a", backgroundColor: "#16a34a", pointRadius: 2, tension: 0.2 },
+        { label: "พยากรณ์", data: pad(d.forecast.map(f => f.price)),
+          borderColor: "#9333ea", borderDash: [6, 4], pointRadius: 3, pointStyle: "rectRot", tension: 0.2 },
+        { label: "ขอบบน 95%", data: pad(d.forecast.map(f => f.upper)),
+          borderColor: "transparent", backgroundColor: "rgba(147,51,234,0.12)", pointRadius: 0, fill: "+1" },
+        { label: "ขอบล่าง 95%", data: pad(d.forecast.map(f => f.lower)),
+          borderColor: "transparent", pointRadius: 0 },
+      ]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { filter: i => !i.text.startsWith("ขอบ") } } },
+        scales: { y: { title: { display: true, text: d.unit } } },
+      },
+    });
+  } catch (e) {
+    canvas.parentElement.classList.add("hidden");
+    errEl.textContent = "❌ " + e.message;
+    errEl.classList.remove("hidden");
+    document.getElementById("mk-fc-title").textContent = "🔮 พยากรณ์แนวโน้ม";
+  }
 }
 
 async function refreshMarketPrices() {
@@ -5520,6 +5570,22 @@ setInterval(loadDashboard, 60000); // auto refresh ทุก 1 นาที
       <button onclick="submitManualUrea()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-medium">💾 บันทึก</button>
     </div>
     <p id="mk-manual-msg" class="text-xs mt-2 hidden"></p>
+  </div>
+
+  <!-- MODAL: FORECAST -->
+  <div id="modal-mk-forecast" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-3xl p-5">
+      <div class="flex justify-between items-center mb-1">
+        <h3 id="mk-fc-title" class="text-base font-bold text-gray-800">🔮 พยากรณ์แนวโน้ม</h3>
+        <button onclick="document.getElementById('modal-mk-forecast').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+      </div>
+      <p id="mk-fc-summary" class="text-xs text-gray-500 mb-3"></p>
+      <div style="height:320px"><canvas id="mk-fc-chart"></canvas></div>
+      <p class="text-[10px] text-gray-400 mt-3">
+        ⚠️ เป็นการประมาณแนวโน้มทางสถิติ (Holt's linear trend) จากข้อมูลย้อนหลังเท่านั้น ไม่ใช่ราคาที่รับประกัน — เหตุการณ์ภายนอก เช่น นโยบายส่งออก ราคาก๊าซ อาจทำให้ราคาจริงต่างจากพยากรณ์มาก ควรใช้ประกอบการตัดสินใจร่วมกับข้อมูลอื่น
+      </p>
+      <div id="mk-fc-error" class="hidden text-red-500 text-sm text-center py-8"></div>
+    </div>
   </div>
 
   <p class="text-[10px] text-gray-400">
