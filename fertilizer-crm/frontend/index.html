@@ -5174,13 +5174,14 @@ const MARKET_CARD_STYLE = {
   kcl_cn:      { icon: "🇨🇳", border: "border-rose-500",    chart: "#e11d48" },
   urea_manual: { icon: "✍️", border: "border-blue-400",   chart: "#2563eb" },
   usd_thb:     { icon: "💱", border: "border-indigo-400",   chart: "#4f46e5" },
+  usd_cny:     { icon: "💱", border: "border-red-400",      chart: "#dc2626" },
 };
 
 // หมวดหมู่ dashboard — เรียงตามลำดับที่แสดง
 const MARKET_GROUPS = [
   { title: "🧪 กลุ่มเคมี", symbols: ["urea_cn", "dap_cn", "amsul_cn", "kcl_cn", "urea", "urea_manual"] },
   { title: "🛢️ กลุ่มน้ำมัน", symbols: ["brent_spot", "wti_spot", "brent"] },
-  { title: "🥇 กลุ่มทองคำและค่าเงิน", symbols: ["gold_spot", "gold_wb", "usd_thb"] },
+  { title: "🥇 กลุ่มทองคำและค่าเงิน", symbols: ["gold_spot", "gold_wb", "usd_thb", "usd_cny"] },
 ];
 
 async function loadMarketPrices() {
