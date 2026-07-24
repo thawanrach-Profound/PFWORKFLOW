@@ -55,7 +55,7 @@
   <button class="tab-btn hidden" onclick="switchTab('import-customers', this)">📥 นำเข้าลูกค้า</button>
   <button class="tab-btn hidden" onclick="switchTab('bag-stock', this)">🎒 Stock กระสอบ</button>
   <button class="tab-btn" onclick="switchTab('rm-stock', this)">🏭 Stock วัตถุดิบ</button>
-  <button id="tab-btn-promotions" class="tab-btn active" onclick="switchTab('promotions', this)">🎁 ส่งเสริมการขาย</button>
+  <button id="nav-btn-promotions" class="tab-btn active" onclick="switchTab('promotions', this)">🎁 ส่งเสริมการขาย</button>
   <button class="tab-btn" onclick="switchTab('machine-dashboard', this)">⚙️ แดชบอร์ดเครื่องจักร</button>
   <button class="tab-btn" onclick="switchTab('market', this)">🌍 ราคาตลาดโลก</button>
 </nav>
@@ -5350,7 +5350,7 @@ async function submitManualUrea() {
 
 // ─── INIT ─────────────────────────────────────────────────
 // เมนูส่วนใหญ่ถูกซ่อนชั่วคราว — เปิดหน้าส่งเสริมการขายเป็นหน้าแรกแทน Dashboard
-switchTab("promotions", document.getElementById("tab-btn-promotions"));
+switchTab("promotions", document.getElementById("nav-btn-promotions"));
 populateSelects();
 setInterval(() => {
   const tab = document.getElementById("tab-dashboard");
