@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from app.core.database import engine
-from app.routers import customers, formulas, orders, production, inventory, reports, imports, employees, bag_stock, rm_stock, promotions, shops
+from app.routers import customers, formulas, orders, production, inventory, reports, imports, employees, bag_stock, rm_stock, promotions, shops, market
 
 logger = logging.getLogger("crm.startup")
 
@@ -72,6 +72,17 @@ MIGRATIONS = [
     "ALTER TABLE gift_dispatches ADD COLUMN IF NOT EXISTS salesperson_name VARCHAR(100)",
     # 2026-07: team responsible for each gift
     "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS team VARCHAR(100)",
+    # 2026-07: world market prices (gold / brent / urea)
+    """CREATE TABLE IF NOT EXISTS market_prices (
+        id          SERIAL          PRIMARY KEY,
+        symbol      VARCHAR(30)     NOT NULL,
+        price_date  DATE            NOT NULL,
+        price       NUMERIC(14,4)   NOT NULL,
+        source      VARCHAR(100),
+        fetched_at  TIMESTAMPTZ     NOT NULL DEFAULT now(),
+        UNIQUE (symbol, price_date)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_market_prices_symbol ON market_prices(symbol, price_date DESC)",
 ]
 
 def run_migrations():
@@ -125,6 +136,7 @@ app.include_router(bag_stock.router)
 app.include_router(rm_stock.router)
 app.include_router(promotions.router)
 app.include_router(shops.router)
+app.include_router(market.router)
 
 
 @app.get("/")

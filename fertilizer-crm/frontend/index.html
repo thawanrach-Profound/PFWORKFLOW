@@ -56,6 +56,7 @@
   <button class="tab-btn" onclick="switchTab('rm-stock', this)">🏭 Stock วัตถุดิบ</button>
   <button class="tab-btn" onclick="switchTab('promotions', this)">🎁 ส่งเสริมการขาย</button>
   <button class="tab-btn" onclick="switchTab('machine-dashboard', this)">⚙️ แดชบอร์ดเครื่องจักร</button>
+  <button class="tab-btn" onclick="switchTab('market', this)">🌍 ราคาตลาดโลก</button>
 </nav>
 
 <main class="p-3 max-w-7xl mx-auto">
@@ -1628,6 +1629,7 @@ function switchTab(name, btn) {
   if (name === "rm-stock") loadRmSessions();
   if (name === "promotions") loadPromotions();
   if (name === "import-products") ensureBagSessionsLoaded();
+  if (name === "market") loadMarketPrices();
 }
 
 // ─── MODAL ────────────────────────────────────────────────
@@ -5158,6 +5160,112 @@ function getOrderPromosPayload() {
   }).filter(Boolean);
 }
 
+// ─── MARKET PRICES (ราคาตลาดโลก) ──────────────────────────
+const MARKET_CARD_STYLE = {
+  gold_spot:   { icon: "🥇", border: "border-yellow-400", chart: "#eab308" },
+  gold_wb:     { icon: "🥇", border: "border-yellow-300", chart: "#ca8a04" },
+  brent:       { icon: "🛢️", border: "border-gray-700",  chart: "#374151" },
+  urea:        { icon: "🌾", border: "border-green-500",  chart: "#16a34a" },
+  urea_manual: { icon: "✍️", border: "border-blue-400",   chart: "#2563eb" },
+};
+
+async function loadMarketPrices() {
+  const wrap = document.getElementById("market-cards");
+  try {
+    const res = await fetch(`${API}/api/market/prices`);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const prices = await res.json();
+    if (!prices.length) {
+      wrap.innerHTML = `<div class="bg-white rounded-xl shadow p-4 text-center text-gray-500 text-sm md:col-span-3">
+        ยังไม่มีข้อมูลราคา — กด "🔄 ดึงราคาล่าสุด" เพื่อโหลดข้อมูลครั้งแรก</div>`;
+      return;
+    }
+    wrap.innerHTML = prices.map(p => {
+      const st = MARKET_CARD_STYLE[p.symbol] || { icon: "📈", border: "border-gray-300", chart: "#6b7280" };
+      let changeHtml = "";
+      if (p.prev_price) {
+        const diff = p.price - p.prev_price;
+        const pct = (diff / p.prev_price * 100).toFixed(1);
+        const up = diff >= 0;
+        changeHtml = `<span class="text-xs font-semibold ${up ? "text-green-600" : "text-red-500"}">
+          ${up ? "▲" : "▼"} ${Math.abs(pct)}%</span>`;
+      }
+      return `<div class="bg-white rounded-xl shadow p-4 border-l-4 ${st.border}">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-gray-400 text-[10px] uppercase tracking-wide">${st.icon} ${p.name_th}</p>
+            <p class="text-2xl font-bold text-gray-800">${Number(p.price).toLocaleString(undefined, {maximumFractionDigits: 2})}</p>
+            <p class="text-[10px] text-gray-400">${p.unit} · ${p.price_date} ${changeHtml}</p>
+          </div>
+        </div>
+        <svg id="mk-spark-${p.symbol}" viewBox="0 0 200 40" class="w-full h-10 mt-2"></svg>
+      </div>`;
+    }).join("");
+    document.getElementById("market-updated").textContent =
+      "อัพเดตล่าสุด: " + new Date().toLocaleString("th-TH");
+    prices.forEach(p => drawMarketSpark(p.symbol));
+  } catch (e) {
+    wrap.innerHTML = `<div class="bg-red-50 rounded-xl p-4 text-red-600 text-sm md:col-span-3">❌ โหลดข้อมูลไม่สำเร็จ: ${e.message}</div>`;
+  }
+}
+
+async function drawMarketSpark(symbol) {
+  try {
+    const res = await fetch(`${API}/api/market/history?symbol=${symbol}&months=24`);
+    if (!res.ok) return;
+    const hist = await res.json();
+    const svg = document.getElementById(`mk-spark-${symbol}`);
+    if (!svg || hist.length < 2) return;
+    const vals = hist.map(h => h.price);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const range = max - min || 1;
+    const pts = vals.map((v, i) =>
+      `${(i / (vals.length - 1) * 196 + 2).toFixed(1)},${(36 - (v - min) / range * 32 + 2).toFixed(1)}`);
+    const color = (MARKET_CARD_STYLE[symbol] || {}).chart || "#6b7280";
+    svg.innerHTML = `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="1.5"/>`;
+  } catch (e) { /* sparkline เป็นของเสริม ไม่ต้อง error */ }
+}
+
+async function refreshMarketPrices() {
+  const btn = document.getElementById("market-refresh-btn");
+  btn.disabled = true; btn.textContent = "⏳ กำลังดึงข้อมูล...";
+  try {
+    const res = await fetch(`${API}/api/market/refresh`, { method: "POST" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    await loadMarketPrices();
+  } catch (e) {
+    alert("❌ ดึงราคาไม่สำเร็จ: " + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "🔄 ดึงราคาล่าสุด";
+  }
+}
+
+async function submitManualUrea() {
+  const dateEl = document.getElementById("mk-manual-date");
+  const priceEl = document.getElementById("mk-manual-price");
+  const msg = document.getElementById("mk-manual-msg");
+  const price = parseFloat(priceEl.value);
+  if (!dateEl.value || !(price > 0)) {
+    msg.textContent = "❌ กรุณาใส่วันที่และราคาให้ถูกต้อง";
+    msg.className = "text-xs mt-2 text-red-500"; return;
+  }
+  try {
+    const res = await fetch(`${API}/api/market/manual`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        symbol: "urea_manual", price_date: dateEl.value, price,
+        note: document.getElementById("mk-manual-note").value || null,
+      }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || "HTTP " + res.status);
+    msg.textContent = "✅ บันทึกแล้ว"; msg.className = "text-xs mt-2 text-green-600";
+    priceEl.value = "";
+    loadMarketPrices();
+  } catch (e) {
+    msg.textContent = "❌ " + e.message; msg.className = "text-xs mt-2 text-red-500";
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────
 loadDashboard();
 populateSelects();
@@ -5344,6 +5452,49 @@ setInterval(loadDashboard, 60000); // auto refresh ทุก 1 นาที
     </div>
     <div id="po-batch-error" class="text-red-500 text-xs mt-2 hidden"></div>
   </div>
+</div>
+
+<!-- ══════════════ TAB: MARKET PRICES ══════════════ -->
+<div id="tab-market" class="hidden">
+  <div class="flex items-center justify-between my-3">
+    <h2 class="text-lg font-bold text-gray-800">🌍 ราคาตลาดโลก</h2>
+    <div class="flex gap-2 items-center">
+      <span id="market-updated" class="text-[10px] text-gray-400"></span>
+      <button onclick="refreshMarketPrices()" id="market-refresh-btn"
+        class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium">🔄 ดึงราคาล่าสุด</button>
+    </div>
+  </div>
+
+  <div id="market-cards" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+    <div class="bg-white rounded-xl shadow p-4 text-center text-gray-400 text-sm md:col-span-3">กำลังโหลด...</div>
+  </div>
+
+  <!-- ยูเรียจากซัพพลายเออร์ -->
+  <div class="bg-white rounded-xl shadow p-4 mb-4">
+    <h3 class="text-sm font-bold text-gray-700 mb-2">✍️ บันทึกราคายูเรียจากซัพพลายเออร์</h3>
+    <div class="flex flex-wrap gap-2 items-end">
+      <div>
+        <label class="text-[10px] text-gray-400 block">วันที่</label>
+        <input type="date" id="mk-manual-date" class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs"/>
+      </div>
+      <div>
+        <label class="text-[10px] text-gray-400 block">ราคา (USD/ตัน)</label>
+        <input type="number" id="mk-manual-price" step="0.01" min="0" placeholder="เช่น 380"
+          class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs w-32"/>
+      </div>
+      <div class="flex-1 min-w-[140px]">
+        <label class="text-[10px] text-gray-400 block">ที่มา/หมายเหตุ</label>
+        <input type="text" id="mk-manual-note" placeholder="เช่น ราคาเสนอจากซัพพลายเออร์ A"
+          class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs w-full"/>
+      </div>
+      <button onclick="submitManualUrea()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-xs font-medium">💾 บันทึก</button>
+    </div>
+    <p id="mk-manual-msg" class="text-xs mt-2 hidden"></p>
+  </div>
+
+  <p class="text-[10px] text-gray-400">
+    แหล่งข้อมูล: ทองคำ realtime จาก gold-api.com · น้ำมันดิบ Brent และยูเรีย (เฉลี่ยรายเดือน) จาก World Bank Commodity Price Data (Pink Sheet) — ข้อมูลรายเดือนอาจล่าช้ากว่าตลาดจริงประมาณ 1 เดือน
+  </p>
 </div>
 
 <!-- ══════════════ TAB: MACHINE DASHBOARD ══════════════ -->
