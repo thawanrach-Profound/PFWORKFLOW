@@ -5556,6 +5556,22 @@ setInterval(() => {
     </div>
   </div>
 
+  <!-- แหล่งที่มาและเงื่อนไขการ refresh -->
+  <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-3 text-xs text-gray-700">
+    <p class="font-bold text-blue-800 mb-1">ℹ️ แหล่งที่มาของข้อมูล</p>
+    <ul class="space-y-0.5 mb-2">
+      <li>🧪 <b>กลุ่มเคมี</b> — ยูเรีย/DAP/โพแทสเซียมคลอไรด์ จาก SunSirs (จีน) · แอมโมเนียมซัลเฟต จาก 100ppi (จีน) อัพเดตรายวัน · ยูเรีย World Bank เฉลี่ยรายเดือน (ล่าช้า ~1 เดือน)</li>
+      <li>🛢️ <b>กลุ่มน้ำมัน</b> — Brent/WTI แบบ Realtime จาก Yahoo Finance · Brent เฉลี่ยรายเดือนจาก World Bank</li>
+      <li>🥇 <b>กลุ่มทองคำและค่าเงิน</b> — ทองคำ Spot แบบ Realtime จาก gold-api.com · USD/THB และ USD/CNY แบบ Realtime จาก Yahoo Finance · ทองคำเฉลี่ยรายเดือนจาก World Bank</li>
+    </ul>
+    <p class="font-bold text-blue-800 mb-1">🔄 เงื่อนไขการอัพเดตราคา</p>
+    <ul class="space-y-0.5">
+      <li>• หน้านี้ <b>refresh อัตโนมัติทุก 15 นาที</b> ขณะเปิดเมนูนี้อยู่ และราคา realtime จะถูกดึงใหม่เมื่อข้อมูลเก่ากว่า 15 นาที</li>
+      <li>• หรือกดปุ่ม <b>"🔄 ดึงราคาล่าสุด"</b> เพื่อดึงข้อมูลจากทุกแหล่งทันที (manual)</li>
+      <li>• ราคาจีน (SunSirs/100ppi) ต้นทางอัพเดตวันละครั้ง · ข้อมูล World Bank อัพเดตรายเดือน</li>
+    </ul>
+  </div>
+
   <div id="market-cards" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
     <div class="bg-white rounded-xl shadow p-4 text-center text-gray-400 text-sm md:col-span-3">กำลังโหลด...</div>
   </div>
