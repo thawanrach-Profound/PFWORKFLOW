@@ -30,11 +30,15 @@ WB_CMO_URL = (
     "5d903e848db1d1b83e0ec8f744e55570-0350012021/related/CMO-Historical-Data-Monthly.xlsx"
 )
 
+YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=1d"
+
 # symbol → (ชื่อไทย, หน่วย)
 SYMBOLS = {
     "gold_spot": ("ทองคำ (Spot)", "USD/oz"),
+    "brent_spot": ("น้ำมันดิบ Brent (Realtime)", "USD/บาร์เรล"),
+    "wti_spot": ("น้ำมันดิบ WTI (Realtime)", "USD/บาร์เรล"),
     "gold_wb": ("ทองคำ (เฉลี่ยรายเดือน)", "USD/oz"),
-    "brent": ("น้ำมันดิบ Brent", "USD/บาร์เรล"),
+    "brent": ("น้ำมันดิบ Brent (เฉลี่ยรายเดือน)", "USD/บาร์เรล"),
     "urea": ("ยูเรีย (World Bank)", "USD/ตัน"),
     "urea_manual": ("ยูเรีย (ซัพพลายเออร์)", "USD/ตัน"),
 }
@@ -64,6 +68,25 @@ def _fetch_gold_spot(db: Session) -> Optional[dict]:
     except Exception as e:
         logger.warning("gold spot fetch failed: %s", e)
         return None
+
+
+# symbol ในระบบ → ticker ของ Yahoo Finance
+YAHOO_TICKERS = {"brent_spot": "BZ=F", "wti_spot": "CL=F"}
+
+
+def _fetch_oil_spot(db: Session) -> dict:
+    out = {}
+    for sym, ticker in YAHOO_TICKERS.items():
+        try:
+            data = json.loads(_http_get(YAHOO_CHART_URL.format(sym=ticker), timeout=20))
+            meta = data["chart"]["result"][0]["meta"]
+            price = meta["regularMarketPrice"]
+            _upsert(db, sym, date.today(), price, "yahoo-finance")
+            out[sym] = price
+        except Exception as e:
+            logger.warning("oil spot fetch failed (%s): %s", ticker, e)
+            out[sym] = None
+    return out
 
 
 def _fetch_worldbank(db: Session) -> int:
@@ -106,6 +129,7 @@ def _fetch_worldbank(db: Session) -> int:
 def refresh_prices(db: Session = Depends(get_db)):
     """ดึงราคาล่าสุดจากทุกแหล่ง (ทอง realtime + World Bank รายเดือน)"""
     gold = _fetch_gold_spot(db)
+    oil = _fetch_oil_spot(db)
     wb_count = 0
     wb_error = None
     try:
@@ -114,7 +138,7 @@ def refresh_prices(db: Session = Depends(get_db)):
         logger.warning("worldbank fetch failed: %s", e)
         wb_error = str(e)
     db.commit()
-    return {"gold_spot": gold, "worldbank_rows": wb_count, "worldbank_error": wb_error}
+    return {"gold_spot": gold, "oil_spot": oil, "worldbank_rows": wb_count, "worldbank_error": wb_error}
 
 
 @router.get("/prices")
@@ -127,6 +151,7 @@ def latest_prices(db: Session = Depends(get_db)):
     stale = (not row) or (datetime.now(timezone.utc) - row[0]).total_seconds() > 3600
     if stale:
         _fetch_gold_spot(db)
+        _fetch_oil_spot(db)
         db.commit()
 
     out = []
