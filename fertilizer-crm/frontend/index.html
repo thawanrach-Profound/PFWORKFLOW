@@ -5168,6 +5168,9 @@ const MARKET_CARD_STYLE = {
   gold_wb:     { icon: "🥇", border: "border-yellow-300", chart: "#ca8a04" },
   brent:       { icon: "🛢️", border: "border-gray-700",  chart: "#374151" },
   urea:        { icon: "🌾", border: "border-green-500",  chart: "#16a34a" },
+  urea_cn:     { icon: "🇨🇳", border: "border-emerald-500", chart: "#059669" },
+  dap_cn:      { icon: "🇨🇳", border: "border-purple-500",  chart: "#9333ea" },
+  amsul_cn:    { icon: "🇨🇳", border: "border-teal-500",    chart: "#0d9488" },
   urea_manual: { icon: "✍️", border: "border-blue-400",   chart: "#2563eb" },
 };
 
@@ -5495,7 +5498,7 @@ setInterval(loadDashboard, 60000); // auto refresh ทุก 1 นาที
   </div>
 
   <p class="text-[10px] text-gray-400">
-    แหล่งข้อมูล: ทองคำ realtime จาก gold-api.com · น้ำมันดิบ Brent และยูเรีย (เฉลี่ยรายเดือน) จาก World Bank Commodity Price Data (Pink Sheet) — ข้อมูลรายเดือนอาจล่าช้ากว่าตลาดจริงประมาณ 1 เดือน
+    แหล่งข้อมูล: ทองคำ realtime จาก gold-api.com · น้ำมันดิบ Brent/WTI realtime จาก Yahoo Finance · ยูเรีย DAP แอมโมเนียมซัลเฟต ราคาจีนรายวันจาก SunSirs และ 100ppi (หน่วยหยวน/ตัน) · ข้อมูลเฉลี่ยรายเดือนจาก World Bank Pink Sheet อาจล่าช้ากว่าตลาดจริงประมาณ 1 เดือน
   </p>
 </div>
 

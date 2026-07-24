@@ -40,6 +40,9 @@ SYMBOLS = {
     "gold_wb": ("ทองคำ (เฉลี่ยรายเดือน)", "USD/oz"),
     "brent": ("น้ำมันดิบ Brent (เฉลี่ยรายเดือน)", "USD/บาร์เรล"),
     "urea": ("ยูเรีย (World Bank)", "USD/ตัน"),
+    "urea_cn": ("ยูเรีย จีน (SunSirs)", "CNY/ตัน"),
+    "dap_cn": ("DAP จีน (SunSirs)", "CNY/ตัน"),
+    "amsul_cn": ("แอมโมเนียมซัลเฟต จีน (100ppi)", "CNY/ตัน"),
     "urea_manual": ("ยูเรีย (ซัพพลายเออร์)", "USD/ตัน"),
 }
 
@@ -68,6 +71,66 @@ def _fetch_gold_spot(db: Session) -> Optional[dict]:
     except Exception as e:
         logger.warning("gold spot fetch failed: %s", e)
         return None
+
+
+def _get_with_hwcheck(url: str) -> str:
+    """เว็บจีน (SunSirs/100ppi) มีด่านกันบอท: หน้าแรกส่ง md5 มาให้ตั้ง cookie HW_CHECK แล้วโหลดซ้ำ"""
+    import re
+    first = _http_get(url, timeout=30).decode("utf-8", "ignore")
+    m = re.search(r'"([0-9a-f]{32})"', first)
+    if not m:
+        return first  # ไม่เจอด่าน — ได้หน้าจริงเลย
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (crm-market)",
+        "Cookie": "HW_CHECK=" + m.group(1),
+    })
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return resp.read().decode("utf-8", "ignore")
+
+
+# symbol → (url, parser) ราคาแม่ปุ๋ยจีนรายวัน
+def _parse_sunsirs(html: str):
+    """ตาราง: Commodity | Sectors | Price | Date — เอาแถวล่าสุด"""
+    import re
+    txt = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "|", html))
+    cells = [s.strip() for s in txt.split("|") if s.strip()]
+    if "Date" not in cells:
+        return None
+    i = cells.index("Date")
+    price, d = cells[i + 3], cells[i + 4]
+    return float(price.replace(",", "")), datetime.strptime(d, "%Y-%m-%d").date()
+
+
+def _parse_100ppi(html: str):
+    import re
+    mp = re.search(r"([\d,]{3,}\.?\d*)\s*元", html)
+    md = re.search(r"(20\d\d-\d\d-\d\d)", html)
+    if not (mp and md):
+        return None
+    return float(mp.group(1).replace(",", "")), datetime.strptime(md.group(1), "%Y-%m-%d").date()
+
+
+CN_FERT_SOURCES = {
+    "urea_cn": ("https://www.sunsirs.com/uk/prodetail-89.html", _parse_sunsirs, "sunsirs.com"),
+    "dap_cn": ("https://www.sunsirs.com/uk/prodetail-99.html", _parse_sunsirs, "sunsirs.com"),
+    "amsul_cn": ("https://www.100ppi.com/vane/detail-741.html", _parse_100ppi, "100ppi.com"),
+}
+
+
+def _fetch_cn_fertilizer(db: Session) -> dict:
+    out = {}
+    for sym, (url, parser, src) in CN_FERT_SOURCES.items():
+        try:
+            parsed = parser(_get_with_hwcheck(url))
+            if not parsed:
+                raise RuntimeError("parse ไม่ได้ — โครงสร้างหน้าอาจเปลี่ยน")
+            price, price_date = parsed
+            _upsert(db, sym, price_date, price, src)
+            out[sym] = {"price": price, "date": price_date.isoformat()}
+        except Exception as e:
+            logger.warning("cn fertilizer fetch failed (%s): %s", sym, e)
+            out[sym] = None
+    return out
 
 
 # symbol ในระบบ → ticker ของ Yahoo Finance
@@ -130,6 +193,7 @@ def refresh_prices(db: Session = Depends(get_db)):
     """ดึงราคาล่าสุดจากทุกแหล่ง (ทอง realtime + World Bank รายเดือน)"""
     gold = _fetch_gold_spot(db)
     oil = _fetch_oil_spot(db)
+    cn_fert = _fetch_cn_fertilizer(db)
     wb_count = 0
     wb_error = None
     try:
@@ -138,7 +202,8 @@ def refresh_prices(db: Session = Depends(get_db)):
         logger.warning("worldbank fetch failed: %s", e)
         wb_error = str(e)
     db.commit()
-    return {"gold_spot": gold, "oil_spot": oil, "worldbank_rows": wb_count, "worldbank_error": wb_error}
+    return {"gold_spot": gold, "oil_spot": oil, "cn_fertilizer": cn_fert,
+            "worldbank_rows": wb_count, "worldbank_error": wb_error}
 
 
 @router.get("/prices")
@@ -152,6 +217,7 @@ def latest_prices(db: Session = Depends(get_db)):
     if stale:
         _fetch_gold_spot(db)
         _fetch_oil_spot(db)
+        _fetch_cn_fertilizer(db)
         db.commit()
 
     out = []
