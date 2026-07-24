@@ -5173,7 +5173,15 @@ const MARKET_CARD_STYLE = {
   amsul_cn:    { icon: "🇨🇳", border: "border-teal-500",    chart: "#0d9488" },
   kcl_cn:      { icon: "🇨🇳", border: "border-rose-500",    chart: "#e11d48" },
   urea_manual: { icon: "✍️", border: "border-blue-400",   chart: "#2563eb" },
+  usd_thb:     { icon: "💱", border: "border-indigo-400",   chart: "#4f46e5" },
 };
+
+// หมวดหมู่ dashboard — เรียงตามลำดับที่แสดง
+const MARKET_GROUPS = [
+  { title: "🧪 กลุ่มเคมี", symbols: ["urea_cn", "dap_cn", "amsul_cn", "kcl_cn", "urea", "urea_manual"] },
+  { title: "🛢️ กลุ่มน้ำมัน", symbols: ["brent_spot", "wti_spot", "brent"] },
+  { title: "🥇 กลุ่มทองคำและค่าเงิน", symbols: ["gold_spot", "gold_wb", "usd_thb"] },
+];
 
 async function loadMarketPrices() {
   const wrap = document.getElementById("market-cards");
@@ -5186,7 +5194,7 @@ async function loadMarketPrices() {
         ยังไม่มีข้อมูลราคา — กด "🔄 ดึงราคาล่าสุด" เพื่อโหลดข้อมูลครั้งแรก</div>`;
       return;
     }
-    wrap.innerHTML = prices.map(p => {
+    const cardHtml = p => {
       const st = MARKET_CARD_STYLE[p.symbol] || { icon: "📈", border: "border-gray-300", chart: "#6b7280" };
       let changeHtml = "";
       if (p.prev_price) {
@@ -5206,7 +5214,23 @@ async function loadMarketPrices() {
         </div>
         <svg id="mk-spark-${p.symbol}" viewBox="0 0 200 40" class="w-full h-10 mt-2"></svg>
       </div>`;
-    }).join("");
+    };
+    const bySymbol = Object.fromEntries(prices.map(p => [p.symbol, p]));
+    const grouped = new Set(MARKET_GROUPS.flatMap(g => g.symbols));
+    const leftovers = prices.filter(p => !grouped.has(p.symbol));
+    let html = "";
+    for (const g of MARKET_GROUPS) {
+      const cards = g.symbols.map(s => bySymbol[s]).filter(Boolean);
+      if (!cards.length) continue;
+      html += `<div class="md:col-span-3 mt-1 -mb-1">
+        <h3 class="text-sm font-bold text-gray-600">${g.title}</h3></div>`;
+      html += cards.map(cardHtml).join("");
+    }
+    if (leftovers.length) {
+      html += `<div class="md:col-span-3 mt-1 -mb-1"><h3 class="text-sm font-bold text-gray-600">📈 อื่นๆ</h3></div>`;
+      html += leftovers.map(cardHtml).join("");
+    }
+    wrap.innerHTML = html;
     document.getElementById("market-updated").textContent =
       "อัพเดตล่าสุด: " + new Date().toLocaleString("th-TH");
     prices.forEach(p => drawMarketSpark(p.symbol));
