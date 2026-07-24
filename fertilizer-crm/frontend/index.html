@@ -44,17 +44,18 @@
 
 <!-- NAV TABS -->
 <nav class="bg-white border-b flex gap-0 px-4 overflow-x-auto">
-  <button class="tab-btn active" onclick="switchTab('dashboard', this)">📊 Dashboard</button>
-  <button class="tab-btn" onclick="switchTab('orders', this)">📋 Orders</button>
-  <button class="tab-btn" onclick="switchTab('production', this)">🏭 การผลิต</button>
-  <button class="tab-btn" onclick="switchTab('inventory', this)">📦 คลังวัตถุดิบ</button>
-  <button class="tab-btn" onclick="switchTab('customers', this)">👥 ลูกค้า</button>
-  <button class="tab-btn" onclick="switchTab('import-products', this)">📥 นำเข้าสินค้า</button>
-  <button class="tab-btn" onclick="switchTab('import-employees', this)">📥 นำเข้าพนักงาน</button>
-  <button class="tab-btn" onclick="switchTab('import-customers', this)">📥 นำเข้าลูกค้า</button>
-  <button class="tab-btn" onclick="switchTab('bag-stock', this)">🎒 Stock กระสอบ</button>
+  <!-- เมนูที่ซ่อนชั่วคราว: ลบ class "hidden" ออกเพื่อแสดงอีกครั้ง -->
+  <button class="tab-btn hidden" onclick="switchTab('dashboard', this)">📊 Dashboard</button>
+  <button class="tab-btn hidden" onclick="switchTab('orders', this)">📋 Orders</button>
+  <button class="tab-btn hidden" onclick="switchTab('production', this)">🏭 การผลิต</button>
+  <button class="tab-btn hidden" onclick="switchTab('inventory', this)">📦 คลังวัตถุดิบ</button>
+  <button class="tab-btn hidden" onclick="switchTab('customers', this)">👥 ลูกค้า</button>
+  <button class="tab-btn hidden" onclick="switchTab('import-products', this)">📥 นำเข้าสินค้า</button>
+  <button class="tab-btn hidden" onclick="switchTab('import-employees', this)">📥 นำเข้าพนักงาน</button>
+  <button class="tab-btn hidden" onclick="switchTab('import-customers', this)">📥 นำเข้าลูกค้า</button>
+  <button class="tab-btn hidden" onclick="switchTab('bag-stock', this)">🎒 Stock กระสอบ</button>
   <button class="tab-btn" onclick="switchTab('rm-stock', this)">🏭 Stock วัตถุดิบ</button>
-  <button class="tab-btn" onclick="switchTab('promotions', this)">🎁 ส่งเสริมการขาย</button>
+  <button id="tab-btn-promotions" class="tab-btn active" onclick="switchTab('promotions', this)">🎁 ส่งเสริมการขาย</button>
   <button class="tab-btn" onclick="switchTab('machine-dashboard', this)">⚙️ แดชบอร์ดเครื่องจักร</button>
   <button class="tab-btn" onclick="switchTab('market', this)">🌍 ราคาตลาดโลก</button>
 </nav>
@@ -5348,9 +5349,13 @@ async function submitManualUrea() {
 }
 
 // ─── INIT ─────────────────────────────────────────────────
-loadDashboard();
+// เมนูส่วนใหญ่ถูกซ่อนชั่วคราว — เปิดหน้าส่งเสริมการขายเป็นหน้าแรกแทน Dashboard
+switchTab("promotions", document.getElementById("tab-btn-promotions"));
 populateSelects();
-setInterval(loadDashboard, 60000); // auto refresh ทุก 1 นาที
+setInterval(() => {
+  const tab = document.getElementById("tab-dashboard");
+  if (tab && !tab.classList.contains("hidden")) loadDashboard();
+}, 60000); // auto refresh ทุก 1 นาที เฉพาะตอนเปิด Dashboard อยู่
 // ราคาตลาดโลก: refresh อัตโนมัติทุก 15 นาที เฉพาะตอนเปิดเมนูนี้อยู่
 setInterval(() => {
   const tab = document.getElementById("tab-market");
