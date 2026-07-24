@@ -212,12 +212,12 @@ def refresh_prices(db: Session = Depends(get_db)):
 
 @router.get("/prices")
 def latest_prices(db: Session = Depends(get_db)):
-    """ราคาล่าสุดของทุก symbol + อายุข้อมูล — ถ้าทอง spot เก่ากว่า 1 ชม. จะดึงใหม่ให้อัตโนมัติ"""
+    """ราคาล่าสุดของทุก symbol + อายุข้อมูล — ถ้าราคา realtime เก่ากว่า 15 นาที จะดึงใหม่ให้อัตโนมัติ"""
     row = db.execute(text("""
         SELECT fetched_at FROM market_prices
         WHERE symbol = 'gold_spot' ORDER BY price_date DESC LIMIT 1
     """)).fetchone()
-    stale = (not row) or (datetime.now(timezone.utc) - row[0]).total_seconds() > 3600
+    stale = (not row) or (datetime.now(timezone.utc) - row[0]).total_seconds() > 900
     if stale:
         _fetch_gold_spot(db)
         _fetch_oil_spot(db)

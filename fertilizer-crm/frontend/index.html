@@ -5351,6 +5351,11 @@ async function submitManualUrea() {
 loadDashboard();
 populateSelects();
 setInterval(loadDashboard, 60000); // auto refresh ทุก 1 นาที
+// ราคาตลาดโลก: refresh อัตโนมัติทุก 15 นาที เฉพาะตอนเปิดเมนูนี้อยู่
+setInterval(() => {
+  const tab = document.getElementById("tab-market");
+  if (tab && !tab.classList.contains("hidden")) loadMarketPrices();
+}, 15 * 60 * 1000);
 </script>
 
 <!-- ══════════════ MODAL: PO FORM ══════════════ -->
