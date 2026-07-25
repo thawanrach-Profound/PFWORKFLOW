@@ -5166,9 +5166,6 @@ const MARKET_CARD_STYLE = {
   gold_spot:   { icon: "🥇", border: "border-yellow-400", chart: "#eab308" },
   brent_spot:  { icon: "🛢️", border: "border-gray-800",  chart: "#111827" },
   wti_spot:    { icon: "🛢️", border: "border-orange-500", chart: "#ea580c" },
-  gold_wb:     { icon: "🥇", border: "border-yellow-300", chart: "#ca8a04" },
-  brent:       { icon: "🛢️", border: "border-gray-700",  chart: "#374151" },
-  urea:        { icon: "🌾", border: "border-green-500",  chart: "#16a34a" },
   urea_cn:     { icon: "🇨🇳", border: "border-emerald-500", chart: "#059669" },
   dap_cn:      { icon: "🇨🇳", border: "border-purple-500",  chart: "#9333ea" },
   amsul_cn:    { icon: "🇨🇳", border: "border-teal-500",    chart: "#0d9488" },
@@ -5180,9 +5177,9 @@ const MARKET_CARD_STYLE = {
 
 // หมวดหมู่ dashboard — เรียงตามลำดับที่แสดง
 const MARKET_GROUPS = [
-  { title: "🧪 กลุ่มเคมี", symbols: ["urea_cn", "dap_cn", "amsul_cn", "kcl_cn", "urea", "urea_manual"] },
-  { title: "🛢️ กลุ่มน้ำมัน", symbols: ["brent_spot", "wti_spot", "brent"] },
-  { title: "🥇 กลุ่มทองคำและค่าเงิน", symbols: ["gold_spot", "gold_wb", "usd_thb", "usd_cny"] },
+  { title: "🧪 กลุ่มเคมี", symbols: ["urea_cn", "dap_cn", "amsul_cn", "kcl_cn", "urea_manual"] },
+  { title: "🛢️ กลุ่มน้ำมัน", symbols: ["brent_spot", "wti_spot"] },
+  { title: "🥇 กลุ่มทองคำและค่าเงิน", symbols: ["gold_spot", "usd_thb", "usd_cny"] },
 ];
 
 async function loadMarketPrices() {
@@ -5560,15 +5557,15 @@ setInterval(() => {
   <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-3 text-xs text-gray-700">
     <p class="font-bold text-blue-800 mb-1">ℹ️ แหล่งที่มาของข้อมูล</p>
     <ul class="space-y-0.5 mb-2">
-      <li>🧪 <b>กลุ่มเคมี</b> — ยูเรีย/DAP/โพแทสเซียมคลอไรด์ จาก SunSirs (จีน) · แอมโมเนียมซัลเฟต จาก 100ppi (จีน) อัพเดตรายวัน · ยูเรีย World Bank เฉลี่ยรายเดือน (ล่าช้า ~1 เดือน)</li>
-      <li>🛢️ <b>กลุ่มน้ำมัน</b> — Brent/WTI แบบ Realtime จาก Yahoo Finance · Brent เฉลี่ยรายเดือนจาก World Bank</li>
-      <li>🥇 <b>กลุ่มทองคำและค่าเงิน</b> — ทองคำ Spot แบบ Realtime จาก gold-api.com · USD/THB และ USD/CNY แบบ Realtime จาก Yahoo Finance · ทองคำเฉลี่ยรายเดือนจาก World Bank</li>
+      <li>🧪 <b>กลุ่มเคมี</b> — ยูเรีย/DAP/โพแทสเซียมคลอไรด์ จาก SunSirs (จีน) · แอมโมเนียมซัลเฟต จาก 100ppi (จีน) อัพเดตรายวัน · ยูเรียซัพพลายเออร์จากการคีย์เอง</li>
+      <li>🛢️ <b>กลุ่มน้ำมัน</b> — Brent/WTI แบบ Realtime จาก Yahoo Finance</li>
+      <li>🥇 <b>กลุ่มทองคำและค่าเงิน</b> — ทองคำ Spot แบบ Realtime จาก gold-api.com · USD/THB และ USD/CNY แบบ Realtime จาก Yahoo Finance</li>
     </ul>
     <p class="font-bold text-blue-800 mb-1">🔄 เงื่อนไขการอัพเดตราคา</p>
     <ul class="space-y-0.5">
       <li>• หน้านี้ <b>refresh อัตโนมัติทุก 15 นาที</b> ขณะเปิดเมนูนี้อยู่ และราคา realtime จะถูกดึงใหม่เมื่อข้อมูลเก่ากว่า 15 นาที</li>
       <li>• หรือกดปุ่ม <b>"🔄 ดึงราคาล่าสุด"</b> เพื่อดึงข้อมูลจากทุกแหล่งทันที (manual)</li>
-      <li>• ราคาจีน (SunSirs/100ppi) ต้นทางอัพเดตวันละครั้ง · ข้อมูล World Bank อัพเดตรายเดือน</li>
+      <li>• ราคาจีน (SunSirs/100ppi) ต้นทางอัพเดตวันละครั้ง</li>
     </ul>
   </div>
 
@@ -5616,7 +5613,7 @@ setInterval(() => {
   </div>
 
   <p class="text-[10px] text-gray-400">
-    แหล่งข้อมูล: ทองคำ realtime จาก gold-api.com · น้ำมันดิบ Brent/WTI realtime จาก Yahoo Finance · ยูเรีย DAP แอมโมเนียมซัลเฟต ราคาจีนรายวันจาก SunSirs และ 100ppi (หน่วยหยวน/ตัน) · ข้อมูลเฉลี่ยรายเดือนจาก World Bank Pink Sheet อาจล่าช้ากว่าตลาดจริงประมาณ 1 เดือน
+    แหล่งข้อมูล: ทองคำ realtime จาก gold-api.com · น้ำมันดิบ Brent/WTI และค่าเงิน realtime จาก Yahoo Finance · ยูเรีย DAP แอมโมเนียมซัลเฟต โพแทสเซียมคลอไรด์ ราคาจีนรายวันจาก SunSirs และ 100ppi (หน่วยหยวน/ตัน)
   </p>
 </div>
 

@@ -1,16 +1,15 @@
-"""ราคาตลาดโลก — ทองคำ / น้ำมันดิบ Brent / ยูเรีย
+"""ราคาตลาดโลก — ทองคำ / น้ำมันดิบ / ค่าเงิน / แม่ปุ๋ยจีน
 
 แหล่งข้อมูล:
 - ทองคำ realtime: gold-api.com (ฟรี ไม่ต้องมี key)
-- Brent / Urea / Gold รายเดือน: World Bank Commodity Price Data (Pink Sheet)
+- น้ำมัน Brent/WTI และค่าเงิน realtime: Yahoo Finance
+- แม่ปุ๋ยจีนรายวัน: SunSirs / 100ppi
 - ยูเรียจากซัพพลายเออร์: คีย์เองผ่าน POST /api/market/manual
 """
-import io
 import json
 import logging
 import urllib.request
 from datetime import datetime, date, timezone
-from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,10 +24,6 @@ logger = logging.getLogger("crm.market")
 router = APIRouter(prefix="/api/market", tags=["market"])
 
 GOLD_API_URL = "https://api.gold-api.com/price/XAU"
-WB_CMO_URL = (
-    "https://thedocs.worldbank.org/en/doc/"
-    "5d903e848db1d1b83e0ec8f744e55570-0350012021/related/CMO-Historical-Data-Monthly.xlsx"
-)
 
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=1d"
 
@@ -39,9 +34,6 @@ SYMBOLS = {
     "wti_spot": ("น้ำมันดิบ WTI (Realtime)", "USD/บาร์เรล"),
     "usd_thb": ("ค่าเงินบาท (USD/THB)", "บาท/ดอลลาร์"),
     "usd_cny": ("ค่าเงินหยวน (USD/CNY)", "หยวน/ดอลลาร์"),
-    "gold_wb": ("ทองคำ (เฉลี่ยรายเดือน)", "USD/oz"),
-    "brent": ("น้ำมันดิบ Brent (เฉลี่ยรายเดือน)", "USD/บาร์เรล"),
-    "urea": ("ยูเรีย (World Bank)", "USD/ตัน"),
     "urea_cn": ("ยูเรีย จีน (SunSirs)", "CNY/ตัน"),
     "dap_cn": ("DAP จีน (SunSirs)", "CNY/ตัน"),
     "amsul_cn": ("แอมโมเนียมซัลเฟต จีน (100ppi)", "CNY/ตัน"),
@@ -156,58 +148,14 @@ def _fetch_oil_spot(db: Session) -> dict:
     return out
 
 
-def _fetch_worldbank(db: Session) -> int:
-    """โหลด Pink Sheet รายเดือน แล้ว upsert brent/urea/gold_wb ย้อนหลัง 36 เดือน"""
-    import openpyxl
-    raw = _http_get(WB_CMO_URL, timeout=120)
-    wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
-    ws = wb["Monthly Prices"]
-    rows = list(ws.iter_rows(values_only=True))
-    header = rows[4]
-    cols = {}
-    for i, v in enumerate(header):
-        name = str(v or "").strip()
-        if name == "Crude oil, Brent":
-            cols["brent"] = i
-        elif name == "Urea":
-            cols["urea"] = i
-        elif name == "Gold":
-            cols["gold_wb"] = i
-    if not cols:
-        raise RuntimeError("ไม่พบคอลัมน์ราคาในไฟล์ World Bank")
-    data_rows = [r for r in rows[6:] if r and r[0] and "M" in str(r[0])]
-    count = 0
-    for r in data_rows[-36:]:
-        # r[0] เช่น "2024M12"
-        try:
-            y, m = str(r[0]).split("M")
-            d = date(int(y), int(m), 1)
-        except ValueError:
-            continue
-        for sym, idx in cols.items():
-            val = r[idx]
-            if isinstance(val, (int, float, Decimal)):
-                _upsert(db, sym, d, float(val), "worldbank-pinksheet")
-                count += 1
-    return count
-
-
 @router.post("/refresh")
 def refresh_prices(db: Session = Depends(get_db)):
-    """ดึงราคาล่าสุดจากทุกแหล่ง (ทอง realtime + World Bank รายเดือน)"""
+    """ดึงราคาล่าสุดจากทุกแหล่ง (ทอง/น้ำมัน/ค่าเงิน realtime + แม่ปุ๋ยจีนรายวัน)"""
     gold = _fetch_gold_spot(db)
     oil = _fetch_oil_spot(db)
     cn_fert = _fetch_cn_fertilizer(db)
-    wb_count = 0
-    wb_error = None
-    try:
-        wb_count = _fetch_worldbank(db)
-    except Exception as e:
-        logger.warning("worldbank fetch failed: %s", e)
-        wb_error = str(e)
     db.commit()
-    return {"gold_spot": gold, "oil_spot": oil, "cn_fertilizer": cn_fert,
-            "worldbank_rows": wb_count, "worldbank_error": wb_error}
+    return {"gold_spot": gold, "oil_spot": oil, "cn_fertilizer": cn_fert}
 
 
 @router.get("/prices")

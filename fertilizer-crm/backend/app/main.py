@@ -83,6 +83,8 @@ MIGRATIONS = [
         UNIQUE (symbol, price_date)
     )""",
     "CREATE INDEX IF NOT EXISTS idx_market_prices_symbol ON market_prices(symbol, price_date DESC)",
+    # 2026-07: remove World Bank data — เลิกใช้แหล่งนี้แล้ว (ข้อมูลล่าช้า)
+    "DELETE FROM market_prices WHERE source = 'worldbank-pinksheet'",
 ]
 
 def run_migrations():
