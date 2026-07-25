@@ -34,6 +34,7 @@ SYMBOLS = {
     "wti_spot": ("น้ำมันดิบ WTI (Realtime)", "USD/บาร์เรล"),
     "usd_thb": ("ค่าเงินบาท (USD/THB)", "บาท/ดอลลาร์"),
     "usd_cny": ("ค่าเงินหยวน (USD/CNY)", "หยวน/ดอลลาร์"),
+    "cny_thb": ("หยวน-บาท (CNY/THB)", "บาท/หยวน"),
     "urea_cn": ("ยูเรีย จีน (SunSirs)", "CNY/ตัน"),
     "dap_cn": ("DAP จีน (SunSirs)", "CNY/ตัน"),
     "amsul_cn": ("แอมโมเนียมซัลเฟต จีน (100ppi)", "CNY/ตัน"),
@@ -130,7 +131,7 @@ def _fetch_cn_fertilizer(db: Session) -> dict:
 
 
 # symbol ในระบบ → ticker ของ Yahoo Finance
-YAHOO_TICKERS = {"brent_spot": "BZ=F", "wti_spot": "CL=F", "usd_thb": "THB=X", "usd_cny": "CNY=X"}
+YAHOO_TICKERS = {"brent_spot": "BZ=F", "wti_spot": "CL=F", "usd_thb": "THB=X", "usd_cny": "CNY=X", "cny_thb": "CNYTHB=X"}
 
 
 def _fetch_oil_spot(db: Session) -> dict:
