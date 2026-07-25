@@ -5176,6 +5176,15 @@ const MARKET_CARD_STYLE = {
   cny_thb:     { icon: "💱", border: "border-amber-400",    chart: "#d97706" },
 };
 
+// ลิงก์ภายนอกสำหรับดูรายละเอียดเพิ่มเติมแต่ละ symbol (เปิดแท็บใหม่)
+const MARKET_EXTERNAL_LINKS = {
+  brent_spot: { label: "investing.com", url: "https://th.investing.com/commodities/brent-oil" },
+  wti_spot:   { label: "investing.com", url: "https://th.investing.com/commodities/crude-oil" },
+  gold_spot:  { label: "investing.com", url: "https://th.investing.com/commodities/gold" },
+  usd_thb:    { label: "investing.com", url: "https://th.investing.com/currencies/usd-thb" },
+  usd_cny:    { label: "investing.com", url: "https://th.investing.com/currencies/usd-cny" },
+};
+
 // หมวดหมู่ dashboard — เรียงตามลำดับที่แสดง
 const MARKET_GROUPS = [
   { title: "🧪 กลุ่มเคมี", symbols: ["urea_cn", "dap_cn", "amsul_cn", "kcl_cn", "urea_manual"] },
@@ -5215,6 +5224,8 @@ async function loadMarketPrices() {
             class="text-lg hover:scale-125 transition-transform">🔮</button>
         </div>
         <svg id="mk-spark-${p.symbol}" viewBox="0 0 200 40" class="w-full h-10 mt-2"></svg>
+        ${MARKET_EXTERNAL_LINKS[p.symbol] ? `<a href="${MARKET_EXTERNAL_LINKS[p.symbol].url}" target="_blank" rel="noopener"
+          class="text-[10px] text-blue-500 hover:underline">🔗 ดูที่ ${MARKET_EXTERNAL_LINKS[p.symbol].label}</a>` : ""}
       </div>`;
     };
     const bySymbol = Object.fromEntries(prices.map(p => [p.symbol, p]));
