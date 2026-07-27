@@ -87,6 +87,9 @@ MIGRATIONS = [
     "DELETE FROM market_prices WHERE source = 'worldbank-pinksheet'",
     # 2026-07: item_code สำหรับของแจก (แทนการบังคับเลือกโปรโมชันตอนสร้างใหม่)
     "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS item_code VARCHAR(50)",
+    # 2026-07: ไฟล์แนบ/รูปภาพของโปรโมชัน
+    "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS attachment_url TEXT",
+    "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS attachment_name VARCHAR(200)",
 ]
 
 def run_migrations():

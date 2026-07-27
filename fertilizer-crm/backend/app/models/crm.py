@@ -352,6 +352,8 @@ class Promotion(Base):
     end_date          = Column(Date)
     is_active         = Column(Boolean, default=True)
     notes             = Column(Text)
+    attachment_url    = Column(Text)             # ไฟล์แนบ/รูปภาพของโปรโมชัน (base64 data URI หรือ URL)
+    attachment_name   = Column(String(200))       # ชื่อไฟล์เดิมที่แนบ
     created_at        = Column(DateTime(timezone=True), server_default=func.now())
     updated_at        = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -39,6 +39,8 @@ def create_promotion(payload: PromotionCreate, db: Session = Depends(get_db)):
         end_date=payload.end_date,
         is_active=payload.is_active,
         notes=payload.notes,
+        attachment_url=payload.attachment_url,
+        attachment_name=payload.attachment_name,
     )
     db.add(promo); db.flush()
     for g in payload.gifts:

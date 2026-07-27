@@ -481,6 +481,8 @@ class PromotionCreate(BaseModel):
     end_date: Optional[date] = None
     is_active: bool = True
     notes: Optional[str] = None
+    attachment_url: Optional[str] = None
+    attachment_name: Optional[str] = None
     gifts: list[PromotionGiftCreate] = []
     shops: list[PromoShopCreate] = []
 
@@ -493,6 +495,8 @@ class PromotionUpdate(BaseModel):
     end_date: Optional[date] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
+    attachment_url: Optional[str] = None
+    attachment_name: Optional[str] = None
     gifts: Optional[list[PromotionGiftCreate]] = None
     shops: Optional[list[PromoShopCreate]] = None
 
@@ -507,6 +511,8 @@ class PromotionOut(BaseModel):
     end_date: Optional[date]
     is_active: bool
     notes: Optional[str]
+    attachment_url: Optional[str] = None
+    attachment_name: Optional[str] = None
     gifts: list[PromotionGiftOut] = []
     shops: list[PromoShopOut] = []
 

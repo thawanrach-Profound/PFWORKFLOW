@@ -1423,8 +1423,8 @@
         <label class="text-xs text-gray-600">เปิดใช้งาน</label>
       </div>
 
-      <!-- ของแจก -->
-      <div>
+      <!-- ของแจก: ย้ายไปจัดการที่แท็บ 📦 สต๊อกของแจก แล้ว — ซ่อนไว้เฉยๆ เพื่อไม่ให้ข้อมูลของแจกเดิม (ตอนแก้ไข) หายตอนบันทึก -->
+      <div class="hidden">
         <div class="flex justify-between items-center mb-1">
           <label class="text-xs font-semibold text-gray-700">ของแจกในโปรโมชัน</label>
           <button type="button" onclick="addGiftRow()" class="text-xs text-purple-600 font-semibold">+ เพิ่มของแจก</button>
@@ -1433,6 +1433,16 @@
           <span>ชื่อของแจก</span><span class="text-center">หน่วย</span><span class="text-center">ชิ้น/ตัน</span><span class="text-center">Stock</span><span class="text-center">Dead Stock</span><span class="text-center">ทีม</span><span></span>
         </div>
         <div id="gift-rows" class="space-y-2"></div>
+      </div>
+
+      <!-- ไฟล์แนบ / รูปภาพของโปรโมชัน -->
+      <div>
+        <label class="text-xs font-semibold text-gray-700 block mb-1">แนบไฟล์ / รูปภาพ</label>
+        <div id="promo-attach-preview" class="hidden mb-2"></div>
+        <input type="file" id="promo-attach-file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+          class="text-xs" onchange="handlePromoAttachFile(this)"/>
+        <input type="hidden" id="promo-attach-url"/>
+        <input type="hidden" id="promo-attach-name"/>
       </div>
 
       <!-- ร้านค้าที่เข้าร่วม -->
@@ -4137,6 +4147,7 @@ async function loadPromotions() {
           <span class="font-bold text-sm">${p.promo_name}</span>
           ${p.is_active ? '<span class="badge bg-green-100 text-green-700 ml-2">✅ เปิดใช้งาน</span>' : '<span class="badge bg-gray-100 text-gray-500 ml-2">⏸ ปิด</span>'}
           ${p.start_date||p.end_date ? `<span class="text-xs text-gray-400 ml-2">${p.start_date||'?'} → ${p.end_date||'?'}</span>` : ''}
+          ${p.attachment_url ? `<a href="${p.attachment_url}" download="${p.attachment_name||'attachment'}" class="text-xs text-purple-600 hover:underline ml-2">📎 ไฟล์แนบ</a>` : ''}
         </div>
         <div class="flex gap-2">
           <button onclick="showPromoForm(${p.promotion_id})" class="text-xs text-blue-600 hover:underline">✏️ แก้ไข</button>
@@ -4181,6 +4192,9 @@ function showPromoForm(promoId = null) {
       document.getElementById("promo-active").checked = p.is_active;
       (p.gifts||[]).forEach(g => addGiftRow(g));
       (p.shops||[]).forEach(s => addShopRow(s));
+      document.getElementById("promo-attach-url").value = p.attachment_url||"";
+      document.getElementById("promo-attach-name").value = p.attachment_name||"";
+      renderPromoAttachPreview();
     }
   } else {
     document.getElementById("promo-name-input").value = "";
@@ -4190,7 +4204,11 @@ function showPromoForm(promoId = null) {
     document.getElementById("promo-product-filter").value = "";
     document.getElementById("promo-multiplier").value = 0;
     document.getElementById("promo-active").checked = true;
+    document.getElementById("promo-attach-url").value = "";
+    document.getElementById("promo-attach-name").value = "";
+    renderPromoAttachPreview();
   }
+  document.getElementById("promo-attach-file").value = "";
   document.getElementById("modal-promo-form").classList.remove("hidden");
 }
 
@@ -4246,6 +4264,65 @@ function addGiftRow(data={}) {
   document.getElementById("gift-rows").appendChild(div);
 }
 
+function renderPromoAttachPreview() {
+  const url = document.getElementById("promo-attach-url").value;
+  const name = document.getElementById("promo-attach-name").value;
+  const box = document.getElementById("promo-attach-preview");
+  if (!url) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+  const isImg = url.startsWith("data:image") || /\.(png|jpe?g|gif|webp)$/i.test(url);
+  box.classList.remove("hidden");
+  box.innerHTML = isImg
+    ? `<div class="flex items-center gap-2">
+         <img src="${url}" class="w-20 h-20 rounded-lg object-cover border"/>
+         <button type="button" onclick="clearPromoAttach()" class="text-xs text-red-500 hover:underline">✕ ลบไฟล์แนบ</button>
+       </div>`
+    : `<div class="flex items-center gap-2 text-xs">
+         <span class="bg-gray-100 rounded-lg px-3 py-2">📎 ${name || "ไฟล์แนบ"}</span>
+         <button type="button" onclick="clearPromoAttach()" class="text-red-500 hover:underline">✕ ลบไฟล์แนบ</button>
+       </div>`;
+}
+
+function clearPromoAttach() {
+  document.getElementById("promo-attach-url").value = "";
+  document.getElementById("promo-attach-name").value = "";
+  document.getElementById("promo-attach-file").value = "";
+  renderPromoAttachPreview();
+}
+
+// รูปภาพ: ย่อขนาดผ่าน canvas ก่อนแปลงเป็น base64 · ไฟล์อื่น (pdf/doc/xls): อ่านเป็น base64 ตรงๆ
+function handlePromoAttachFile(fileInput) {
+  const file = fileInput.files?.[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    alert("❌ ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน 5MB)");
+    fileInput.value = "";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (file.type.startsWith("image/")) {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 640;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        document.getElementById("promo-attach-url").value = canvas.toDataURL("image/jpeg", 0.85);
+        document.getElementById("promo-attach-name").value = file.name;
+        renderPromoAttachPreview();
+      };
+      img.src = reader.result;
+    } else {
+      document.getElementById("promo-attach-url").value = reader.result;
+      document.getElementById("promo-attach-name").value = file.name;
+      renderPromoAttachPreview();
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
 async function submitPromoForm() {
   const name = document.getElementById("promo-name-input").value.trim();
   if (!name) { alert("กรุณาระบุชื่อโปรโมชัน"); return; }
@@ -4284,6 +4361,8 @@ async function submitPromoForm() {
     end_date: document.getElementById("promo-end").value||null,
     description: document.getElementById("promo-desc").value||null,
     is_active: document.getElementById("promo-active").checked,
+    attachment_url: document.getElementById("promo-attach-url").value||null,
+    attachment_name: document.getElementById("promo-attach-name").value||null,
     gifts,
     shops,
   };
