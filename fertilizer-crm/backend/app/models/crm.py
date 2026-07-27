@@ -381,6 +381,7 @@ class PromotionGift(Base):
     gift_id      = Column(Integer, primary_key=True, autoincrement=True)
     promotion_id = Column(Integer, ForeignKey("promotions.promotion_id", ondelete="CASCADE"), nullable=False)
     gift_name      = Column(String(200), nullable=False)
+    item_code      = Column(String(50))                  # รหัสรายการ (ถ้ามี)
     unit           = Column(String(30), default="ชิ้น")
     stock_qty      = Column(Numeric(12, 2), default=0)
     qty_per_ton    = Column(Numeric(10, 2), default=0)

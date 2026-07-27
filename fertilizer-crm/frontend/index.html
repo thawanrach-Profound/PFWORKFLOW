@@ -1062,6 +1062,7 @@
             <tr>
               <th class="px-3 py-2 text-left">โปรโมชัน</th>
               <th class="px-3 py-2 text-left">ของแจก</th>
+              <th class="px-3 py-2 text-left">รหัสรายการ</th>
               <th class="px-3 py-2 text-center">ทีมรับผิดชอบ</th>
               <th class="px-3 py-2 text-center">หน่วย</th>
               <th class="px-3 py-2 text-center">ชิ้น/ตัน</th>
@@ -1522,6 +1523,11 @@
     <input type="hidden" id="gs-gift-id"/>
     <p class="text-sm font-semibold text-gray-700 mb-3" id="gs-gift-name"></p>
 
+    <div class="mb-3">
+      <label class="form-label">รหัสรายการ</label>
+      <input id="gs-item-code" class="form-input" placeholder="เช่น GFT-0012"/>
+    </div>
+
     <!-- รูปภาพ preview -->
     <div class="mb-3">
       <img id="gs-img-preview" src="" class="hidden w-24 h-24 rounded-lg object-cover border mb-2"/>
@@ -1588,24 +1594,24 @@
     </div>
 
     <div class="mb-3">
-      <label class="form-label">โปรโมชัน *</label>
-      <select id="gn-promo-id" class="form-input"></select>
-    </div>
-
-    <div class="mb-3">
       <label class="form-label">ชื่อของแจก *</label>
       <input id="gn-name" class="form-input" placeholder="เช่น เสื้อคนเขียว"/>
     </div>
 
     <div class="grid grid-cols-2 gap-3 mb-3">
       <div>
+        <label class="form-label">รหัสรายการ</label>
+        <input id="gn-item-code" class="form-input" placeholder="เช่น GFT-0012"/>
+      </div>
+      <div>
         <label class="form-label">หน่วย</label>
         <input id="gn-unit" class="form-input" placeholder="ชิ้น" value="ชิ้น"/>
       </div>
-      <div>
-        <label class="form-label">ชิ้น/ตัน</label>
-        <input type="number" id="gn-qty-per-ton" step="0.1" min="0" class="form-input text-right" placeholder="0"/>
-      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">ชิ้น/ตัน</label>
+      <input type="number" id="gn-qty-per-ton" step="0.1" min="0" class="form-input text-right" placeholder="0"/>
     </div>
 
     <div class="grid grid-cols-2 gap-3 mb-3">
@@ -4104,7 +4110,7 @@ async function loadPromotions() {
   const summary = document.getElementById("promo-summary");
 
   // ซ่อนโปรโมชันประวัติที่นำเข้าจาก Excel ออกจากรายการ
-  const allPromos = promoData.filter(p => !p.promo_name.startsWith("ประวัติของแจก"));
+  const allPromos = promoData.filter(p => !p.promo_name.startsWith("ประวัติของแจก") && p.promo_name !== GENERAL_GIFT_BUCKET_NAME);
   const statusFilter = document.getElementById("promo-status-filter")?.value || "";
   let visiblePromos = allPromos;
   if (statusFilter === "active") visiblePromos = allPromos.filter(p => p.is_active);
@@ -4428,6 +4434,7 @@ function showGiftStock(promoId, giftId, giftName, stock) {
   if (!gift) gift = _allGiftStock.find(g=>g.gift_id===parseInt(giftId));
   document.getElementById("gs-dead-stock-qty").value = gift?.dead_stock_qty||0;
   document.getElementById("gs-team").value = gift?.team||"";
+  document.getElementById("gs-item-code").value = gift?.item_code||"";
   const imgUrl = gift?.gift_image_url||"";
   document.getElementById("gs-image-url").value = imgUrl;
   previewGiftImage(imgUrl, "gs-img-preview");
@@ -4475,10 +4482,8 @@ function handleGiftImageFile(fileInput, urlFieldId, imgId) {
 }
 
 function showNewGiftModal() {
-  const sel = document.getElementById("gn-promo-id");
-  sel.innerHTML = (promoData || []).map(p => `<option value="${p.promotion_id}">${p.promo_name}</option>`).join("")
-    || `<option value="">-- ยังไม่มีโปรโมชัน สร้างโปรโมชันก่อน --</option>`;
   document.getElementById("gn-name").value = "";
+  document.getElementById("gn-item-code").value = "";
   document.getElementById("gn-unit").value = "ชิ้น";
   document.getElementById("gn-qty-per-ton").value = "";
   document.getElementById("gn-stock-qty").value = "";
@@ -4490,13 +4495,28 @@ function showNewGiftModal() {
   document.getElementById("modal-gift-new").classList.remove("hidden");
 }
 
+const GENERAL_GIFT_BUCKET_NAME = "ของแจกทั่วไป (ไม่ผูกโปรโมชัน)";
+
+// ของแจกทุกรายการต้องสังกัดโปรโมชัน — หน้านี้ไม่ให้ผู้ใช้เลือกเอง
+// จึงหา/สร้างโปรโมชันกลางไว้ 1 รายการสำหรับของแจกที่ไม่ผูกแคมเปญใดโดยเฉพาะ
+async function getOrCreateGeneralGiftPromo() {
+  let promo = promoData.find(p => p.promo_name === GENERAL_GIFT_BUCKET_NAME);
+  if (promo) return promo.promotion_id;
+  const res = await fetch(`${API}/api/promotions`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ promo_name: GENERAL_GIFT_BUCKET_NAME, is_active: true, gifts: [], shops: [] }),
+  });
+  if (!res.ok) throw new Error((await res.json()).detail || "สร้างที่เก็บของแจกกลางไม่สำเร็จ");
+  const created = await res.json();
+  return created.promotion_id;
+}
+
 async function submitNewGift() {
-  const promoId = document.getElementById("gn-promo-id").value;
   const name = document.getElementById("gn-name").value.trim();
-  if (!promoId) { alert("❌ กรุณาเลือกโปรโมชัน (สร้างโปรโมชันอย่างน้อย 1 รายการก่อน)"); return; }
   if (!name) { alert("❌ กรุณากรอกชื่อของแจก"); return; }
   const body = {
     gift_name: name,
+    item_code: document.getElementById("gn-item-code").value || null,
     unit: document.getElementById("gn-unit").value || "ชิ้น",
     stock_qty: parseFloat(document.getElementById("gn-stock-qty").value) || 0,
     qty_per_ton: parseFloat(document.getElementById("gn-qty-per-ton").value) || 0,
@@ -4505,12 +4525,13 @@ async function submitNewGift() {
     team: document.getElementById("gn-team").value || null,
   };
   try {
+    const promoId = await getOrCreateGeneralGiftPromo();
     const res = await fetch(`${API}/api/promotions/${promoId}/gifts`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error((await res.json()).detail || "HTTP " + res.status);
     document.getElementById("modal-gift-new").classList.add("hidden");
-    loadPromotions();
+    await loadPromotions();
     loadGiftStock();
   } catch (err) { alert("❌ " + err.message); }
 }
@@ -4524,6 +4545,7 @@ async function submitGiftStock() {
     dead_stock_qty: parseFloat(document.getElementById("gs-dead-stock-qty").value)||0,
     gift_image_url: document.getElementById("gs-image-url").value||null,
     team: document.getElementById("gs-team").value||null,
+    item_code: document.getElementById("gs-item-code").value||null,
   };
   if (receiveQty > 0) {
     body.receive_qty = receiveQty;
@@ -4912,6 +4934,7 @@ async function loadGiftStock() {
           <span class="font-semibold">${g.gift_name}</span>
         </div>
       </td>
+      <td class="px-3 py-2 text-gray-400 text-xs">${g.item_code || '-'}</td>
       <td class="px-3 py-2 text-center">${g.team ? `<span class="badge bg-blue-50 text-blue-600">${g.team}</span>` : '<span class="text-gray-300">-</span>'}</td>
       <td class="px-3 py-2 text-center text-gray-500">${g.unit}</td>
       <td class="px-3 py-2 text-center ${g.qty_per_ton>0?'text-blue-600':'text-gray-300'}">${g.qty_per_ton>0?g.qty_per_ton:'-'}</td>

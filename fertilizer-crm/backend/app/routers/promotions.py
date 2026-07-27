@@ -185,6 +185,8 @@ def set_gift_stock(promo_id: int, gift_id: int, payload: PromotionGiftStockUpdat
     g = db.get(PromotionGift, gift_id)
     if not g or g.promotion_id != promo_id:
         raise HTTPException(404, "ไม่พบของแจก")
+    if payload.item_code is not None:
+        g.item_code = payload.item_code or None
     if payload.stock_qty is not None:
         g.stock_qty = payload.stock_qty
     if payload.dead_stock_qty is not None:

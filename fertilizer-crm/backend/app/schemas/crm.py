@@ -422,6 +422,7 @@ class ShopMasterOut(BaseModel):
 # ── Promotions (รายการส่งเสริมการขาย) ───────────────────────
 class PromotionGiftCreate(BaseModel):
     gift_name: str
+    item_code: Optional[str] = None
     unit: str = "ชิ้น"
     stock_qty: Decimal = Decimal("0")
     qty_per_ton: Decimal = Decimal("0")
@@ -434,6 +435,7 @@ class PromotionGiftOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     gift_id: int
     gift_name: str
+    item_code: Optional[str] = None
     unit: str
     stock_qty: Decimal
     qty_per_ton: Decimal
@@ -443,6 +445,7 @@ class PromotionGiftOut(BaseModel):
     notes: Optional[str]
 
 class PromotionGiftStockUpdate(BaseModel):
+    item_code: Optional[str] = None
     stock_qty: Optional[Decimal] = None
     dead_stock_qty: Optional[Decimal] = None
     gift_image_url: Optional[str] = None
