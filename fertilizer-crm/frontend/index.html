@@ -1054,6 +1054,7 @@
           <option value="">โปรโมชัน: ทั้งหมด</option>
         </select>
         <button onclick="loadGiftStock()" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg">🔄 รีเฟรช</button>
+        <button onclick="showNewGiftModal()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">+ เพิ่มของแจกใหม่</button>
       </div>
       <div class="bg-white rounded-xl shadow overflow-x-auto">
         <table class="w-full text-xs">
@@ -1524,9 +1525,11 @@
     <!-- รูปภาพ preview -->
     <div class="mb-3">
       <img id="gs-img-preview" src="" class="hidden w-24 h-24 rounded-lg object-cover border mb-2"/>
-      <label class="form-label">URL รูปของแจก</label>
-      <input id="gs-image-url" class="form-input text-xs" placeholder="https://... หรือว่างถ้าไม่มีรูป"
-        oninput="previewGiftImage(this.value)"/>
+      <label class="form-label">รูปของแจก</label>
+      <input id="gs-image-url" class="form-input text-xs mb-1" placeholder="https://... หรือว่างถ้าไม่มีรูป"
+        oninput="previewGiftImage(this.value, 'gs-img-preview')"/>
+      <input type="file" accept="image/*" id="gs-image-file" class="text-xs"
+        onchange="handleGiftImageFile(this, 'gs-image-url', 'gs-img-preview')"/>
     </div>
 
     <div class="grid grid-cols-2 gap-3 mb-3">
@@ -1572,6 +1575,67 @@
     <div class="flex gap-2">
       <button onclick="submitGiftStock()" class="flex-1 btn-primary">💾 บันทึก</button>
       <button onclick="document.getElementById('modal-gift-stock').classList.add('hidden')" class="btn-secondary">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL: NEW GIFT ══════════════ -->
+<div id="modal-gift-new" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center px-3">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="font-bold">🎁 เพิ่มของแจกใหม่</h2>
+      <button onclick="document.getElementById('modal-gift-new').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">โปรโมชัน *</label>
+      <select id="gn-promo-id" class="form-input"></select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">ชื่อของแจก *</label>
+      <input id="gn-name" class="form-input" placeholder="เช่น เสื้อคนเขียว"/>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="form-label">หน่วย</label>
+        <input id="gn-unit" class="form-input" placeholder="ชิ้น" value="ชิ้น"/>
+      </div>
+      <div>
+        <label class="form-label">ชิ้น/ตัน</label>
+        <input type="number" id="gn-qty-per-ton" step="0.1" min="0" class="form-input text-right" placeholder="0"/>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="form-label">Stock เริ่มต้น</label>
+        <input type="number" id="gn-stock-qty" step="1" min="0" class="form-input text-right" placeholder="0"/>
+      </div>
+      <div>
+        <label class="form-label">Dead Stock (เกณฑ์แจ้งเตือน)</label>
+        <input type="number" id="gn-dead-stock-qty" step="1" min="0" class="form-input text-right" placeholder="0"/>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">ทีมรับผิดชอบ</label>
+      <input id="gn-team" class="form-input" list="gs-team-datalist" placeholder="เช่น ทีมขาย, ทีมสื่อ"/>
+    </div>
+
+    <div class="mb-3">
+      <img id="gn-img-preview" src="" class="hidden w-24 h-24 rounded-lg object-cover border mb-2"/>
+      <label class="form-label">รูปของแจก</label>
+      <input id="gn-image-url" class="form-input text-xs mb-1" placeholder="https://... หรือว่างถ้าไม่มีรูป"
+        oninput="previewGiftImage(this.value, 'gn-img-preview')"/>
+      <input type="file" accept="image/*" id="gn-image-file" class="text-xs"
+        onchange="handleGiftImageFile(this, 'gn-image-url', 'gn-img-preview')"/>
+    </div>
+
+    <div class="flex gap-2">
+      <button onclick="submitNewGift()" class="flex-1 btn-primary">💾 บันทึก</button>
+      <button onclick="document.getElementById('modal-gift-new').classList.add('hidden')" class="btn-secondary">ยกเลิก</button>
     </div>
   </div>
 </div>
@@ -4366,7 +4430,8 @@ function showGiftStock(promoId, giftId, giftName, stock) {
   document.getElementById("gs-team").value = gift?.team||"";
   const imgUrl = gift?.gift_image_url||"";
   document.getElementById("gs-image-url").value = imgUrl;
-  previewGiftImage(imgUrl);
+  previewGiftImage(imgUrl, "gs-img-preview");
+  document.getElementById("gs-image-file").value = "";
   // เคลียร์ช่องรับเข้า
   document.getElementById("gs-receive-qty").value = "";
   document.getElementById("gs-receive-date").value = new Date().toISOString().slice(0,10);
@@ -4374,14 +4439,80 @@ function showGiftStock(promoId, giftId, giftName, stock) {
   document.getElementById("modal-gift-stock").classList.remove("hidden");
 }
 
-function previewGiftImage(url) {
-  const img = document.getElementById("gs-img-preview");
-  if (url && url.startsWith("http")) {
+function previewGiftImage(url, imgId) {
+  const img = document.getElementById(imgId);
+  if (url && (url.startsWith("http") || url.startsWith("data:image"))) {
     img.src = url;
     img.classList.remove("hidden");
   } else {
     img.classList.add("hidden");
   }
+}
+
+// อ่านไฟล์รูปจากเครื่อง ย่อขนาดผ่าน canvas แล้วแปลงเป็น base64 data URI
+// เก็บลงคอลัมน์ gift_image_url (TEXT) ได้ตรงๆ โดยไม่ต้องมี storage แยก
+function handleGiftImageFile(fileInput, urlFieldId, imgId) {
+  const file = fileInput.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { alert("❌ กรุณาเลือกไฟล์รูปภาพ"); fileInput.value = ""; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 480;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+      document.getElementById(urlFieldId).value = dataUrl;
+      previewGiftImage(dataUrl, imgId);
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function showNewGiftModal() {
+  const sel = document.getElementById("gn-promo-id");
+  sel.innerHTML = (promoData || []).map(p => `<option value="${p.promotion_id}">${p.promo_name}</option>`).join("")
+    || `<option value="">-- ยังไม่มีโปรโมชัน สร้างโปรโมชันก่อน --</option>`;
+  document.getElementById("gn-name").value = "";
+  document.getElementById("gn-unit").value = "ชิ้น";
+  document.getElementById("gn-qty-per-ton").value = "";
+  document.getElementById("gn-stock-qty").value = "";
+  document.getElementById("gn-dead-stock-qty").value = "";
+  document.getElementById("gn-team").value = "";
+  document.getElementById("gn-image-url").value = "";
+  document.getElementById("gn-image-file").value = "";
+  previewGiftImage("", "gn-img-preview");
+  document.getElementById("modal-gift-new").classList.remove("hidden");
+}
+
+async function submitNewGift() {
+  const promoId = document.getElementById("gn-promo-id").value;
+  const name = document.getElementById("gn-name").value.trim();
+  if (!promoId) { alert("❌ กรุณาเลือกโปรโมชัน (สร้างโปรโมชันอย่างน้อย 1 รายการก่อน)"); return; }
+  if (!name) { alert("❌ กรุณากรอกชื่อของแจก"); return; }
+  const body = {
+    gift_name: name,
+    unit: document.getElementById("gn-unit").value || "ชิ้น",
+    stock_qty: parseFloat(document.getElementById("gn-stock-qty").value) || 0,
+    qty_per_ton: parseFloat(document.getElementById("gn-qty-per-ton").value) || 0,
+    dead_stock_qty: parseFloat(document.getElementById("gn-dead-stock-qty").value) || 0,
+    gift_image_url: document.getElementById("gn-image-url").value || null,
+    team: document.getElementById("gn-team").value || null,
+  };
+  try {
+    const res = await fetch(`${API}/api/promotions/${promoId}/gifts`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || "HTTP " + res.status);
+    document.getElementById("modal-gift-new").classList.add("hidden");
+    loadPromotions();
+    loadGiftStock();
+  } catch (err) { alert("❌ " + err.message); }
 }
 
 async function submitGiftStock() {
