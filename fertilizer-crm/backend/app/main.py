@@ -92,6 +92,8 @@ MIGRATIONS = [
     "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS attachment_name VARCHAR(200)",
     # 2026-07: ปักหมุดของแจกให้อยู่ลำดับแรกในตารางสต๊อก
     "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE",
+    # 2026-07: ต้นทุนต่อชิ้น สำหรับคำนวณงบประมาณของแจกในรายงาน ROI
+    "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS unit_cost NUMERIC(10,2) DEFAULT 0",
 ]
 
 def run_migrations():

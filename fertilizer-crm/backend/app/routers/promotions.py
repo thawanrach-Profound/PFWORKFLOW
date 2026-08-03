@@ -191,6 +191,8 @@ def set_gift_stock(promo_id: int, gift_id: int, payload: PromotionGiftStockUpdat
         g.item_code = payload.item_code or None
     if payload.is_pinned is not None:
         g.is_pinned = payload.is_pinned
+    if payload.unit_cost is not None:
+        g.unit_cost = payload.unit_cost
     if payload.stock_qty is not None:
         g.stock_qty = payload.stock_qty
     if payload.dead_stock_qty is not None:
@@ -355,6 +357,97 @@ def dispatch_summary(db: Session = Depends(get_db)):
         }
         for r in rows
     ]
+
+
+@router.get("/reports/dashboard", response_model=dict)
+def promo_report_dashboard(db: Session = Depends(get_db)):
+    """Dashboard ส่งเสริมการขาย — Campaign ROI, Top Campaigns, Top Stores, สรุปรายภาค
+
+    ใช้ promo_shops.qty_ton/qty_dispatched (อัพเดตสะสมทุกครั้งที่มีการแจก) เป็นตัวเลขยอดขาย/ยอดแจก
+    และ gift_dispatches x unit_cost ของแจก เพื่อคำนวณงบประมาณที่ใช้จริง
+    ไม่รวมโปรโมชัน "ประวัติของแจก*" และ "ของแจกทั่วไป (ไม่ผูกโปรโมชัน)" ซึ่งเป็นข้อมูลนำเข้า/บัคเก็ตกลาง ไม่ใช่แคมเปญจริง
+    """
+    from sqlalchemy import func as sqlfunc
+
+    excluded_prefixes = ("ประวัติของแจก", "ของแจกทั่วไป")
+
+    promos = db.query(Promotion).all()
+    real_promos = [p for p in promos if not p.promo_name.startswith(excluded_prefixes)]
+
+    # งบประมาณที่ใช้จริงต่อโปรโมชัน = sum(qty_dispatched x unit_cost) ของของแจกในโปรโมชันนั้น ไม่นับรายการรับเข้าสต๊อก
+    budget_rows = (
+        db.query(
+            PromotionGift.promotion_id,
+            sqlfunc.sum(GiftDispatch.qty_dispatched * PromotionGift.unit_cost).label("budget"),
+        )
+        .join(GiftDispatch, GiftDispatch.gift_id == PromotionGift.gift_id)
+        .filter(GiftDispatch.dispatch_type != "receive")
+        .group_by(PromotionGift.promotion_id)
+        .all()
+    )
+    budget_by_promo = {r.promotion_id: float(r.budget or 0) for r in budget_rows}
+
+    campaigns = []
+    for p in real_promos:
+        total_ton = sum(float(s.qty_ton or 0) for s in p.shops)
+        total_dispatched = sum(float(s.qty_dispatched or 0) for s in p.shops)
+        budget_used = budget_by_promo.get(p.promotion_id, 0)
+        campaigns.append({
+            "promotion_id": p.promotion_id,
+            "promo_name": p.promo_name,
+            "is_active": p.is_active,
+            "shops_count": len(p.shops),
+            "total_ton": round(total_ton, 2),
+            "total_gift_dispatched": round(total_dispatched, 2),
+            "budget_used": round(budget_used, 2),
+            "ton_per_1000_baht": round(total_ton / (budget_used / 1000), 3) if budget_used > 0 else None,
+        })
+
+    top_campaigns = sorted(campaigns, key=lambda c: (c["shops_count"], c["total_ton"]), reverse=True)[:5]
+    top_roi = sorted(
+        [c for c in campaigns if c["ton_per_1000_baht"] is not None],
+        key=lambda c: c["ton_per_1000_baht"], reverse=True
+    )[:5]
+
+    # ร้านค้าที่รับของแจกสูงสุด — รวมทุกโปรโมชันที่ร้านนั้นเข้าร่วม
+    store_rows = (
+        db.query(
+            PromoShop.shop_name,
+            PromoShop.region,
+            sqlfunc.sum(PromoShop.qty_ton).label("total_ton"),
+            sqlfunc.sum(PromoShop.qty_dispatched).label("total_gift_qty"),
+        )
+        .group_by(PromoShop.shop_name, PromoShop.region)
+        .order_by(sqlfunc.sum(PromoShop.qty_dispatched).desc())
+        .limit(10)
+        .all()
+    )
+    top_stores = [
+        {"shop_name": r.shop_name, "region": r.region or "ไม่ระบุ",
+         "total_ton": round(float(r.total_ton or 0), 2), "total_gift_qty": round(float(r.total_gift_qty or 0), 2)}
+        for r in store_rows
+    ]
+
+    # ยอดแจกสะสมแยกรายภาค — จากรายการแจกจริง (ไม่รวมรับเข้าสต๊อก)
+    region_rows = (
+        db.query(
+            sqlfunc.coalesce(GiftDispatch.region, "ไม่ระบุ").label("region"),
+            sqlfunc.sum(GiftDispatch.qty_dispatched).label("total_qty"),
+        )
+        .filter(GiftDispatch.dispatch_type == "dispatch")
+        .group_by("region")
+        .order_by(sqlfunc.sum(GiftDispatch.qty_dispatched).desc())
+        .all()
+    )
+    regional = [{"region": r.region, "total_qty": round(float(r.total_qty or 0), 2)} for r in region_rows]
+
+    return {
+        "campaigns": sorted(campaigns, key=lambda c: c["promo_name"]),
+        "top_campaigns": top_campaigns,
+        "top_roi": top_roi,
+        "top_stores": top_stores,
+        "regional": regional,
+    }
 
 
 @router.get("/dispatches/region-summary", response_model=list[dict])
@@ -562,6 +655,7 @@ def get_gift_stock(promo_id: int, db: Session = Depends(get_db)):
             "gift_name": g.gift_name,
             "item_code": g.item_code,
             "is_pinned": bool(g.is_pinned),
+            "unit_cost": float(g.unit_cost or 0),
             "unit": g.unit,
             "stock_qty": float(g.stock_qty),
             "qty_per_ton": float(g.qty_per_ton),
@@ -592,6 +686,7 @@ def all_gift_stock(db: Session = Depends(get_db)):
             "gift_name": g.gift_name,
             "item_code": g.item_code,
             "is_pinned": bool(g.is_pinned),
+            "unit_cost": float(g.unit_cost or 0),
             "unit": g.unit,
             "stock_qty": float(g.stock_qty),
             "qty_per_ton": float(g.qty_per_ton),

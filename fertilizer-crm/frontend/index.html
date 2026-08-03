@@ -907,6 +907,7 @@
       <button id="ptab-btn-gift-stock" onclick="switchPromoTab('gift-stock')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📦 สต๊อกของแจก</button>
       <button id="ptab-btn-region" onclick="switchPromoTab('region')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">🗺️ สรุปรายภาค</button>
       <button id="ptab-btn-shops" onclick="switchPromoTab('shops')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">🏪 ร้านค้า</button>
+      <button id="ptab-btn-report" onclick="switchPromoTab('report')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📊 รายงาน</button>
     </div>
 
     <!-- SUB-TAB: รายการโปรโมชัน -->
@@ -1126,6 +1127,72 @@
           <tbody id="shop-table-body"></tbody>
         </table>
         <p id="shop-table-empty" class="hidden text-center text-gray-300 py-8">ยังไม่มีข้อมูลร้านค้า — กดปุ่ม "นำเข้า 153 ร้าน" เพื่อเริ่มต้น</p>
+      </div>
+    </div>
+
+    <!-- SUB-TAB: รายงาน / Dashboard -->
+    <div id="ptab-report" class="hidden space-y-4">
+      <div class="bg-white rounded-xl shadow px-4 py-3 flex items-center justify-between">
+        <h3 class="font-bold text-sm text-gray-700">📊 Dashboard ส่งเสริมการขาย</h3>
+        <button onclick="loadPromoReport()" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg">🔄 รีเฟรช</button>
+      </div>
+
+      <!-- 1. Campaign ROI -->
+      <div class="bg-white rounded-xl shadow px-4 py-3">
+        <h4 class="font-bold text-sm text-indigo-700 mb-1">1️⃣ Campaign ROI / Sales Impact</h4>
+        <p class="text-xs text-gray-400 mb-3">เปรียบเทียบยอดขาย (ตัน) กับงบประมาณของแจกที่ใช้ในแต่ละแคมเปญ — ROI ยิ่งสูงยิ่งคุ้ม (ตัน ต่อ งบ 1,000 บาท)</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="bg-indigo-50 text-indigo-700">
+              <tr>
+                <th class="px-3 py-2 text-left">โปรโมชัน</th>
+                <th class="px-3 py-2 text-right">ยอดขาย (ตัน)</th>
+                <th class="px-3 py-2 text-right">ของแจกที่แจกไป</th>
+                <th class="px-3 py-2 text-right">งบประมาณที่ใช้ (บาท)</th>
+                <th class="px-3 py-2 text-right">ROI (ตัน/1,000บาท)</th>
+              </tr>
+            </thead>
+            <tbody id="report-roi-tbody"></tbody>
+          </table>
+          <p id="report-roi-empty" class="hidden text-center text-gray-300 py-6">ยังไม่มีข้อมูลแคมเปญ</p>
+        </div>
+      </div>
+
+      <!-- 2. Top Performing Campaigns -->
+      <div class="bg-white rounded-xl shadow px-4 py-3">
+        <h4 class="font-bold text-sm text-purple-700 mb-1">2️⃣ Top Performing Campaigns</h4>
+        <p class="text-xs text-gray-400 mb-3">อันดับโปรโมชันที่ได้รับการตอบรับดีที่สุด วัดจากจำนวนร้านค้าเข้าร่วมและยอดสั่งซื้อ</p>
+        <div id="report-top-campaigns" class="space-y-2"></div>
+        <p id="report-top-campaigns-empty" class="hidden text-center text-gray-300 py-6">ยังไม่มีข้อมูล</p>
+      </div>
+
+      <!-- 3. Top Stores -->
+      <div class="bg-white rounded-xl shadow px-4 py-3">
+        <h4 class="font-bold text-sm text-orange-700 mb-1">3️⃣ Top Stores Distribution</h4>
+        <p class="text-xs text-gray-400 mb-3">ร้านค้า 10 อันดับแรกที่รับของแจกไปมากที่สุด (รวมทุกโปรโมชัน)</p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs">
+            <thead class="bg-orange-50 text-orange-700">
+              <tr>
+                <th class="px-3 py-2 text-left">#</th>
+                <th class="px-3 py-2 text-left">ร้านค้า</th>
+                <th class="px-3 py-2 text-left">ภาค</th>
+                <th class="px-3 py-2 text-right">ยอดตัน</th>
+                <th class="px-3 py-2 text-right">ของแจกที่ได้รับ</th>
+              </tr>
+            </thead>
+            <tbody id="report-top-stores-tbody"></tbody>
+          </table>
+          <p id="report-top-stores-empty" class="hidden text-center text-gray-300 py-6">ยังไม่มีข้อมูล</p>
+        </div>
+      </div>
+
+      <!-- 4. Regional Heatmap -->
+      <div class="bg-white rounded-xl shadow px-4 py-3">
+        <h4 class="font-bold text-sm text-green-700 mb-1">4️⃣ Regional Giveaway Heatmap</h4>
+        <p class="text-xs text-gray-400 mb-3">ยอดแจกสะสมแยกรายภาค — แถบยิ่งยาว/สีเข้ม ยิ่งแจกไปมาก</p>
+        <div id="report-regional" class="space-y-2"></div>
+        <p id="report-regional-empty" class="hidden text-center text-gray-300 py-6">ยังไม่มีข้อมูล</p>
       </div>
     </div>
 
@@ -1561,6 +1628,11 @@
     </div>
 
     <div class="mb-3">
+      <label class="form-label">ต้นทุนต่อชิ้น (บาท)</label>
+      <input type="number" id="gs-unit-cost" step="0.01" min="0" class="form-input text-right" placeholder="0" title="ใช้คำนวณงบประมาณของแจกในหน้ารายงาน"/>
+    </div>
+
+    <div class="mb-3">
       <label class="form-label">ทีมรับผิดชอบ</label>
       <input id="gs-team" class="form-input" list="gs-team-datalist" placeholder="เช่น ทีมขาย, ทีมสื่อ"/>
       <datalist id="gs-team-datalist">
@@ -1634,6 +1706,11 @@
         <label class="form-label">Dead Stock (เกณฑ์แจ้งเตือน)</label>
         <input type="number" id="gn-dead-stock-qty" step="1" min="0" class="form-input text-right" placeholder="0"/>
       </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">ต้นทุนต่อชิ้น (บาท)</label>
+      <input type="number" id="gn-unit-cost" step="0.01" min="0" class="form-input text-right" placeholder="0" title="ใช้คำนวณงบประมาณของแจกในหน้ารายงาน"/>
     </div>
 
     <div class="mb-3">
@@ -4539,6 +4616,7 @@ function showGiftStock(promoId, giftId, giftName, stock) {
   document.getElementById("gs-dead-stock-qty").value = gift?.dead_stock_qty||0;
   document.getElementById("gs-team").value = gift?.team||"";
   document.getElementById("gs-item-code").value = gift?.item_code||"";
+  document.getElementById("gs-unit-cost").value = gift?.unit_cost||0;
   const imgUrl = gift?.gift_image_url||"";
   document.getElementById("gs-image-url").value = imgUrl;
   previewGiftImage(imgUrl, "gs-img-preview");
@@ -4592,6 +4670,7 @@ function showNewGiftModal() {
   document.getElementById("gn-qty-per-ton").value = "";
   document.getElementById("gn-stock-qty").value = "";
   document.getElementById("gn-dead-stock-qty").value = "";
+  document.getElementById("gn-unit-cost").value = "";
   document.getElementById("gn-team").value = "";
   document.getElementById("gn-image-url").value = "";
   document.getElementById("gn-image-file").value = "";
@@ -4625,6 +4704,7 @@ async function submitNewGift() {
     stock_qty: parseFloat(document.getElementById("gn-stock-qty").value) || 0,
     qty_per_ton: parseFloat(document.getElementById("gn-qty-per-ton").value) || 0,
     dead_stock_qty: parseFloat(document.getElementById("gn-dead-stock-qty").value) || 0,
+    unit_cost: parseFloat(document.getElementById("gn-unit-cost").value) || 0,
     gift_image_url: document.getElementById("gn-image-url").value || null,
     team: document.getElementById("gn-team").value || null,
   };
@@ -4650,6 +4730,7 @@ async function submitGiftStock() {
     gift_image_url: document.getElementById("gs-image-url").value||null,
     team: document.getElementById("gs-team").value||null,
     item_code: document.getElementById("gs-item-code").value||null,
+    unit_cost: parseFloat(document.getElementById("gs-unit-cost").value)||0,
   };
   if (receiveQty > 0) {
     body.receive_qty = receiveQty;
@@ -4709,7 +4790,7 @@ function autoFillShopRegion(nameInput, regionSelectId) {
 }
 
 function switchPromoTab(name) {
-  ["promos","dispatch","gift-stock","region","shops"].forEach(t => {
+  ["promos","dispatch","gift-stock","region","shops","report"].forEach(t => {
     document.getElementById(`ptab-${t}`).classList.toggle("hidden", t !== name);
     const btn = document.getElementById(`ptab-btn-${t}`);
     if (t === name) { btn.classList.add("bg-green-600","text-white"); btn.classList.remove("text-gray-500","hover:bg-gray-100"); }
@@ -4719,6 +4800,102 @@ function switchPromoTab(name) {
   if (name === "gift-stock") loadGiftStock();
   if (name === "region") loadRegionSummary();
   if (name === "shops") loadShopMaster();
+  if (name === "report") loadPromoReport();
+}
+
+// ─── REPORT / DASHBOARD ───────────────────────────────────────
+const fmtNum = (n, d=2) => Number(n||0).toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:d});
+
+async function loadPromoReport() {
+  let data;
+  try {
+    data = await fetch(`${API}/api/promotions/reports/dashboard`).then(r=>r.json());
+  } catch (e) {
+    return;
+  }
+
+  // 1) Campaign ROI
+  const roiBody = document.getElementById("report-roi-tbody");
+  const roiEmpty = document.getElementById("report-roi-empty");
+  const campaigns = data.campaigns || [];
+  if (!campaigns.length) {
+    roiBody.innerHTML = ""; roiEmpty.classList.remove("hidden");
+  } else {
+    roiEmpty.classList.add("hidden");
+    roiBody.innerHTML = campaigns.map(c => `
+      <tr class="border-b hover:bg-gray-50">
+        <td class="px-3 py-2 font-semibold">${c.promo_name}</td>
+        <td class="px-3 py-2 text-right">${fmtNum(c.total_ton)}</td>
+        <td class="px-3 py-2 text-right">${fmtNum(c.total_gift_dispatched)}</td>
+        <td class="px-3 py-2 text-right">${c.budget_used > 0 ? fmtNum(c.budget_used) : '<span class="text-gray-300">-</span>'}</td>
+        <td class="px-3 py-2 text-right font-bold ${c.ton_per_1000_baht ? 'text-green-700' : 'text-gray-300'}">${c.ton_per_1000_baht != null ? fmtNum(c.ton_per_1000_baht, 3) : '-'}</td>
+      </tr>`).join("");
+  }
+
+  // 2) Top Performing Campaigns
+  const topWrap = document.getElementById("report-top-campaigns");
+  const topEmpty = document.getElementById("report-top-campaigns-empty");
+  const topCampaigns = data.top_campaigns || [];
+  if (!topCampaigns.length) {
+    topWrap.innerHTML = ""; topEmpty.classList.remove("hidden");
+  } else {
+    topEmpty.classList.add("hidden");
+    const maxTon = Math.max(...topCampaigns.map(c=>c.total_ton), 1);
+    topWrap.innerHTML = topCampaigns.map((c, i) => `
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-bold text-gray-400 w-5">#${i+1}</span>
+        <div class="flex-1">
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="font-semibold">${c.promo_name}</span>
+            <span class="text-gray-500">${c.shops_count} ร้าน · ${fmtNum(c.total_ton)} ตัน</span>
+          </div>
+          <div class="bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div class="bg-purple-500 h-2 rounded-full" style="width:${Math.max(4, c.total_ton/maxTon*100)}%"></div>
+          </div>
+        </div>
+      </div>`).join("");
+  }
+
+  // 3) Top Stores
+  const storeBody = document.getElementById("report-top-stores-tbody");
+  const storeEmpty = document.getElementById("report-top-stores-empty");
+  const topStores = data.top_stores || [];
+  if (!topStores.length) {
+    storeBody.innerHTML = ""; storeEmpty.classList.remove("hidden");
+  } else {
+    storeEmpty.classList.add("hidden");
+    storeBody.innerHTML = topStores.map((s, i) => `
+      <tr class="border-b hover:bg-gray-50">
+        <td class="px-3 py-2 text-gray-400">${i+1}</td>
+        <td class="px-3 py-2 font-semibold">${s.shop_name}</td>
+        <td class="px-3 py-2 text-gray-500">${s.region}</td>
+        <td class="px-3 py-2 text-right">${fmtNum(s.total_ton)}</td>
+        <td class="px-3 py-2 text-right font-bold text-orange-600">${fmtNum(s.total_gift_qty)}</td>
+      </tr>`).join("");
+  }
+
+  // 4) Regional heatmap
+  const regionWrap = document.getElementById("report-regional");
+  const regionEmpty = document.getElementById("report-regional-empty");
+  const regional = data.regional || [];
+  if (!regional.length) {
+    regionWrap.innerHTML = ""; regionEmpty.classList.remove("hidden");
+  } else {
+    regionEmpty.classList.add("hidden");
+    const maxQty = Math.max(...regional.map(r=>r.total_qty), 1);
+    regionWrap.innerHTML = regional.map(r => {
+      const pct = Math.max(4, r.total_qty/maxQty*100);
+      const intensity = Math.round(30 + (r.total_qty/maxQty)*55); // 30–85% green lightness scale via inline style
+      return `
+      <div class="flex items-center gap-3">
+        <span class="text-xs font-semibold w-24 truncate">${r.region}</span>
+        <div class="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+          <div class="h-5 rounded-full flex items-center justify-end pr-2 text-white text-[10px] font-bold"
+            style="width:${pct}%; background:hsl(142, 60%, ${100-intensity}%)">${fmtNum(r.total_qty)}</div>
+        </div>
+      </div>`;
+    }).join("");
+  }
 }
 
 // ─── DIRECT DISPATCH ──────────────────────────────────────────

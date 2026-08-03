@@ -427,6 +427,7 @@ class PromotionGiftCreate(BaseModel):
     stock_qty: Decimal = Decimal("0")
     qty_per_ton: Decimal = Decimal("0")
     dead_stock_qty: Decimal = Decimal("0")
+    unit_cost: Decimal = Decimal("0")
     gift_image_url: Optional[str] = None
     team: Optional[str] = None
     notes: Optional[str] = None
@@ -437,6 +438,7 @@ class PromotionGiftOut(BaseModel):
     gift_name: str
     item_code: Optional[str] = None
     is_pinned: bool = False
+    unit_cost: Decimal = Decimal("0")
     unit: str
     stock_qty: Decimal
     qty_per_ton: Decimal
@@ -448,6 +450,7 @@ class PromotionGiftOut(BaseModel):
 class PromotionGiftStockUpdate(BaseModel):
     item_code: Optional[str] = None
     is_pinned: Optional[bool] = None
+    unit_cost: Optional[Decimal] = None
     stock_qty: Optional[Decimal] = None
     dead_stock_qty: Optional[Decimal] = None
     gift_image_url: Optional[str] = None
