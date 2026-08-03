@@ -429,17 +429,56 @@ def promo_report_dashboard(db: Session = Depends(get_db)):
     ]
 
     # ยอดแจกสะสมแยกรายภาค — จากรายการแจกจริง (ไม่รวมรับเข้าสต๊อก)
-    region_rows = (
+    region_gift_rows = (
         db.query(
             sqlfunc.coalesce(GiftDispatch.region, "ไม่ระบุ").label("region"),
             sqlfunc.sum(GiftDispatch.qty_dispatched).label("total_qty"),
         )
         .filter(GiftDispatch.dispatch_type == "dispatch")
         .group_by("region")
-        .order_by(sqlfunc.sum(GiftDispatch.qty_dispatched).desc())
         .all()
     )
-    regional = [{"region": r.region, "total_qty": round(float(r.total_qty or 0), 2)} for r in region_rows]
+    gift_by_region = {r.region: float(r.total_qty or 0) for r in region_gift_rows}
+
+    # งบประมาณที่ใช้แยกรายภาค — ผูกกับ unit_cost ของของแจกแต่ละรายการ ไม่รวมรับเข้าสต๊อก
+    region_budget_rows = (
+        db.query(
+            sqlfunc.coalesce(GiftDispatch.region, "ไม่ระบุ").label("region"),
+            sqlfunc.sum(GiftDispatch.qty_dispatched * PromotionGift.unit_cost).label("budget"),
+        )
+        .join(PromotionGift, PromotionGift.gift_id == GiftDispatch.gift_id)
+        .filter(GiftDispatch.dispatch_type != "receive")
+        .group_by("region")
+        .all()
+    )
+    budget_by_region = {r.region: float(r.budget or 0) for r in region_budget_rows}
+
+    # ยอดขาย (ตัน) แยกรายภาค — จากยอดตันที่กรอกไว้ในร้านค้าของแต่ละโปรโมชัน
+    region_sales_rows = (
+        db.query(
+            sqlfunc.coalesce(PromoShop.region, "ไม่ระบุ").label("region"),
+            sqlfunc.sum(PromoShop.qty_ton).label("total_ton"),
+        )
+        .group_by("region")
+        .all()
+    )
+    sales_by_region = {r.region: float(r.total_ton or 0) for r in region_sales_rows}
+
+    REGION_ORDER = ["อีสานตอนบน", "อีสานตอนล่าง", "กลาง", "เหนือ", "ตะวันออก", "ใต้"]
+    all_regions = set(gift_by_region) | set(sales_by_region) | set(budget_by_region)
+    ordered_regions = [r for r in REGION_ORDER if r in all_regions] + sorted(all_regions - set(REGION_ORDER))
+    regional = []
+    for r in ordered_regions:
+        total_ton = round(sales_by_region.get(r, 0), 2)
+        total_qty = round(gift_by_region.get(r, 0), 2)
+        budget_used = round(budget_by_region.get(r, 0), 2)
+        regional.append({
+            "region": r,
+            "total_qty": total_qty,
+            "total_ton": total_ton,
+            "budget_used": budget_used,
+            "baht_per_ton": round(budget_used / total_ton, 2) if total_ton > 0 and budget_used > 0 else None,
+        })
 
     return {
         "campaigns": sorted(campaigns, key=lambda c: c["promo_name"]),
