@@ -4224,8 +4224,7 @@ function addShopRow(data={}) {
   div.id = `shop-row-${id}`;
   div.className = "flex gap-2 items-center";
   div.innerHTML = `
-    <input class="form-input flex-1" list="shop-master-list" placeholder="ชื่อร้านค้า" value="${data.shop_name||''}" oninput="autoFillShopRegion(this, 'shop-row-region-${id}')"/>
-    <select id="shop-row-region-${id}" class="form-input w-28 text-xs">
+    <select id="shop-row-region-${id}" class="form-input w-28 text-xs" onchange="populateShopRowDatalist(${id}, this.value)">
       <option value="">-- ภาค --</option>
       <option ${data.region==='อีสานตอนบน'?'selected':''}>อีสานตอนบน</option>
       <option ${data.region==='อีสานตอนล่าง'?'selected':''}>อีสานตอนล่าง</option>
@@ -4234,10 +4233,24 @@ function addShopRow(data={}) {
       <option ${data.region==='เหนือ'?'selected':''}>เหนือ</option>
       <option ${data.region==='ใต้'?'selected':''}>ใต้</option>
     </select>
+    <input class="form-input flex-1" list="shop-row-datalist-${id}" placeholder="เลือกภาคก่อน แล้วพิมพ์/เลือกชื่อร้านค้า" value="${data.shop_name||''}" oninput="autoFillShopRegion(this, 'shop-row-region-${id}')"/>
+    <datalist id="shop-row-datalist-${id}"></datalist>
     <input type="number" step="0.5" min="0" class="form-input w-20 text-right" placeholder="ตัน" value="${qtyTon}" oninput="recalcShopAlloc(this, 'shop-row-alloc-${id}')"/>
     <input type="number" id="shop-row-alloc-${id}" step="1" min="0" class="form-input w-20 text-right bg-gray-50" placeholder="สิทธิ์" value="${qtyAlloc}" readonly/>
     <button type="button" onclick="document.getElementById('shop-row-${id}').remove()" class="text-red-400 hover:text-red-600 text-sm">✕</button>`;
   document.getElementById("shop-rows").appendChild(div);
+  populateShopRowDatalist(id, data.region || "");
+}
+
+// เติมรายชื่อร้านค้าลงในของแต่ละแถว — กรองตามภาคที่เลือก (ถ้าไม่เลือกภาคจะแสดงร้านทั้งหมด)
+async function populateShopRowDatalist(id, region) {
+  if (!shopMasterData.length) {
+    shopMasterData = await fetch(`${API}/api/shops`).then(r=>r.json()).catch(()=>[]);
+  }
+  const dl = document.getElementById(`shop-row-datalist-${id}`);
+  if (!dl) return;
+  const shops = region ? shopMasterData.filter(s => s.region === region) : shopMasterData;
+  dl.innerHTML = shops.map(s => `<option value="${s.shop_name}">`).join("");
 }
 
 function recalcShopAlloc(tonInput, allocId) {
