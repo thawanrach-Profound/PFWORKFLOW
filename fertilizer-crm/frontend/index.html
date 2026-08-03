@@ -1060,6 +1060,7 @@
         <table class="w-full text-xs">
           <thead class="bg-indigo-50 text-indigo-700">
             <tr>
+              <th class="px-3 py-2 text-center" title="ปักหมุด">📌</th>
               <th class="px-3 py-2 text-left">โปรโมชัน</th>
               <th class="px-3 py-2 text-left">ของแจก</th>
               <th class="px-3 py-2 text-left">รหัสรายการ</th>
@@ -4502,6 +4503,17 @@ function renderShopDispatchTable(promoId, regionFilter) {
   container.innerHTML = html;
 }
 
+async function togglePinGift(promoId, giftId, pin) {
+  try {
+    const res = await fetch(`${API}/api/promotions/${promoId}/gifts/${giftId}/stock`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_pinned: pin }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || "HTTP " + res.status);
+    loadGiftStock();
+  } catch (err) { alert("❌ " + err.message); }
+}
+
 function showGiftStock(promoId, giftId, giftName, stock) {
   document.getElementById("gs-promo-id").value = promoId;
   document.getElementById("gs-gift-id").value = giftId;
@@ -5005,7 +5017,13 @@ async function loadGiftStock() {
     const imgHtml = g.gift_image_url
       ? `<img src="${g.gift_image_url}" class="w-8 h-8 rounded object-cover border" onerror="this.style.display='none'"/>`
       : '<span class="text-gray-200 text-lg">🎁</span>';
-    return `<tr class="border-b hover:bg-gray-50 ${isOut?'bg-red-50':isDead?'bg-orange-50':''}">
+    const pinned = !!g.is_pinned;
+    return `<tr class="border-b hover:bg-gray-50 ${pinned?'bg-yellow-50':isOut?'bg-red-50':isDead?'bg-orange-50':''}">
+      <td class="px-3 py-2 text-center">
+        <button onclick="togglePinGift(${g.promotion_id||''},${g.gift_id},${!pinned})"
+          class="text-lg leading-none ${pinned?'text-yellow-500':'text-gray-300 hover:text-gray-400'}"
+          title="${pinned?'เลิกปักหมุด':'ปักหมุดไว้บนสุด'}">${pinned?'⭐':'☆'}</button>
+      </td>
       <td class="px-3 py-2 text-gray-500 text-xs">${pName}</td>
       <td class="px-3 py-2">
         <div class="flex items-center gap-2">

@@ -389,6 +389,7 @@ class PromotionGift(Base):
     qty_per_ton    = Column(Numeric(10, 2), default=0)
     dead_stock_qty = Column(Numeric(12, 2), default=0)  # เกณฑ์แจ้งเตือนใกล้หมด
     team           = Column(String(100))                 # ทีมรับผิดชอบ เช่น ทีมขาย ทีมสื่อ
+    is_pinned      = Column(Boolean, default=False)      # ปักหมุดให้อยู่ลำดับแรกในตารางสต๊อก
     gift_image_url = Column(Text)                        # URL รูปของแจก
     notes          = Column(Text)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())

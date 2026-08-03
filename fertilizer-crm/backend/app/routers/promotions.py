@@ -189,6 +189,8 @@ def set_gift_stock(promo_id: int, gift_id: int, payload: PromotionGiftStockUpdat
         raise HTTPException(404, "ไม่พบของแจก")
     if payload.item_code is not None:
         g.item_code = payload.item_code or None
+    if payload.is_pinned is not None:
+        g.is_pinned = payload.is_pinned
     if payload.stock_qty is not None:
         g.stock_qty = payload.stock_qty
     if payload.dead_stock_qty is not None:
@@ -547,12 +549,19 @@ def get_gift_stock(promo_id: int, db: Session = Depends(get_db)):
     """รายการสต๊อกของแจกในโปรโมชัน"""
     if not db.get(Promotion, promo_id):
         raise HTTPException(404, "ไม่พบรายการส่งเสริมการขาย")
-    gifts = db.query(PromotionGift).filter(PromotionGift.promotion_id == promo_id).all()
+    gifts = (
+        db.query(PromotionGift)
+        .filter(PromotionGift.promotion_id == promo_id)
+        .order_by(PromotionGift.is_pinned.desc(), PromotionGift.gift_name)
+        .all()
+    )
     return [
         {
             "gift_id": g.gift_id,
             "promotion_id": g.promotion_id,
             "gift_name": g.gift_name,
+            "item_code": g.item_code,
+            "is_pinned": bool(g.is_pinned),
             "unit": g.unit,
             "stock_qty": float(g.stock_qty),
             "qty_per_ton": float(g.qty_per_ton),
@@ -568,13 +577,21 @@ def get_gift_stock(promo_id: int, db: Session = Depends(get_db)):
 def all_gift_stock(db: Session = Depends(get_db)):
     """รายการสต๊อกของแจกทั้งหมดทุกโปรโมชัน"""
     from sqlalchemy.orm import joinedload
-    gifts = db.query(PromotionGift).join(Promotion).options(joinedload(PromotionGift.promotion)).all()
+    gifts = (
+        db.query(PromotionGift)
+        .join(Promotion)
+        .options(joinedload(PromotionGift.promotion))
+        .order_by(PromotionGift.is_pinned.desc(), PromotionGift.gift_name)
+        .all()
+    )
     return [
         {
             "gift_id": g.gift_id,
             "promotion_id": g.promotion_id,
             "promo_name": g.promotion.promo_name if g.promotion else "",
             "gift_name": g.gift_name,
+            "item_code": g.item_code,
+            "is_pinned": bool(g.is_pinned),
             "unit": g.unit,
             "stock_qty": float(g.stock_qty),
             "qty_per_ton": float(g.qty_per_ton),

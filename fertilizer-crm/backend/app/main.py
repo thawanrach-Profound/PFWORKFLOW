@@ -90,6 +90,8 @@ MIGRATIONS = [
     # 2026-07: ไฟล์แนบ/รูปภาพของโปรโมชัน
     "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS attachment_url TEXT",
     "ALTER TABLE promotions ADD COLUMN IF NOT EXISTS attachment_name VARCHAR(200)",
+    # 2026-07: ปักหมุดของแจกให้อยู่ลำดับแรกในตารางสต๊อก
+    "ALTER TABLE promotion_gifts ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN DEFAULT FALSE",
 ]
 
 def run_migrations():
