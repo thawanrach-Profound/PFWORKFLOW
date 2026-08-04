@@ -954,9 +954,11 @@
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label class="form-label">4. ร้านค้า / ผู้รับ</label>
-            <select id="dd-shop-input" class="form-input">
+            <select id="dd-shop-input" class="form-input" onchange="if(this.value) document.getElementById('dd-shop-custom').value=''">
               <option value="">-- เลือกร้านค้า (เลือกโปรโมชันก่อน) --</option>
             </select>
+            <input id="dd-shop-custom" class="form-input mt-1.5" placeholder="หรือพิมพ์ชื่อผู้รับเอง เช่น ลูกค้า, ชื่อบุคคลทั่วไป"
+              oninput="if(this.value) document.getElementById('dd-shop-input').value=''"/>
           </div>
           <div>
             <label class="form-label">5. โปรโมชัน (ถ้ามี)</label>
@@ -4995,9 +4997,15 @@ function onDdGiftChange() {
 async function onDdPromoChange() {
   const promoId = document.getElementById("dd-promo-select").value;
   const shopSel = document.getElementById("dd-shop-input");
+  const customInput = document.getElementById("dd-shop-custom");
   if (!shopSel) return;
   shopSel.innerHTML = "";
   _ddShops = [];
+  // ไม่ผูกโปรโมชัน = แจกของฝาก/แจกทั่วไป ให้พิมพ์ชื่อผู้รับเองได้ ไม่ต้องเลือกจากร้านในระบบ
+  if (customInput) {
+    customInput.classList.toggle("hidden", !!promoId);
+    if (promoId) customInput.value = "";
+  }
   if (promoId) {
     _ddShops = await fetch(`${API}/api/promotions/${promoId}/shops`).then(r=>r.json()).catch(()=>[]);
     if (_ddShops.length) {
@@ -5017,9 +5025,9 @@ async function onDdPromoChange() {
       shopSel.appendChild(opt);
     }
   } else {
-    // ไม่เลือกโปรโมชัน → แสดงร้านจาก shop_master
+    // ไม่เลือกโปรโมชัน → แสดงร้านจาก shop_master หรือพิมพ์ชื่อผู้รับเองด้านล่าง
     const def = document.createElement("option");
-    def.value = ""; def.textContent = "-- เลือกร้านค้า --";
+    def.value = ""; def.textContent = "-- เลือกร้านค้า (หรือพิมพ์ชื่อผู้รับด้านล่าง) --";
     shopSel.appendChild(def);
     (shopMasterData || []).forEach(s => {
       const opt = document.createElement("option");
@@ -5044,7 +5052,8 @@ async function submitDirectDispatch() {
   if (dispatchType === "trip_withdrawal" && !salesperson) { alert("กรุณาระบุชื่อเซล/ผู้เบิก"); return; }
 
   const shopVal = document.getElementById("dd-shop-input")?.value?.trim() || "";
-  let promoShopId = null, shopName = shopVal || null;
+  const customRecipient = document.getElementById("dd-shop-custom")?.value?.trim() || "";
+  let promoShopId = null, shopName = shopVal || customRecipient || null;
   if (shopVal.startsWith("ps:")) {
     promoShopId = parseInt(shopVal.slice(3));
     const ps = _ddShops.find(s => s.shop_id === promoShopId);
@@ -5083,6 +5092,8 @@ function resetDirectDispatch() {
   if (promoSel) promoSel.value = "";
   if (shopSel) shopSel.selectedIndex = 0;
   if (giftSel) giftSel.value = "";
+  const customEl = document.getElementById("dd-shop-custom");
+  if (customEl) { customEl.value = ""; customEl.classList.remove("hidden"); }
   const badge = document.getElementById("dd-gift-stock-badge");
   if (badge) badge.textContent = "";
   const qty = document.getElementById("dd-qty");
