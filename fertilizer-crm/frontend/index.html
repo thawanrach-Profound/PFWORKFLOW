@@ -4937,13 +4937,21 @@ function populateDdShopDatalist() {
 }
 
 let _ddCustomers = [];
+// รวมรายชื่อจาก Master ร้านค้า (156 ร้าน) + ตารางลูกค้า มาแนะนำในช่องพิมพ์ชื่อผู้รับเอง
 async function populateDdCustomerDatalist() {
   const dl = document.getElementById("dd-customer-datalist");
   if (!dl) return;
+  if (!shopMasterData.length) {
+    shopMasterData = await fetch(`${API}/api/shops`).then(r=>r.json()).catch(()=>[]);
+  }
   if (!_ddCustomers.length) {
     _ddCustomers = await fetch(`${API}/api/customers`).then(r=>r.json()).catch(()=>[]);
   }
-  dl.innerHTML = _ddCustomers.map(c => `<option value="${c.company_name}">`).join("");
+  const names = new Set([
+    ...shopMasterData.map(s => s.shop_name),
+    ..._ddCustomers.map(c => c.company_name),
+  ]);
+  dl.innerHTML = [...names].map(n => `<option value="${n}">`).join("");
 }
 
 function populateDdPromoSelect() {
