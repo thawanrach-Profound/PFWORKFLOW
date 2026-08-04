@@ -957,8 +957,9 @@
             <select id="dd-shop-input" class="form-input" onchange="if(this.value) document.getElementById('dd-shop-custom').value=''">
               <option value="">-- เลือกร้านค้า (เลือกโปรโมชันก่อน) --</option>
             </select>
-            <input id="dd-shop-custom" class="form-input mt-1.5" placeholder="หรือพิมพ์ชื่อผู้รับเอง เช่น ลูกค้า, ชื่อบุคคลทั่วไป"
+            <input id="dd-shop-custom" class="form-input mt-1.5" list="dd-customer-datalist" placeholder="หรือพิมพ์ชื่อผู้รับเอง / เลือกลูกค้าจากระบบ"
               oninput="if(this.value) document.getElementById('dd-shop-input').value=''"/>
+            <datalist id="dd-customer-datalist"></datalist>
           </div>
           <div>
             <label class="form-label">5. โปรโมชัน (ถ้ามี)</label>
@@ -4798,7 +4799,7 @@ function switchPromoTab(name) {
     if (t === name) { btn.classList.add("bg-green-600","text-white"); btn.classList.remove("text-gray-500","hover:bg-gray-100"); }
     else { btn.classList.remove("bg-green-600","text-white"); btn.classList.add("text-gray-500","hover:bg-gray-100"); }
   });
-  if (name === "dispatch") { populateDdPromoSelect(); loadAllGiftsForDispatch(); loadDirectHistory(); populateDdShopDatalist(); }
+  if (name === "dispatch") { populateDdPromoSelect(); loadAllGiftsForDispatch(); loadDirectHistory(); populateDdShopDatalist(); populateDdCustomerDatalist(); }
   if (name === "gift-stock") loadGiftStock();
   if (name === "region") loadRegionSummary();
   if (name === "shops") loadShopMaster();
@@ -4933,6 +4934,16 @@ function populateDdShopDatalist() {
     opt.value = s.shop_name;
     dl.appendChild(opt);
   });
+}
+
+let _ddCustomers = [];
+async function populateDdCustomerDatalist() {
+  const dl = document.getElementById("dd-customer-datalist");
+  if (!dl) return;
+  if (!_ddCustomers.length) {
+    _ddCustomers = await fetch(`${API}/api/customers`).then(r=>r.json()).catch(()=>[]);
+  }
+  dl.innerHTML = _ddCustomers.map(c => `<option value="${c.company_name}">`).join("");
 }
 
 function populateDdPromoSelect() {
