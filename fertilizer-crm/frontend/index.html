@@ -892,22 +892,31 @@
 
 <!-- ══════════════ TAB: PROMOTIONS ══════════════ -->
 <div id="tab-promotions" class="hidden">
+  <style>
+    /* โมเดิร์นไนซ์เฉพาะภายในเมนูส่งเสริมการขาย — ไม่กระทบเมนูอื่น */
+    #tab-promotions .ptc-card{background:#fff;border:1px solid #eef1f5;border-radius:1rem;box-shadow:0 1px 2px rgba(15,23,42,.04);transition:box-shadow .18s ease,transform .18s ease}
+    #tab-promotions .ptc-card:hover{box-shadow:0 10px 28px rgba(15,23,42,.08);transform:translateY(-2px)}
+    #tab-promotions .ptc-cta{background:linear-gradient(135deg,#fb923c,#ef4444);color:#fff;border:none;box-shadow:0 4px 14px rgba(239,68,68,.25);transition:filter .15s ease,transform .12s ease}
+    #tab-promotions .ptc-cta:hover{filter:brightness(1.06);transform:translateY(-1px)}
+    #tab-promotions .ptc-cta:active{transform:translateY(0)}
+    #tab-promotions .ptab-btn{border-radius:9999px;transition:background-color .15s ease,color .15s ease}
+  </style>
   <div class="mt-4 max-w-7xl mx-auto space-y-4">
 
     <!-- Header -->
-    <div class="flex flex-wrap gap-2 items-center justify-between bg-white rounded-xl shadow px-4 py-3">
+    <div class="ptc-card flex flex-wrap gap-2 items-center justify-between px-4 py-3">
       <h2 class="font-bold text-base">🎁 รายการส่งเสริมการขาย</h2>
-      <button onclick="showPromoForm()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg">+ เพิ่มรายการส่งเสริมการขาย</button>
+      <button onclick="showPromoForm()" class="ptc-cta text-xs font-semibold px-4 py-2 rounded-lg">+ เพิ่มรายการส่งเสริมการขาย</button>
     </div>
 
     <!-- Sub-tabs -->
-    <div class="flex gap-1 bg-white rounded-xl shadow px-4 py-2">
-      <button id="ptab-btn-promos" onclick="switchPromoTab('promos')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white">🎁 รายการโปรโมชัน</button>
-      <button id="ptab-btn-dispatch" onclick="switchPromoTab('dispatch')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📤 แจกของแจก</button>
-      <button id="ptab-btn-gift-stock" onclick="switchPromoTab('gift-stock')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📦 สต๊อกของแจก</button>
-      <button id="ptab-btn-region" onclick="switchPromoTab('region')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">🗺️ สรุปรายภาค</button>
-      <button id="ptab-btn-shops" onclick="switchPromoTab('shops')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">🏪 ร้านค้า</button>
-      <button id="ptab-btn-report" onclick="switchPromoTab('report')" class="ptab-btn px-4 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100">📊 รายงาน</button>
+    <div class="ptc-card flex gap-1 px-3 py-2">
+      <button id="ptab-btn-promos" onclick="switchPromoTab('promos')" class="ptab-btn px-4 py-1.5 text-xs font-semibold bg-green-600 text-white">🎁 รายการโปรโมชัน</button>
+      <button id="ptab-btn-dispatch" onclick="switchPromoTab('dispatch')" class="ptab-btn px-4 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100">📤 แจกของแจก</button>
+      <button id="ptab-btn-gift-stock" onclick="switchPromoTab('gift-stock')" class="ptab-btn px-4 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100">📦 สต๊อกของแจก</button>
+      <button id="ptab-btn-region" onclick="switchPromoTab('region')" class="ptab-btn px-4 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100">🗺️ สรุปรายภาค</button>
+      <button id="ptab-btn-shops" onclick="switchPromoTab('shops')" class="ptab-btn px-4 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100">🏪 ร้านค้า</button>
+      <button id="ptab-btn-report" onclick="switchPromoTab('report')" class="ptab-btn px-4 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100">📊 รายงาน</button>
     </div>
 
     <!-- SUB-TAB: รายการโปรโมชัน -->
@@ -931,7 +940,7 @@
     <div id="ptab-dispatch" class="hidden">
 
       <!-- Step 1: เลือกโปรโมชัน -->
-      <div class="bg-white rounded-xl shadow px-4 py-4 space-y-4">
+      <div class="ptc-card px-4 py-4 space-y-4">
         <h3 class="font-bold text-sm text-green-700">📤 บันทึกการแจกของแจก</h3>
 
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -1006,7 +1015,7 @@
       </div>
 
       <!-- ประวัติการแจก -->
-      <div class="bg-white rounded-xl shadow px-4 py-3 mt-3">
+      <div class="ptc-card px-4 py-3 mt-3">
         <div class="flex items-center justify-between mb-3">
           <h3 class="font-bold text-sm text-gray-700">📋 ประวัติการแจก</h3>
           <div class="flex gap-2 items-center flex-wrap">
@@ -1052,7 +1061,7 @@
 
     <!-- SUB-TAB: สต๊อกของแจก -->
     <div id="ptab-gift-stock" class="hidden">
-      <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-center mb-3">
+      <div class="ptc-card flex flex-wrap gap-3 items-center px-4 py-3 mb-3">
         <h3 class="font-bold text-sm text-indigo-700">📦 สต๊อกของแจกทั้งหมด</h3>
         <select id="gs-filter-promo" class="border rounded-lg px-3 py-1.5 text-xs ml-auto" onchange="loadGiftStock()">
           <option value="">โปรโมชัน: ทั้งหมด</option>
@@ -1060,7 +1069,7 @@
         <button onclick="loadGiftStock()" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg">🔄 รีเฟรช</button>
         <button onclick="showNewGiftModal()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">+ เพิ่มของแจกใหม่</button>
       </div>
-      <div class="bg-white rounded-xl shadow overflow-x-auto">
+      <div class="ptc-card overflow-x-auto">
         <table class="w-full text-xs">
           <thead class="bg-indigo-50 text-indigo-700">
             <tr>
@@ -1085,11 +1094,11 @@
 
     <!-- SUB-TAB: สรุปรายภาค -->
     <div id="ptab-region" class="hidden">
-      <div class="bg-white rounded-xl shadow px-4 py-3 flex gap-3 items-center mb-3">
+      <div class="ptc-card flex gap-3 items-center px-4 py-3 mb-3">
         <h3 class="font-bold text-sm text-purple-700">🗺️ ยอดจ่ายของแจกสะสมแยกตามภาค</h3>
         <button onclick="loadRegionSummary()" class="ml-auto bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg">🔄 รีเฟรช</button>
       </div>
-      <div class="bg-white rounded-xl shadow overflow-x-auto">
+      <div class="ptc-card overflow-x-auto">
         <table class="w-full text-xs" id="region-summary-table">
           <thead id="region-summary-thead" class="bg-purple-50 text-purple-700"></thead>
           <tbody id="region-summary-tbody"></tbody>
@@ -1100,7 +1109,7 @@
 
     <!-- SUB-TAB: ร้านค้า -->
     <div id="ptab-shops" class="hidden">
-      <div class="bg-white rounded-xl shadow px-4 py-3 flex flex-wrap gap-3 items-center mb-3">
+      <div class="ptc-card flex flex-wrap gap-3 items-center px-4 py-3 mb-3">
         <h3 class="font-bold text-sm">🏪 Master ร้านค้า</h3>
         <span id="shop-count-badge" class="text-xs text-gray-400"></span>
         <input id="shop-search" type="text" placeholder="🔍 ค้นหาร้าน / พนักงาน / เขต..." oninput="renderShopTable()"
@@ -1113,7 +1122,7 @@
         <button onclick="showShopForm()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">+ เพิ่มร้านค้า</button>
         <button onclick="seedShops()" id="btn-seed-shops" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg" title="นำเข้า 153 ร้านค้าจาก master list">📥 นำเข้า 153 ร้าน</button>
       </div>
-      <div class="bg-white rounded-xl shadow overflow-x-auto">
+      <div class="ptc-card overflow-x-auto">
         <table class="w-full text-xs">
           <thead class="bg-gray-50 text-gray-500">
             <tr>
@@ -1135,13 +1144,13 @@
 
     <!-- SUB-TAB: รายงาน / Dashboard -->
     <div id="ptab-report" class="hidden space-y-4">
-      <div class="bg-white rounded-xl shadow px-4 py-3 flex items-center justify-between">
+      <div class="ptc-card flex items-center justify-between px-4 py-3">
         <h3 class="font-bold text-sm text-gray-700">📊 Dashboard ส่งเสริมการขาย</h3>
         <button onclick="loadPromoReport()" class="bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-lg">🔄 รีเฟรช</button>
       </div>
 
       <!-- 1. Campaign ROI -->
-      <div class="bg-white rounded-xl shadow px-4 py-3">
+      <div class="ptc-card px-4 py-3">
         <h4 class="font-bold text-sm text-indigo-700 mb-1">1️⃣ Campaign ROI / Sales Impact</h4>
         <p class="text-xs text-gray-400 mb-3">เปรียบเทียบยอดขาย (ตัน) กับงบประมาณของแจกที่ใช้ในแต่ละแคมเปญ — ROI ยิ่งสูงยิ่งคุ้ม (ตัน ต่อ งบ 1,000 บาท)</p>
         <div class="overflow-x-auto">
@@ -1162,7 +1171,7 @@
       </div>
 
       <!-- 2. Top Performing Campaigns -->
-      <div class="bg-white rounded-xl shadow px-4 py-3">
+      <div class="ptc-card px-4 py-3">
         <h4 class="font-bold text-sm text-purple-700 mb-1">2️⃣ Top Performing Campaigns</h4>
         <p class="text-xs text-gray-400 mb-3">อันดับโปรโมชันที่ได้รับการตอบรับดีที่สุด วัดจากจำนวนร้านค้าเข้าร่วมและยอดสั่งซื้อ</p>
         <div id="report-top-campaigns" class="space-y-2"></div>
@@ -1170,7 +1179,7 @@
       </div>
 
       <!-- 3. Top Stores -->
-      <div class="bg-white rounded-xl shadow px-4 py-3">
+      <div class="ptc-card px-4 py-3">
         <h4 class="font-bold text-sm text-orange-700 mb-1">3️⃣ Top Stores Distribution</h4>
         <p class="text-xs text-gray-400 mb-3">ร้านค้า 10 อันดับแรกที่รับของแจกไปมากที่สุด (รวมทุกโปรโมชัน)</p>
         <div class="overflow-x-auto">
@@ -1191,7 +1200,7 @@
       </div>
 
       <!-- 4. Regional Heatmap -->
-      <div class="bg-white rounded-xl shadow px-4 py-3">
+      <div class="ptc-card px-4 py-3">
         <h4 class="font-bold text-sm text-green-700 mb-1">4️⃣ Regional Giveaway Heatmap</h4>
         <p class="text-xs text-gray-400 mb-3">เปรียบเทียบยอดแจกของแจกกับยอดขาย (ตัน) แยกตามภาค พร้อมงบที่ใช้ต่อยอดขาย 1 ตัน — ช่วยดูว่าภาคไหนใช้งบของแจกคุ้มค่ากับยอดขายที่ได้กลับมา</p>
         <div id="report-regional" class="space-y-4"></div>
@@ -4211,9 +4220,9 @@ async function loadPromotions() {
   const active = allPromos.filter(p=>p.is_active).length;
   const totalGifts = allPromos.reduce((s,p)=>s+(p.gifts?.length||0),0);
   summary.innerHTML = `
-    <div class="bg-white rounded-xl shadow p-4"><p class="text-gray-400 text-xs mb-1">โปรโมชันทั้งหมด</p><p class="text-2xl font-bold text-gray-800">${total}</p></div>
-    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-green-400"><p class="text-gray-400 text-xs mb-1">เปิดใช้งาน</p><p class="text-2xl font-bold text-green-600">${active}</p></div>
-    <div class="bg-white rounded-xl shadow p-4 border-l-4 border-purple-400"><p class="text-gray-400 text-xs mb-1">รายการของแจก</p><p class="text-2xl font-bold text-purple-600">${totalGifts}</p></div>`;
+    <div class="ptc-card p-4"><p class="text-gray-400 text-xs mb-1">โปรโมชันทั้งหมด</p><p class="text-2xl font-bold text-gray-800">${total}</p></div>
+    <div class="ptc-card p-4 border-l-4 border-green-400"><p class="text-gray-400 text-xs mb-1">เปิดใช้งาน</p><p class="text-2xl font-bold text-green-600">${active}</p></div>
+    <div class="ptc-card p-4 border-l-4 border-purple-400"><p class="text-gray-400 text-xs mb-1">รายการของแจก</p><p class="text-2xl font-bold text-purple-600">${totalGifts}</p></div>`;
 
   if (!visiblePromos.length) { list.innerHTML=""; empty.classList.remove("hidden"); return; }
   empty.classList.add("hidden");
@@ -4222,7 +4231,7 @@ async function loadPromotions() {
     const totalAlloc = (p.shops||[]).reduce((s,sh)=>s+parseFloat(sh.qty_allocated||0),0);
     const totalDispatched = (p.shops||[]).reduce((s,sh)=>s+parseFloat(sh.qty_dispatched||0),0);
     return `
-    <div class="bg-white rounded-xl shadow p-4">
+    <div class="ptc-card p-4">
       <div class="flex flex-wrap gap-2 items-start justify-between mb-3">
         <div>
           <span class="font-bold text-sm">${p.promo_name}</span>
