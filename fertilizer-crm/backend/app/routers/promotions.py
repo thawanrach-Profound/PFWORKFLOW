@@ -632,11 +632,13 @@ def list_direct_dispatches(
              .filter(PromoShop.promotion_id == promo_id)
     elif no_promo:
         # เฉพาะการแจกที่ไม่ผูกโปรโมชัน (ของฝากลูกค้า/แจกทั่วไป)
-        # op_id is null กรองรายการประวัติที่นำเข้าจาก Excel (ผูก order) ออกด้วย
+        # กรองรายการนำเข้าจาก Excel ออกทั้งแบบผูก order (op_id) และแบบไม่ผูก (ดูจากหมายเหตุ)
+        from sqlalchemy import or_
         q = q.filter(
             GiftDispatch.promo_shop_id.is_(None),
             GiftDispatch.op_id.is_(None),
             GiftDispatch.dispatch_type != "receive",
+            or_(GiftDispatch.notes.is_(None), ~GiftDispatch.notes.ilike("%นำเข้าจาก Excel%")),
         )
     if gift_id:
         q = q.filter(GiftDispatch.gift_id == gift_id)
