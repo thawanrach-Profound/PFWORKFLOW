@@ -638,7 +638,7 @@ def list_direct_dispatches(
             GiftDispatch.promo_shop_id.is_(None),
             GiftDispatch.op_id.is_(None),
             GiftDispatch.dispatch_type != "receive",
-            or_(GiftDispatch.notes.is_(None), ~GiftDispatch.notes.ilike("%นำเข้าจาก Excel%")),
+            or_(GiftDispatch.dispatched_by.is_(None), ~GiftDispatch.dispatched_by.ilike("%นำเข้าจาก Excel%")),
         )
     if gift_id:
         q = q.filter(GiftDispatch.gift_id == gift_id)
