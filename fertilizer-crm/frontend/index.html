@@ -960,6 +960,14 @@
           </div>
         </div>
 
+        <!-- ของแจกเพิ่มเติม (เฉพาะแจกแบบไม่ระบุโปรโมชัน) -->
+        <div id="dd-extra-gifts-section">
+          <div id="dd-extra-gifts" class="space-y-2"></div>
+          <button type="button" onclick="addDdExtraGiftRow()" class="text-xs text-purple-600 font-semibold mt-1.5">
+            + เพิ่มของแจกอีกรายการ <span class="text-gray-400 font-normal">(แจกหลายรายการได้เมื่อไม่ระบุโปรโมชัน)</span>
+          </button>
+        </div>
+
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label class="form-label">4. ร้านค้า / ผู้รับ</label>
@@ -5003,6 +5011,38 @@ async function loadAllGiftsForDispatch() {
   if (cur) giftSel.value = cur;
 }
 
+// ── ของแจกหลายรายการ (โหมดไม่ระบุโปรโมชัน) ──
+let _ddExtraSeq = 0;
+function _ddGiftOptionsHtml() {
+  return '<option value="">-- เลือกของแจก --</option>' + _allGiftStock.map(g => {
+    const stock = parseFloat(g.stock_qty);
+    const stockLabel = stock <= 0 ? "⛔หมด" : `Stock: ${g.stock_qty}`;
+    return `<option value="${g.gift_id}" ${stock <= 0 ? 'style="color:#aaa"' : ''}>${g.gift_name} (${g.unit}) [${stockLabel}]</option>`;
+  }).join("");
+}
+
+function addDdExtraGiftRow() {
+  if (document.getElementById("dd-promo-select")?.value) {
+    alert("การแจกหลายรายการใช้ได้เฉพาะกรณีไม่ระบุโปรโมชัน");
+    return;
+  }
+  _ddExtraSeq++;
+  const id = _ddExtraSeq;
+  const div = document.createElement("div");
+  div.id = `ddxg-${id}`;
+  div.className = "flex gap-2 items-center";
+  div.innerHTML = `
+    <select class="form-input flex-1 ddxg-gift">${_ddGiftOptionsHtml()}</select>
+    <input type="number" step="1" min="1" class="form-input w-24 text-right ddxg-qty" placeholder="จำนวน"/>
+    <button type="button" onclick="document.getElementById('ddxg-${id}').remove()" class="text-red-400 hover:text-red-600 text-sm">✕</button>`;
+  document.getElementById("dd-extra-gifts").appendChild(div);
+}
+
+function clearDdExtraGiftRows() {
+  const wrap = document.getElementById("dd-extra-gifts");
+  if (wrap) wrap.innerHTML = "";
+}
+
 function onDdGiftChange() {
   const giftId = parseInt(document.getElementById("dd-gift-select").value);
   const badge = document.getElementById("dd-gift-stock-badge");
@@ -5033,6 +5073,12 @@ async function onDdPromoChange() {
   if (customInput) {
     customInput.classList.toggle("hidden", !!promoId);
     if (promoId) customInput.value = "";
+  }
+  // แจกหลายรายการได้เฉพาะโหมดไม่ระบุโปรโมชัน — เลือกโปรโมชันเมื่อไหร่ ซ่อนและล้างแถวเพิ่มเติม
+  const extraSection = document.getElementById("dd-extra-gifts-section");
+  if (extraSection) {
+    extraSection.classList.toggle("hidden", !!promoId);
+    if (promoId) clearDdExtraGiftRows();
   }
   if (promoId) {
     _ddShops = await fetch(`${API}/api/promotions/${promoId}/shops`).then(r=>r.json()).catch(()=>[]);
@@ -5088,29 +5134,63 @@ async function submitDirectDispatch() {
     shopName = ps ? ps.shop_name : null;
   }
 
-  const body = {
-    gift_id: giftId,
+  // รวมรายการของแจก: รายการหลัก + แถวเพิ่มเติม (แถวเพิ่มเติมมีได้เฉพาะโหมดไม่ระบุโปรโมชัน)
+  const items = [{ gift_id: giftId, qty }];
+  const extraRows = document.querySelectorAll("#dd-extra-gifts [id^='ddxg-']");
+  for (const row of extraRows) {
+    const gId = parseInt(row.querySelector(".ddxg-gift").value);
+    const gQty = parseFloat(row.querySelector(".ddxg-qty").value);
+    if (!gId && !gQty) continue; // แถวว่าง ข้ามไป
+    if (!gId) { alert("กรุณาเลือกของแจกในรายการเพิ่มเติมให้ครบ"); return; }
+    if (!gQty || gQty <= 0) { alert("กรุณาระบุจำนวนของแจกในรายการเพิ่มเติมให้ครบ"); return; }
+    items.push({ gift_id: gId, qty: gQty });
+  }
+  // กันเลือกของแจกซ้ำรายการเดียวกันสองแถว
+  const ids = items.map(i => i.gift_id);
+  if (new Set(ids).size !== ids.length) { alert("มีของแจกซ้ำกันมากกว่าหนึ่งแถว กรุณารวมจำนวนเป็นแถวเดียว"); return; }
+  // ตรวจ stock ฝั่งหน้าเว็บก่อนส่ง (backend ตรวจซ้ำอีกชั้น)
+  for (const it of items) {
+    const g = _allGiftStock.find(x => x.gift_id === it.gift_id);
+    if (g && parseFloat(g.stock_qty) < it.qty) {
+      alert(`❌ Stock ของแจก '${g.gift_name}' ไม่พอ (คงเหลือ ${g.stock_qty} ${g.unit})`); return;
+    }
+  }
+
+  const baseBody = {
     promo_shop_id: promoShopId,
     shop_name: shopName,
     dispatch_date: date,
-    qty_dispatched: qty,
     dispatch_type: dispatchType,
     dispatched_by: document.getElementById("dd-by").value||null,
     salesperson_name: salesperson,
     notes: document.getElementById("dd-notes").value||null,
   };
 
-  try {
-    const res = await fetch(`${API}/api/promotions/dispatches/direct`, {
-      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
-    });
-    if (!res.ok) { const err=await res.json(); throw new Error(err.detail||"เกิดข้อผิดพลาด"); }
-    alert("✅ บันทึกการแจกเรียบร้อย");
+  // ส่งทีละรายการ — ถ้ารายการไหนพลาด รายงานแยกชัดเจน (รายการที่สำเร็จก่อนหน้าถูกตัด stock แล้ว)
+  const okItems = [], failItems = [];
+  for (const it of items) {
+    try {
+      const res = await fetch(`${API}/api/promotions/dispatches/direct`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ ...baseBody, gift_id: it.gift_id, qty_dispatched: it.qty })
+      });
+      if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.detail||`HTTP ${res.status}`); }
+      okItems.push(it);
+    } catch(err) {
+      const g = _allGiftStock.find(x => x.gift_id === it.gift_id);
+      failItems.push(`${g?.gift_name||("ID "+it.gift_id)}: ${err.message}`);
+    }
+  }
+
+  if (!failItems.length) {
+    alert(items.length > 1 ? `✅ บันทึกการแจกเรียบร้อย ${items.length} รายการ` : "✅ บันทึกการแจกเรียบร้อย");
     resetDirectDispatch();
-    loadAllGiftsForDispatch();
-    loadDirectHistory();
-    loadPromotions();
-  } catch(err) { alert("❌ "+err.message); }
+  } else {
+    alert(`⚠️ สำเร็จ ${okItems.length} รายการ / ไม่สำเร็จ ${failItems.length} รายการ:\n- ${failItems.join("\n- ")}\n\nรายการที่สำเร็จถูกตัด stock แล้ว รายการที่พลาดยังไม่ถูกบันทึก`);
+  }
+  loadAllGiftsForDispatch();
+  loadDirectHistory();
+  loadPromotions();
 }
 
 function resetDirectDispatch() {
@@ -5122,6 +5202,9 @@ function resetDirectDispatch() {
   if (giftSel) giftSel.value = "";
   const customEl = document.getElementById("dd-shop-custom");
   if (customEl) { customEl.value = ""; customEl.classList.remove("hidden"); }
+  clearDdExtraGiftRows();
+  const extraSection = document.getElementById("dd-extra-gifts-section");
+  if (extraSection) extraSection.classList.remove("hidden");
   const badge = document.getElementById("dd-gift-stock-badge");
   if (badge) badge.textContent = "";
   const qty = document.getElementById("dd-qty");
