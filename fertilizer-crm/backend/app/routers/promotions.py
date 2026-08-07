@@ -616,6 +616,7 @@ def direct_dispatch(payload: DirectDispatchCreate, db: Session = Depends(get_db)
 @router.get("/dispatches/direct", response_model=list[dict])
 def list_direct_dispatches(
     promo_id: int = None,
+    no_promo: bool = False,
     gift_id: int = None,
     dispatch_type: str = None,
     shop: str = None,
@@ -629,6 +630,9 @@ def list_direct_dispatches(
     if promo_id:
         q = q.join(PromoShop, GiftDispatch.promo_shop_id == PromoShop.shop_id)\
              .filter(PromoShop.promotion_id == promo_id)
+    elif no_promo:
+        # เฉพาะการแจกที่ไม่ผูกโปรโมชัน (ของฝากลูกค้า/แจกทั่วไป) — ไม่รวมรายการรับเข้าสต๊อก
+        q = q.filter(GiftDispatch.promo_shop_id.is_(None), GiftDispatch.dispatch_type != "receive")
     if gift_id:
         q = q.filter(GiftDispatch.gift_id == gift_id)
     if dispatch_type:

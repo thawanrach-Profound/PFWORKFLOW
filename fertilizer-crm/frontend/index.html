@@ -4982,6 +4982,9 @@ function populateDdPromoSelect() {
     if (!sel) return;
     const cur = sel.value;
     sel.innerHTML = `<option value="">-- ${id==="dd-promo-select"?"ไม่ระบุโปรโมชัน":"โปรโมชัน: ทั้งหมด"} --</option>`;
+    if (id === "dd-history-promo") {
+      sel.innerHTML += `<option value="none">🎈 ไม่ระบุโปรโมชัน (แจกทั่วไป)</option>`;
+    }
     promoData.forEach(p => {
       const opt = document.createElement("option");
       opt.value = p.promotion_id;
@@ -5242,7 +5245,8 @@ async function loadDirectHistory() {
   const dateFrom = document.getElementById("dd-history-from")?.value || "";
   const dateTo = document.getElementById("dd-history-to")?.value || "";
   let url = `${API}/api/promotions/dispatches/direct?limit=100`;
-  if (promoId) url += `&promo_id=${promoId}`;
+  if (promoId === "none") url += `&no_promo=true`;
+  else if (promoId) url += `&promo_id=${promoId}`;
   if (giftId) url += `&gift_id=${giftId}`;
   if (dType) url += `&dispatch_type=${dType}`;
   if (shopQ) url += `&shop=${encodeURIComponent(shopQ)}`;
