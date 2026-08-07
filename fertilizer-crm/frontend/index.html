@@ -4816,7 +4816,7 @@ function switchPromoTab(name) {
     if (t === name) { btn.classList.add("bg-green-600","text-white"); btn.classList.remove("text-gray-500","hover:bg-gray-100"); }
     else { btn.classList.remove("bg-green-600","text-white"); btn.classList.add("text-gray-500","hover:bg-gray-100"); }
   });
-  if (name === "dispatch") { populateDdPromoSelect(); loadAllGiftsForDispatch(); loadDirectHistory(); populateDdShopDatalist(); populateDdCustomerDatalist(); }
+  if (name === "dispatch") { populateDdPromoSelect(); loadAllGiftsForDispatch(); loadDirectHistory(); populateDdShopDatalist(); populateDdCustomerDatalist(); onDdPromoChange(); }
   if (name === "gift-stock") loadGiftStock();
   if (name === "region") loadRegionSummary();
   if (name === "shops") loadShopMaster();
@@ -5090,10 +5090,11 @@ async function onDdPromoChange() {
       def.value = ""; def.textContent = `-- เลือกร้านค้า (${_ddShops.length} ร้าน) --`;
       shopSel.appendChild(def);
       _ddShops.forEach(s => {
-        const remaining = parseFloat(s.qty_allocated) - parseFloat(s.qty_dispatched);
+        const alloc = parseFloat(s.qty_allocated), used = parseFloat(s.qty_dispatched);
+        const remaining = alloc - used;
         const opt = document.createElement("option");
         opt.value = "ps:" + s.shop_id;
-        opt.textContent = `${s.shop_name}${s.region ? " ("+s.region+")" : ""} [สิทธิ์: ${remaining}]`;
+        opt.textContent = `${s.shop_name}${s.region ? " ("+s.region+")" : ""} [แจกแล้ว ${used}/${alloc} · เหลือ ${remaining}]`;
         shopSel.appendChild(opt);
       });
     } else {
