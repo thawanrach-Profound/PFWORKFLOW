@@ -631,8 +631,13 @@ def list_direct_dispatches(
         q = q.join(PromoShop, GiftDispatch.promo_shop_id == PromoShop.shop_id)\
              .filter(PromoShop.promotion_id == promo_id)
     elif no_promo:
-        # เฉพาะการแจกที่ไม่ผูกโปรโมชัน (ของฝากลูกค้า/แจกทั่วไป) — ไม่รวมรายการรับเข้าสต๊อก
-        q = q.filter(GiftDispatch.promo_shop_id.is_(None), GiftDispatch.dispatch_type != "receive")
+        # เฉพาะการแจกที่ไม่ผูกโปรโมชัน (ของฝากลูกค้า/แจกทั่วไป)
+        # op_id is null กรองรายการประวัติที่นำเข้าจาก Excel (ผูก order) ออกด้วย
+        q = q.filter(
+            GiftDispatch.promo_shop_id.is_(None),
+            GiftDispatch.op_id.is_(None),
+            GiftDispatch.dispatch_type != "receive",
+        )
     if gift_id:
         q = q.filter(GiftDispatch.gift_id == gift_id)
     if dispatch_type:
